@@ -245,7 +245,7 @@ namespace ExtractCLUT.Helpers
       (Math.Abs(((int)((uint)c1 >> 24) - (int)((uint)c2 >> 24))) > trA));
     }
 
-    public static unsafe Bitmap Scale4(Bitmap bitmap, uint trY = 48, uint trU = 7, uint trV = 6, uint trA = 0, bool wrapX = false, bool wrapY = false)
+    public static unsafe Bitmap Scale4(this Bitmap bitmap, uint trY = 48, uint trU = 7, uint trV = 6, uint trA = 0, bool wrapX = false, bool wrapY = false)
     {
 
       int Xres = bitmap.Width;

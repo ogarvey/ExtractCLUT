@@ -145,7 +145,7 @@ public static class FileHelpers
               continue;
             }
             // Remove the separator sequence from the end of the current chunk
-            
+
             if (removeTrailing0x00)
             {
               // Remove trailing 0x00 bytes
@@ -206,7 +206,7 @@ public static class FileHelpers
   {
     var outputPath = Path.Combine(path, $@"NewRecords/{Path.GetFileNameWithoutExtension(file)}/output/stripped");
     Directory.CreateDirectory(outputPath);
-    var strippedFile = Path.Combine(outputPath, file + "_stripped.bin");
+    var strippedFile = Path.Combine(outputPath, Path.GetFileNameWithoutExtension(file) + "_stripped.bin");
     var strippedSectors = sectors.Select(x =>
     {
       if (x.IsData)
@@ -233,7 +233,199 @@ public static class FileHelpers
     File.WriteAllBytes(strippedFile, strippedData);
   }
 
+  public static void ParseMonoAudioSectorsByEOR(List<SectorInfo> sectors, string baseDir, string filename)
+  {
+    var outputPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\audio-mono-eor\output";
+    Directory.CreateDirectory(outputPath);
+
+    Dictionary<string, List<byte[]>> byteArrays = new Dictionary<string, List<byte[]>>();
+    List<byte[]> recordArray = new List<byte[]>();
+
+    foreach (var (sector, i) in sectors.WithIndex())
+    {
+      var chunk = sector.Data.Skip(24).Take(2304).ToArray();
+      if (sector.IsEmptySector)
+        continue;
+
+      if (!sector.IsAudio)
+        continue;
+
+      if (!sector.IsMono)
+        continue;
+
+      var bps = sector.BitsPerSampleString.Replace(" ", "_");
+      var sampleFreq = sector.SamplingFrequencyString.Replace(" ", "_");
+      var channel = sector.Channel;
+      var key = $"{sector.FileNumber}_{channel}_{bps}_{sampleFreq}";
+
+      if (!byteArrays.ContainsKey(key))
+      {
+        byteArrays[key] = new List<byte[]>();
+      }
+      byteArrays[key].Add(chunk);
+      if (sector.IsEOR)
+      {
+        foreach (var baKey in byteArrays.Keys)
+        {
+          byte[] recordData = byteArrays[baKey].SelectMany(a => a).ToArray();
+          recordArray.Add(recordData);
+          // write record data to file
+          var recordFileName = Path.GetFileNameWithoutExtension(filename) + $"_mono_a_{baKey}_{recordArray.Count}.bin";
+
+          var recordFilePath = Path.Combine(outputPath, recordFileName);
+          File.WriteAllBytes(recordFilePath, recordData);
+        }
+        byteArrays.Clear();
+      }
+    }
+  }
+
+  public static void ParseMonoAudioSectorsByChannel(List<SectorInfo> sectors, string baseDir, string filename)
+  {
+    var outputPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\audio-mono-channel";
+    Directory.CreateDirectory(outputPath);
+
+    Dictionary<byte, List<byte[]>> byteArrays = new Dictionary<byte, List<byte[]>>();
+    List<byte[]> recordArray = new List<byte[]>();
+
+    foreach (var (sector, i) in sectors.WithIndex())
+    {
+      var chunk = sector.Data.Skip(24).Take(2304).ToArray();
+
+      if (!byteArrays.ContainsKey(sector.Channel))
+      {
+        byteArrays[sector.Channel] = new List<byte[]>();
+      }
+      byteArrays[sector.Channel].Add(chunk);
+    }
+    foreach (var channel in byteArrays.Keys)
+    {
+      byte[] recordData = byteArrays[channel].SelectMany(a => a).ToArray();
+      recordArray.Add(recordData);
+      // write record data to file
+      var recordFileName = Path.GetFileNameWithoutExtension(filename) + $"_a_{recordArray.Count}.bin";
+      var recordFilePath = Path.Combine(outputPath, recordFileName);
+      File.WriteAllBytes(recordFilePath, recordData);
+    }
+  }
+
+  public static void ParseStereoAudioSectors(List<SectorInfo> sectors, string baseDir, string filename)
+  {
+    var outputPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\audio-stereo-eor\output";
+    Directory.CreateDirectory(outputPath);
+
+    Dictionary<string, List<byte[]>> byteArrays = new Dictionary<string, List<byte[]>>();
+    List<byte[]> recordArray = new List<byte[]>();
+
+    foreach (var (sector, i) in sectors.WithIndex())
+    {
+      var chunk = sector.Data.Skip(24).Take(2304).ToArray();
+      if (sector.IsEmptySector)
+        continue;
+
+      if (!sector.IsAudio)
+        continue;
+
+      if (sector.IsMono)
+        continue;
+
+      var bps = sector.BitsPerSampleString.Replace(" ", "_");
+      var sampleFreq = sector.SamplingFrequencyString.Replace(" ", "_");
+      var channel = sector.Channel;
+      var key = $"{sector.FileNumber}_{channel}_{bps}_{sampleFreq}";
+
+      if (!byteArrays.ContainsKey(key))
+      {
+        byteArrays[key] = new List<byte[]>();
+      }
+      byteArrays[key].Add(chunk);
+      if (sector.IsEOR)
+      {
+        foreach (var baKey in byteArrays.Keys)
+        {
+          byte[] recordData = byteArrays[baKey].SelectMany(a => a).ToArray();
+          recordArray.Add(recordData);
+          // write record data to file
+          var recordFileName = Path.GetFileNameWithoutExtension(filename) + $"_stereo_a_{baKey}_{recordArray.Count}.bin";
+
+          var recordFilePath = Path.Combine(outputPath, recordFileName);
+          File.WriteAllBytes(recordFilePath, recordData);
+        }
+        byteArrays.Clear();
+      }
+    }
+  }
+
+
+  public static void ParseStereoAudioSectorsByChannel(List<SectorInfo> sectors, string baseDir, string filename)
+  {
+    var outputPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\audio-stereo-channel\output";
+    Directory.CreateDirectory(outputPath);
+
+    Dictionary<byte, List<byte[]>> byteArrays = new Dictionary<byte, List<byte[]>>();
+    List<byte[]> recordArray = new List<byte[]>();
+
+    foreach (var (sector, i) in sectors.WithIndex())
+    {
+      var chunk = sector.Data.Skip(24).Take(2304).ToArray();
+
+      if (!byteArrays.ContainsKey(sector.Channel))
+      {
+        byteArrays[sector.Channel] = new List<byte[]>();
+      }
+      byteArrays[sector.Channel].Add(chunk);
+      if (sector.IsEOR)
+      {
+        foreach (var baKey in byteArrays.Keys)
+        {
+          byte[] recordData = byteArrays[baKey].SelectMany(a => a).ToArray();
+          recordArray.Add(recordData);
+          // write record data to file
+          var recordFileName = Path.GetFileNameWithoutExtension(filename) + $"_stereo_a_{recordArray.Count}.bin";
+          var recordFilePath = Path.Combine(outputPath, recordFileName);
+          File.WriteAllBytes(recordFilePath, recordData);
+        }
+        byteArrays.Clear();
+      }
+    }
+  }
   public static void ParseVideoSectors(List<SectorInfo> sectors, string baseDir, string filename)
+  {
+    var videoPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\video\output";
+    Directory.CreateDirectory(videoPath);
+
+    Dictionary<string, List<byte[]>> byteArrays = new Dictionary<string, List<byte[]>>();
+    List<byte[]> recordArray = new List<byte[]>();
+
+    foreach (var (sector, i) in sectors.WithIndex())
+    {
+      var chunk = sector.Data.Skip(24).Take(sector.IsForm2 ? 2324 : 2048).ToArray();
+      var channel = sector.Channel;
+      var imageType = sector.VideoString.Replace(" ", "_");
+      var imageRes = sector.ResolutionString.Replace(" ", "_");
+      var key = $"{sector.FileNumber}_{channel}_{imageType}_{imageRes}";
+
+      if (!byteArrays.ContainsKey(key))
+      {
+        byteArrays[key] = new List<byte[]>();
+      }
+      byteArrays[key].Add(chunk);
+      if (sector.IsEOR)
+      {
+        foreach (var baKey in byteArrays.Keys)
+        {
+          byte[] recordData = byteArrays[baKey].SelectMany(a => a).ToArray();
+        recordArray.Add(recordData);
+        // write record data to file
+        var recordFileName = $"{Path.GetFileNameWithoutExtension(filename)}_v_{baKey}_{recordArray.Count}.bin";
+        var recordFilePath = Path.Combine(videoPath, recordFileName);
+        File.WriteAllBytes(recordFilePath, recordData);
+        }
+        byteArrays.Clear();
+      }
+    }
+  }
+  public static void ParseVideoSectorsByEOR(List<SectorInfo> sectors, string baseDir, string filename)
   {
     var videoPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\video-eor\output";
     Directory.CreateDirectory(videoPath);
@@ -250,14 +442,13 @@ public static class FileHelpers
         byte[] recordData = byteArrays.SelectMany(a => a).ToArray();
         recordArray.Add(recordData);
         // write record data to file
-        var recordFileName = $"{filename}_v_{sector.VideoString}_{sector.ResolutionString}_{recordArray.Count}.bin";
+        var recordFileName = $"{Path.GetFileNameWithoutExtension(filename)}_v_{sector.VideoString}_{sector.ResolutionString}_{recordArray.Count}.bin";
         var recordFilePath = Path.Combine(videoPath, recordFileName);
         File.WriteAllBytes(recordFilePath, recordData);
         byteArrays.Clear();
       }
     }
   }
-
   public static void ParseDataSectors(List<SectorInfo> sectors, string baseDir, string filename)
   {
     var videoPath = $@"{baseDir}\NewRecords\{Path.GetFileNameWithoutExtension(filename)}\data-eor\output";
@@ -275,7 +466,7 @@ public static class FileHelpers
         byte[] recordData = byteArrays.SelectMany(a => a).ToArray();
         recordArray.Add(recordData);
         // write record data to file
-        var recordFileName = $"{filename}_d_{recordArray.Count}.bin";
+        var recordFileName = $"{Path.GetFileNameWithoutExtension(filename)}_d_{recordArray.Count}.bin";
         var recordFilePath = Path.Combine(videoPath, recordFileName);
         File.WriteAllBytes(recordFilePath, recordData);
         byteArrays.Clear();
@@ -310,7 +501,7 @@ public static class FileHelpers
         byte[] recordData = byteArrays.SelectMany(a => a).ToArray();
         recordArray.Add(recordData);
         // write record data to file
-        var recordFileName = $"{filename}_eor_{sector.SectorIndex}_{sector.OriginalOffset}_{recordArray.Count}.bin";
+        var recordFileName = $"{Path.GetFileNameWithoutExtension(filename)}_eor_{sector.SectorIndex}_{sector.OriginalOffset}_{recordArray.Count}.bin";
         var recordFilePath = Path.Combine(videoPath, recordFileName);
         File.WriteAllBytes(recordFilePath, recordData);
         byteArrays.Clear();
@@ -322,25 +513,24 @@ public static class FileHelpers
   {
     foreach (var (sector, i) in sectors.WithIndex())
     {
-      var sectorFileName = $"fi{sector.FileNumber}_ch{sector.Channel}";
-      if (sector.IsAudio) {
+      var sectorFileName = $"i{sector.SectorIndex}_ch{sector.Channel}";
+      if (sector.IsAudio)
+      {
         var audioType = sector.IsMono ? "Mono" : "Stereo";
         sectorFileName += $"_{audioType}";
       }
       if (sector.IsVideo) sectorFileName += $"_{sector.VideoString}";
-      sectorFileName += $"_{sector.SectorIndex}";
       if (sector.IsEOR) sectorFileName += $"_eor";
       if (sector.IsEOF) sectorFileName += $"_eof";
       if (sector.IsTrigger) sectorFileName += $"_trigger";
       if (sector.IsForm2) sectorFileName += $"_form2";
       if (sector.IsASCF) sectorFileName += $"_ascf";
-      if (sector.IsRTF) sectorFileName += $"_rtf";
 
-      if(sector.IsVideo)
+      if (sector.IsVideo)
       {
         sectorFileName += sector.HasEvenLines ? $"_even" : "_odd";
         sectorFileName += $".bin";
-        var sectorFilePath = Path.Combine(outputPath, "video");
+        var sectorFilePath = Path.Combine(outputPath, $"video/{sector.Channel}");
         Directory.CreateDirectory(sectorFilePath);
         sectorFilePath = Path.Combine(sectorFilePath, sectorFileName);
         File.WriteAllBytes(sectorFilePath, sector.Data.Skip(24).Take(sector.IsForm2 ? 2324 : 2048).ToArray());
@@ -348,16 +538,15 @@ public static class FileHelpers
       else if (sector.IsAudio)
       {
         sectorFileName += $".bin";
-        var sectorFilePath = Path.Combine(outputPath, "audio");
+        var sectorFilePath = Path.Combine(outputPath, $"audio/{sector.Channel}");
         Directory.CreateDirectory(sectorFilePath);
         sectorFilePath = Path.Combine(sectorFilePath, sectorFileName);
-        File.WriteAllBytes(sectorFilePath, sector.Data);
+        File.WriteAllBytes(sectorFilePath, sector.Data.Skip(24).Take(2304).ToArray());
       }
       else if (sector.IsData)
       {
-        sectorFileName += sector.IsVideo ? $"_v_{sector.VideoString}" : "";
-        sectorFileName += (sector.IsAudio && sector.IsMono ) ? "_a_Mono.bin" : sector.IsAudio ? "_a_Stereo.bin" : ".bin";
-        var sectorFilePath = Path.Combine(outputPath, "data");
+        sectorFileName += ".bin";
+        var sectorFilePath = Path.Combine(outputPath, $"data/{sector.Channel}");
         Directory.CreateDirectory(sectorFilePath);
         sectorFilePath = Path.Combine(sectorFilePath, sectorFileName);
         File.WriteAllBytes(sectorFilePath, sector.Data.Skip(24).Take(2048).ToArray());
@@ -377,5 +566,52 @@ public static class FileHelpers
       }
     }
     return sectors;
+  }
+
+  public static List<long> FindSequenceOffsets(string filePath, byte[] sequence)
+  {
+    if (sequence == null || sequence.Length == 0)
+      throw new ArgumentException("Sequence must not be null or empty.");
+
+    List<long> offsets = new List<long>();
+
+    using (FileStream stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+    {
+      byte[] buffer = new byte[sequence.Length]; // Buffer to hold bytes read from the file
+      int sequenceIndex = 0; // Index of the current byte in the sequence
+
+      while (stream.Position < stream.Length)
+      {
+        int b = stream.ReadByte();
+        if (b == -1) break; // End of file
+
+        if (b == sequence[sequenceIndex])
+        {
+          sequenceIndex++; // Move to the next byte in the sequence
+          if (sequenceIndex == sequence.Length)
+          {
+            // Complete sequence found, add offset to list
+            long sequenceStart = stream.Position - sequence.Length;
+            offsets.Add(sequenceStart);
+
+            // Reset sequence index and adjust position to continue search
+            sequenceIndex = 0;
+            stream.Position = sequenceStart + 1;
+          }
+        }
+        else
+        {
+          if (sequenceIndex > 0)
+          {
+            // Partial match found, but current byte does not continue the sequence
+            // Reset sequence index and adjust position to continue search
+            stream.Position -= sequenceIndex;
+            sequenceIndex = 0;
+          }
+        }
+      }
+    }
+
+    return offsets;
   }
 }

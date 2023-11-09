@@ -43,7 +43,7 @@ namespace ExtractCLUT.Games
       }
       return tempScreenBitmap;
     }
-    
+
     public static List<byte[]> ReadScreenTiles(byte[] data)
     {
       const int ChunkSize = 64;
@@ -96,7 +96,8 @@ namespace ExtractCLUT.Games
       }
       return screenBytes;
     }
-    public static byte[] GetScreenBytes(string binFile) {
+    public static byte[] GetScreenBytes(string binFile)
+    {
       var bytes = File.ReadAllBytes(binFile);
       var screenBytes = bytes.Take(0x1600).ToArray();
       return screenBytes;
@@ -119,8 +120,21 @@ namespace ExtractCLUT.Games
         }
       }
 
-      ConvertBitmapsToGif(images, @$"{outputFolder}\slides.gif");
-      ConvertBitmapsToGif(scaledImages, @$"{outputFolder}\slides4x.gif");
+      using (var gifWriter = new GifWriter(Path.Combine(outputFolder, "slides.gif"), 200, -1))
+      {
+        foreach (var image in images)
+        {
+          gifWriter.WriteFrame(image);
+        }
+      }
+
+      using (var gifWriter = new GifWriter(Path.Combine(outputFolder, "slidesX4.gif"), 400, -1))
+      {
+        foreach (var image in scaledImages)
+        {
+          gifWriter.WriteFrame(image);
+        }
+      }
 
     }
     public static List<byte[]> ReadSlideBytes(string filePath)
@@ -391,6 +405,31 @@ namespace ExtractCLUT.Games
       }
 
 
+    }
+
+    public static Bitmap CreateTileImage(byte[] tile, List<Color> palette)
+    {
+      if (palette.Count < 256)
+      {
+        var remaining = 256 - palette.Count;
+        for (int i = 0; i < remaining; i++)
+        {
+          palette.Add(Color.FromArgb(255, 0, 0, 0));
+        }
+      }
+      // Create an 8*8 bitmap from the tile bytes
+      // Each byte is an index into the palette
+      var tileImage = new Bitmap(8, 8);
+      for (int y = 0; y < 8; y++)
+      {
+        for (int x = 0; x < 8; x++)
+        {
+          var index = y * 8 + x;
+          var color = palette[tile[index]];
+          tileImage.SetPixel(x, y, color);
+        }
+      }
+      return tileImage;
     }
   }
 }

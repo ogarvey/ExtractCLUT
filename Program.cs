@@ -11,116 +11,6 @@ using ExtractCLUT.Model;
 using System.Drawing.Text;
 using static ExtractCLUT.Helpers.AudioHelper;
 
-// static void Rle7_AllBytes(byte[] dataRLE, List<Color> palette, int width, List<Bitmap> images)
-// {
-//   //initialize variables
-//   int nrRLEData = dataRLE.Count();
-//   byte[] dataDecoded = new byte[0x16800];
-//   int posX = 1;
-//   int outputIndex = 0;
-//   int inputIndex = 0;
-//   int initialIndex = 0;
-
-//   //decode RLE7
-//   while ((inputIndex < nrRLEData))
-//   {
-//     initialIndex = inputIndex;
-//     //get run count
-//     byte byte1 = @dataRLE[inputIndex++];
-//     if (inputIndex >= nrRLEData) { break; }
-//     if (byte1 >= 128)
-//     {
-//       //draw multiple times
-//       byte colorNr = (byte)(byte1 - 128);
-
-//       //get runlength
-//       byte rl = @dataRLE[inputIndex++];
-
-//       //draw x times
-//       for (int i = 0; i < rl; i++)
-//       {
-//         if (outputIndex >= dataDecoded.Length)
-//         {
-//           break;
-//         }
-//         var index = outputIndex++;
-//         if (index >= dataDecoded.Length)
-//         {
-//           break;
-//         }
-//         dataDecoded[index] = @colorNr;
-//         posX++;
-//       }
-
-//       //draw until end of line
-//       if (rl == 0)
-//       {
-//         while (posX <= width)
-//         {
-//           if (outputIndex >= dataDecoded.Length)
-//           {
-//             break;
-//           }
-//           dataDecoded[outputIndex++] = @colorNr;
-//           posX++;
-//         }
-//       }
-//     }
-//     else
-//     {
-//       //draw once
-//       dataDecoded[outputIndex++] = @byte1;
-//       posX++;
-//     }
-
-//     //reset x to 1 if end of line is reached
-//     if (posX >= width) { posX = 1; }
-//     if (outputIndex >= 0x16800)
-//     {
-//       var offsets = $"{initialIndex:X8}_{inputIndex:X8}";
-//       var image = ImageFormatHelper.GenerateRle7Image(palette, dataDecoded, width, outputIndex / width);
-//       images.Add(image);
-//       image.Save($@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\records\BurnCycle\video\output\Normal_6_{offsets}.png");
-//       File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\records\BurnCycle\video\output\bins\Normal_6_{offsets}.bin", dataDecoded);
-//       dataDecoded = new byte[0x16800];
-//       outputIndex = 0;
-//       posX = 1;
-//     }
-//   }
-//   /* int requiredSize = dataDecoded.Length - 1;
-//   while (dataDecoded[requiredSize] == 0x00)
-//   {
-//     requiredSize--;
-//   }
-//   byte[] dataDecoded2 = new byte[requiredSize + 1];
-//   Array.Copy(dataDecoded, dataDecoded2, requiredSize + 1); */
-//   //decode CLUT to bitmap
-//   //return dataDecoded2;
-// }
-
-/* var input = @"C:\Dev\Projects\Gaming\CD-i\Lords of the Rising Sun\records\RLV\video\RLV_v_1_0_RL7_Normal_91.bin";
-var output = @"C:\Dev\Projects\Gaming\CD-i\Lords of the Rising Sun\records\RLV\video\output\";
-var palette = ColorHelper.ReadPalette(File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Lords of the Rising Sun\records\RLV\data\cluts\RLV_91.clut"));
-
-var data = File.ReadAllBytes(input);
-
-var chunks = FileHelpers.SplitBinaryFileIntoChunks(input, new byte[] { 0x00, 0x00 }, true, true,0);
-var images = new List<Bitmap>();
-foreach (var (chunk, index) in chunks.WithIndex())
-{
-  var image = ImageFormatHelper.GenerateRle7Image(palette, chunk, 384, 240);
-  images.Add(image);
-}
-
-using (var gifWriter = new GifWriter($"{output}Normal_91.gif", 100, -1))
-{
-  foreach (var image in images)
-  {
-    gifWriter.WriteFrame(image);
-  }
-}
- */
-
 // var framesFile = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\video\space_v_1_0_QHY_Normal_3.bin";
 // var originalImage = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\video\space_v_1_0_QHY_Normal_2.bin";
 
@@ -134,23 +24,12 @@ using (var gifWriter = new GifWriter($"{output}Normal_91.gif", 100, -1))
 
 // Console.WriteLine($"Found file data: ");
 
-//EscapeFromCCHelper.ExtractDYUVs();
-
 // var luxor9 = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\luxor\data\luxor_d_9.bin";
 
 // var screen = LaserLordsHelper.GetScreenBytes(luxor9);
 
-// var paletteBytes = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\luxor\data\cluts\luxor_5.clut");
-
-// var palette = ColorHelper.ReadPalette(paletteBytes);
-
-// var datBytes = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\luxor\data\luxor_d_5.bin");
-
-// var tiles = LaserLordsHelper.ReadScreenTiles(datBytes);
-
 // var animationFrames = new List<Bitmap>();
 
-// var screenImage = LaserLordsHelper.CreateScreenImage(tiles, screen, palette);
 
 // animationFrames.Add(screenImage);
 
@@ -171,254 +50,150 @@ using (var gifWriter = new GifWriter($"{output}Normal_91.gif", 100, -1))
 //     gifWriter.WriteFrame(cockpitImage);
 //   }
 // }
-void ProcessAudioData(byte[] data, List<short> left, List<short> right, int bps, bool isMono)
-{
-  // Call DecodeAudioSector here with the data parameter, left, and right
-  // ...
-  try
-  {
-    DecodeAudioSector(data, left, right, bps == 8, !isMono);
-  }
-  catch
-  {
-
-    return;
-  }
-}
-
-bool ExportAudio(List<byte[]> chunks, string filename, bool isMono, uint frequency, int bps)
-{
-  List<short> left = new List<short>();
-  List<short> right = new List<short>();
-
-  foreach (var chunk in chunks)
-  {
-    ProcessAudioData(chunk, left, right, bps, isMono);
-  }
-
-  WAVHeader wavHeader = new WAVHeader
-  {
-    ChannelNumber = (ushort)(isMono ? 1 : 2), // Mono
-    Frequency = frequency, // 18.9 kHz
-  };
-  Directory.CreateDirectory(Path.GetDirectoryName(filename) + "\\wav_files");
-  var outputPath = Path.Combine(Path.GetDirectoryName(filename) + "\\wav_files", Path.GetFileNameWithoutExtension(filename) + ".wav");
-
-  using (FileStream fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
-  {
-    WriteWAV(fileStream, wavHeader, left, right);
-  }
-  return true;
-}
 
 var subHeaderOffset = 16;
 
-var baseDir = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords";
-var bcBaseDir = @"C:\Dev\Projects\Gaming\CD-i\Burn Cycle";
-var foeBaseDir = @"C:\Dev\Projects\Gaming\CD-i\LINK - The Faces of Evil";
-var marioBaseDir = @"C:\Dev\Projects\Gaming\CD-i\MARIO";
-var DataFile = Path.Combine(foeBaseDir, "TITLE.JBR");
+var baseDir = @"C:\Dev\Projects\Gaming\CD-i\LTFOE";
 
-var SectorInfos = new List<SectorInfo>();
-var Chunks = FileHelpers.SplitBinaryFileintoSectors(DataFile, 2352);
+var DataFile = Path.Combine(baseDir, "_lanim.rtr");
 
-foreach (var (chunk, index) in Chunks.WithIndex())
+byte[] sequenceToFind = new byte[] { 0x00, 0x00, 0x00, 0x80, 0xFF, 0xFF, 0xFF };
+List<long> offsets = FileHelpers.FindSequenceOffsets(DataFile, sequenceToFind);
+
+var bytes = File.ReadAllBytes(DataFile);
+
+foreach (var offset in offsets)
 {
-  if (chunk.Length < 2352)
-  {
-    continue;
-  }
-  var sectorInfo = new SectorInfo(DataFile, chunk)
-  {
-    SectorIndex = index,
-    OriginalOffset = index * 2352,
-    FileNumber = chunk[subHeaderOffset],
-    Channel = chunk[subHeaderOffset + 1],
-    SubMode = chunk[subHeaderOffset + 2],
-    CodingInformation = chunk[subHeaderOffset + 3]
-  };
-  SectorInfos.Add(sectorInfo);
+  var paletteBytes = bytes.Skip((int)offset + 0x4).Take(0x188).ToArray();
+  var palette = ColorHelper.ConvertBytesToRGB(paletteBytes);
+  var paletteBitmap = ColorHelper.CreateLabelledPalette(palette);
+  paletteBitmap.Save(Path.Combine(baseDir, $"NewRecords\\_lanim\\output\\palettes\\{offset}.png"));
 }
 
-var dataSectors = SectorInfos.Where(x => x.IsData && !x.IsEmptySector).ToList();
-var videoSectors = SectorInfos.Where(x => x.IsVideo && !x.IsEmptySector).ToList();
-var monoAudioSectors = SectorInfos.Where(x => x.IsAudio && x.IsMono && !x.IsEmptySector).ToList();
-var stereoAudioSectors = SectorInfos.Where(x => x.IsAudio && !x.IsMono && !x.IsEmptySector).ToList();
+// var files = Directory.GetFiles(baseDir, "*.rtr");
 
-//FileHelpers.StripCdiData(bcSectorInfos, bcBaseDir, "BurnCycle.rtr");
-FileHelpers.ParseDataSectors(dataSectors, marioBaseDir, "TITLE.JBR");
-FileHelpers.ParseVideoSectors(videoSectors, bcBaseDir, "TITLE.JBR");
-//FileHelpers.ParseSectorsByEOR(bcSectorInfos, bcBaseDir, "BurnCycle.rtr");
+// foreach (var file in files)
+// {
+//   var SectorInfos = new List<SectorInfo>();
+//   var Chunks = FileHelpers.SplitBinaryFileintoSectors(file, 2352);
 
-var outputDir = Path.Combine(marioBaseDir, $"individual/{Path.GetFileNameWithoutExtension(DataFile)}");
-Directory.CreateDirectory(outputDir);
-FileHelpers.WriteIndividualSectorsToFolder(SectorInfos, outputDir);
+//   foreach (var (chunk, index) in Chunks.WithIndex())
+//   {
+//     if (chunk.Length < 2352)
+//     {
+//       continue;
+//     }
+//     var sectorInfo = new SectorInfo(file, chunk)
+//     {
+//       SectorIndex = index,
+//       OriginalOffset = index * 2352,
+//       FileNumber = chunk[subHeaderOffset],
+//       Channel = chunk[subHeaderOffset + 1],
+//       SubMode = chunk[subHeaderOffset + 2],
+//       CodingInformation = chunk[subHeaderOffset + 3]
+//     };
+//     SectorInfos.Add(sectorInfo);
+//   }
+//   var dataSectors = SectorInfos.Where(x => x.IsData && !x.IsEmptySector).ToList();
+//   var videoSectors = SectorInfos.Where(x => x.IsVideo && !x.IsEmptySector).ToList();
+//   var monoAudioSectors = SectorInfos.Where(x => x.IsAudio && x.IsMono && !x.IsEmptySector).ToList();
+//   var stereoAudioSectors = SectorInfos.Where(x => x.IsAudio && !x.IsMono && !x.IsEmptySector).ToList();
 
-void OutputAudioData(List<IGrouping<AudioSectorGroupKey, SectorInfo>> audioGroup, bool isMono, bool includeFileNo)
-{
-  foreach (var group in audioGroup)
-  {
-    var channel = group.Key.Channel;
-    var bitsPerSample = group.Key.BitsPerSample;
-    var samplingFrequency = group.Key.SamplingFrequency;
-    var FileNumber = group.Key.FileNumber;
-    var bpsString = bitsPerSample == 0 ? "4 bits" : "8 bits";
-    var filename = "";
-    var audioSectors = group.ToList();
+  // FileHelpers.StripCdiData(SectorInfos, baseDir, file);
+  // FileHelpers.ParseDataSectors(dataSectors, baseDir, file);
+  // FileHelpers.ParseVideoSectors(SectorInfos, baseDir, file);
+  // FileHelpers.ParseMonoAudioSectorsByChannel(monoAudioSectors, baseDir, file);
+  // FileHelpers.ParseMonoAudioSectorsByEOR(monoAudioSectors, baseDir, file);
+  // FileHelpers.ParseStereoAudioSectors(stereoAudioSectors, baseDir, file);
+  // FileHelpers.ParseStereoAudioSectorsByChannel(stereoAudioSectors, baseDir, file);
+  // FileHelpers.ParseSectorsByEOR(SectorInfos, baseDir, file);
+//}
+//LaserLordsHelper.ExtractSlidesBin(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\slides\video\slides_v_1_16_DYUV_Normal_1.bin", @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\slides\video\output");
+// var sectorInfo = new SectorInfo("music.rtr", new byte[2352])
+// {
+//   SectorIndex = 0,
+//   OriginalOffset = 0,
+//   FileNumber = 1,
+//   Channel = 1,
+//   SubMode = 64,
+//   CodingInformation = 5
+// };
 
-    var audioData = new List<byte[]>();
+// Console.WriteLine($"SectorInfo: {sectorInfo}");
 
-    foreach (var sector in audioSectors)
-    {
-      filename = Path.GetFileNameWithoutExtension(sector.CdiFile);
-      var sectorData = sector.Data;
-      var sectorAudioData = sectorData.Skip(24).Take(2304).ToArray();
-      audioData.Add(sectorAudioData);
-    }
-    var audioType = isMono ? "mono-audio" : "stereo-audio";
-    var audioPath = $@"{baseDir}\NewRecords\{filename}\{audioType}\output";
+// BurnCycle.ExtractIndividualSectors(SectorInfos);
 
-    Directory.CreateDirectory(audioPath);
-
-    var audioFile = includeFileNo 
-      ? $@"{audioPath}\{FileNumber}\{channel}_{bpsString}_{samplingFrequency}.wav" 
-      : $@"{audioPath}\{channel}_{bpsString}_{samplingFrequency}.wav";
-
-    ExportAudio(audioData, audioFile, false, (uint)samplingFrequency, bitsPerSample);
-  }
-}
-
-List<IGrouping<AudioSectorGroupKey, SectorInfo>> OrderAndGroupAudioSectors(List<SectorInfo> sectors, bool includeFileNo)
-{
-  if (!includeFileNo)
-  {
-    var orderedMonoAudioSectors = sectors
-    .OrderBy(x => x.Channel)
-    .ThenBy(x => x.BitsPerSample)
-    .ThenBy(x => x.SamplingFrequency)
-    .ThenBy(x => x.SectorIndex)
-    .ToList();
-
-    var eorSectors = orderedMonoAudioSectors.Where(x => x.IsEOR).ToList();
-
-    return orderedMonoAudioSectors
-      .GroupBy(x => new AudioSectorGroupKey() { Channel = x.Channel, BitsPerSample = x.BitsPerSample, SamplingFrequency = x.SamplingFrequencyValue })
-      .ToList();
-  }
-  else
-  {
-    var orderedMonoAudioSectors = sectors
-    .OrderBy(x => x.FileNumber)
-    .ThenBy(x => x.Channel)
-    .ThenBy(x => x.BitsPerSample)
-    .ThenBy(x => x.SamplingFrequency)
-    .ThenBy(x => x.SectorIndex)
-    .ToList();
-
-    return orderedMonoAudioSectors
-      .GroupBy(x => new AudioSectorGroupKey() { FileNumber = x.FileNumber, Channel = x.Channel, BitsPerSample = x.BitsPerSample, SamplingFrequency = x.SamplingFrequencyValue })
-      .ToList();
-  }
-}
-
-void OrderAndGroupVideoSectors(List<SectorInfo> sectors, bool includeFileNo)
-{
-  if (!includeFileNo)
-  {
-    var orderedVideoSectors = sectors
-    .OrderBy(x => x.Channel)
-    .ThenBy(x => x.Coding)
-    .ThenBy(x => x.Resolution)
-    .ThenBy(x => x.SectorIndex)
-    .ToList();
-
-    var eorSectors = orderedVideoSectors.Where(x => x.IsEOR).ToList();
-
-    var grouped = orderedVideoSectors
-      .GroupBy(x => new { x.Channel, x.VideoString, x.ResolutionString })
-      .ToList();
-    
-    foreach (var group in grouped)
-    {
-      var channel = group.Key.Channel;
-      var videoType = group.Key.VideoString;
-      var resolution = group.Key.ResolutionString;
-      var filename = "";
-
-      var videoData = new List<byte[]>();
-
-      foreach (var sector in group)
-      {
-        filename = Path.GetFileNameWithoutExtension(sector.CdiFile);
-        var sectorData = sector.Data;
-        var sectorVideoData = sectorData.Skip(24).Take(sector.IsForm2 ? 2324 : 2048).ToArray();
-        videoData.Add(sectorVideoData);
-      }
-      var videoPath = $@"{baseDir}\NewRecords\{filename}\video\output";
-
-      Directory.CreateDirectory(videoPath);
-
-      var videoFile = $@"{videoPath}\{channel}_{videoType}_{resolution}.bin";
-
-      File.WriteAllBytes(videoFile, videoData.SelectMany(x => x).ToArray());
-    }
-  }
-  else
-  {
-    var orderedVideoSectors = sectors
-    .OrderBy(x => x.FileNumber)
-    .ThenBy(x => x.Channel)
-    .ThenBy(x => x.Coding)
-    .ThenBy(x => x.Resolution)
-    .ThenBy(x => x.SectorIndex)
-    .ToList();
-
-    var grouped = orderedVideoSectors
-      .GroupBy(x => new { x.FileNumber, x.Channel, x.VideoString, x.ResolutionString })
-      .ToList();
-
-    foreach (var group in grouped)
-    {
-      var FileNumber = group.Key.FileNumber;
-      var channel = group.Key.Channel;
-      var videoType = group.Key.VideoString;
-      var resolution = group.Key.ResolutionString;
-      var filename = "";
-
-      var videoData = new List<byte[]>();
-
-      foreach (var sector in group)
-      {
-        filename = Path.GetFileNameWithoutExtension(sector.CdiFile);
-        var sectorData = sector.Data;
-        var sectorVideoData = sectorData.Skip(24).Take(sector.IsForm2 ? 2324: 2048).ToArray();
-        videoData.Add(sectorVideoData);
-      }
-      var videoPath = $@"{baseDir}\NewRecords\{filename}\video-with-fileno\output";
-
-      Directory.CreateDirectory(videoPath);
-
-      var videoFile = $@"{videoPath}\{FileNumber}_{channel}_{videoType}_{resolution}.bin";
-
-      File.WriteAllBytes(videoFile, videoData.SelectMany(x => x).ToArray());
-    }
-  }
-}
+// var dataSectors = SectorInfos.Where(x => x.IsData && !x.IsEmptySector).ToList();
+// var videoSectors = SectorInfos.Where(x => x.IsVideo && !x.IsEmptySector).ToList();
+// var monoAudioSectors = SectorInfos.Where(x => x.IsAudio && x.IsMono && !x.IsEmptySector).ToList();
+// var stereoAudioSectors = SectorInfos.Where(x => x.IsAudio && !x.IsMono && !x.IsEmptySector).ToList();
 
 
+// FileHelpers.StripCdiData(SectorInfos, baseDir, DataFile);
+// FileHelpers.ParseDataSectors(dataSectors, baseDir, DataFile);
+// FileHelpers.ParseVideoSectors(videoSectors, baseDir, DataFile);
+// FileHelpers.ParseMonoAudioSectorsByChannel(SectorInfos, baseDir, DataFile);
+// FileHelpers.ParseMonoAudioSectorsByEOR(monoAudioSectors, baseDir, DataFile);
+// FileHelpers.ParseStereoAudioSectors(stereoAudioSectors, baseDir, DataFile);
+// FileHelpers.ParseSectorsByEOR(SectorInfos, baseDir, DataFile);
 
-internal class AudioSectorGroupKey
-{
-  public byte Channel { get; set; }
-  public int BitsPerSample { get; set; }
-  public int SamplingFrequency { get; set; }
-  public int? FileNumber { get; set; }
-}
+// var paletteFileBytes = File.ReadAllBytes(@"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos\data-eor\output\argos_d_5.bin");
 
-internal class VideoSectorGroupKey
-{
-  public byte Channel { get; set; }
-  public int? FileNumber { get; set; }
-  public string VideoType { get; set; }
-  public string Resolution { get; set; }
-}
+
+// var tileBytes = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\argos\data\argos_d_5.bin");
+// var palettOffset1 = 0x10004;
+// var paletteOffset2 = 0x10108;
+
+// var paletteBytes = tileBytes.Skip(palettOffset1).Take(0x100).ToArray();
+// paletteBytes = paletteBytes.Concat(tileBytes.Skip(paletteOffset2).Take(0x100)).ToArray();
+// var palette = ColorHelper.ReadPalette(paletteBytes);
+// // var screens = LaserLordsHelper.GetAllScreensBytes(@"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos\data-eor\output\");
+// var tiles = LaserLordsHelper.ReadScreenTiles(tileBytes);
+
+// foreach (var (tile, index) in tiles.WithIndex())
+// {
+//   var tileImage = LaserLordsHelper.CreateTileImage(tile, palette);
+//   tileImage.Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\argos\data\output\tiles\argos_{index}.png");
+// }
+
+// foreach (var (screen, index) in screens.WithIndex())
+// {
+//   var screenImage = LaserLordsHelper.CreateScreenImage(tiles, screen, palette);
+//   screenImage.Save($@"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos\data-eor\output\screens\argos_{index + 5}.png");
+// }
+
+
+// var audioFile = @"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos_v\audio-mono-channel\argos_v_a_16.bin";
+
+// var audioBytes = File.ReadAllBytes(audioFile);
+
+// OutputAudio(audioBytes, audioFile, 18900, 4, true);
+
+
+// var file = @"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\NewRecords\BurnCycle\eor\output\BurnCycle.rtr_eor_166873_392485296_1055.bin";
+
+// var fileBytes = File.ReadAllBytes(file);
+// var palette = File.ReadAllBytes(file).Skip(0x4a).Take(0x180).ToArray();
+// var colors = ColorHelper.ConvertBytesToRGB(palette);
+
+// var images = new List<Bitmap>();
+
+// var initialBytes = fileBytes.Skip(0x478c).Take(0x6cf0).ToArray();
+// var secondaryBytes = fileBytes.Skip(0xbd90).Take(0x9140).ToArray();
+// var tertiaryBytes = fileBytes.Skip(0x157e4).Take(0x6cf0).ToArray();
+// var quaternaryBytes = fileBytes.Skip(0x1cde8).ToArray();
+
+// var combinedBytes = initialBytes.Concat(secondaryBytes).ToArray();
+// combinedBytes = combinedBytes.Concat(tertiaryBytes).ToArray();
+// combinedBytes = combinedBytes.Concat(quaternaryBytes).ToArray();
+
+// ImageFormatHelper.Rle7_AllBytes(combinedBytes, colors, 384, images);
+
+// using (var gifWriter = new GifWriter(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\NewRecords\BurnCycle\eor\output\output\BurnCycle.rtr_eor_1055_loop_250ms.bin.gif", 250, 0))
+// {
+//   foreach (var image in images)
+//   {
+//     gifWriter.WriteFrame(image);
+//   }
+// }
+

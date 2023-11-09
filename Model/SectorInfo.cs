@@ -93,6 +93,11 @@ namespace ExtractCLUT.Model
 			1 => "8 bits",
 			_ => "Reserved"
 		};
-	}
+
+        public override string ToString()
+        {
+            return $"Sector: {SectorIndex} of {CdiFile}, d: {IsData}, v: {IsVideo}, a: {IsAudio}";
+        }
+    }
 
 }

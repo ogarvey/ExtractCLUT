@@ -14,6 +14,91 @@ namespace ExtractCLUT.Helpers
 {
   public static class ImageFormatHelper
   {
+  
+   public static void Rle7_AllBytes(byte[] dataRLE, List<Color> palette, int width, List<Bitmap> images)
+   {
+     //initialize variables
+     int nrRLEData = dataRLE.Count();
+     byte[] dataDecoded = new byte[0x16800];
+     int posX = 1;
+     int outputIndex = 0;
+     int inputIndex = 0;
+     int initialIndex;
+
+      //decode RLE7
+      while (inputIndex < nrRLEData)
+      {
+        initialIndex = inputIndex;
+        //get run count
+        byte byte1 = @dataRLE[inputIndex++];
+        if (inputIndex >= nrRLEData) { break; }
+        if (byte1 >= 128)
+        {
+          //draw multiple times
+          byte colorNr = (byte)(byte1 - 128);
+
+          //get runlength
+          byte rl = @dataRLE[inputIndex++];
+
+          //draw x times
+          for (int i = 0; i < rl; i++)
+          {
+            if (outputIndex >= dataDecoded.Length)
+            {
+              break;
+            }
+            var index = outputIndex++;
+            if (index >= dataDecoded.Length)
+            {
+              break;
+            }
+            dataDecoded[index] = @colorNr;
+            posX++;
+          }
+
+          //draw until end of line
+          if (rl == 0)
+          {
+            while (posX <= width)
+            {
+              if (outputIndex >= dataDecoded.Length)
+              {
+                break;
+              }
+              dataDecoded[outputIndex++] = @colorNr;
+              posX++;
+            }
+          }
+        }
+        else
+        {
+          //draw once
+          dataDecoded[outputIndex++] = @byte1;
+          posX++;
+        }
+
+        //reset x to 1 if end of line is reached
+        if (posX >= width) { posX = 1; }
+        if (outputIndex >= 0x16800)
+        {
+          var offsets = $"{initialIndex:X8}_{inputIndex:X8}";
+          var image = GenerateRle7Image(palette, dataDecoded, width, outputIndex / width, true);
+          images.Add(image);
+          dataDecoded = new byte[0x16800];
+          outputIndex = 0;
+          posX = 1;
+        }
+      }
+      /* int requiredSize = dataDecoded.Length - 1;
+      while (dataDecoded[requiredSize] == 0x00)
+      {
+        requiredSize--;
+      }
+      byte[] dataDecoded2 = new byte[requiredSize + 1];
+      Array.Copy(dataDecoded, dataDecoded2, requiredSize + 1); */
+      //decode CLUT to bitmap
+      //return dataDecoded2;
+    }
     private readonly static int[] dequantizer = { 0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255 };
 
     public static Bitmap DecodeDYUVImage(byte[] encodedData, int Width, int Height)
@@ -21,9 +106,9 @@ namespace ExtractCLUT.Helpers
       int encodedIndex = 0;                               //reader index
       int width = Width, height = Height;                      //output dimensions
       byte[] decodedImage = new byte[width * height * 4]; //decoded image array
-      uint initialY = 128;    //initial Y value (per line)
+      uint initialY = 16;    //initial Y value (per line)
       uint initialU = 128;    //initial U value (per line)
-      uint initialV = 16;    //initial V value (per line)
+      uint initialV = 128;    //initial V value (per line)
 
       //loop through all output lines
       for (int y = 0; y < height; y++)
@@ -36,7 +121,7 @@ namespace ExtractCLUT.Helpers
         //loop through each pixel in line
         for (int x = 0; x < width; x += 2)
         {
-          if(encodedIndex >= encodedData.Length || encodedIndex + 1 >= encodedData.Length)
+          if (encodedIndex >= encodedData.Length || encodedIndex + 1 >= encodedData.Length)
           {
             break;
           }
@@ -175,7 +260,7 @@ namespace ExtractCLUT.Helpers
         }
       }
       catch (System.Exception)
-      { 
+      {
         return clutImage;
       }
 
@@ -196,10 +281,10 @@ namespace ExtractCLUT.Helpers
       return rleBitmap;
     }
 
-    public static Bitmap GenerateRle7Image(List<Color> palette, byte[] rl7Bytes, int width, int height)
+    public static Bitmap GenerateRle7Image(List<Color> palette, byte[] rl7Bytes, int width, int height, bool useTransparency = false)
     {
       var rleImage = Rle7(rl7Bytes, width, height);
-      var rleBitmap = CreateImage(rleImage, palette, width, height);
+      var rleBitmap = CreateImage(rleImage, palette, width, height, useTransparency);
       return rleBitmap;
     }
 
@@ -271,7 +356,6 @@ namespace ExtractCLUT.Helpers
       //decode CLUT to bitmap
       return dataDecoded;
     }
-
 
     public static byte[] Rle7(byte[] dataRLE, int width, int height)
     {

@@ -52,3 +52,12 @@ By placing a trigger bit in every 5th sector, the application can be notified wh
 
 If a single runlength picture is greater in size than the allowed four sectors, it might have to be put into a different channel, thus allowing the application to put one or more of the sectors into an empty space where another image used less than 4
 sectors.
+
+### EOR Split
+
+When split by EOR file 5 contains logo, back to back frames
+file 6 contains philips logo starting at offset 0x478c has frame and a half in 6972 bytes (3 sectors)
+
+Offset 2 - Offset 1 = 0xAC7C
+
+Palette indicated by 0x8080 at around 0x40-0x50

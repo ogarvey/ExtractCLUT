@@ -1,4 +1,6 @@
 using System.Text;
+using System;
+using System.IO;
 
 namespace ExtractCLUT.Helpers
 {
@@ -13,6 +15,27 @@ namespace ExtractCLUT.Helpers
 		private static int lk1 = 0;
 		private static int rk1 = 0;
 
+		public static void OutputAudio(byte[] inputData, string inputFile, uint frequency, byte bps, bool isMono)
+		{
+			List<short> left = new List<short>();
+			List<short> right = new List<short>();
+
+			for (int i = 0; i < inputData.Length; i += 2304)
+			{
+				byte[] chunk = new byte[2304];
+				Array.Copy(inputData, i, chunk, 0, 2304);
+				var isLevelA = bps == 8 && frequency == 37800;
+				DecodeAudioSector(chunk, left, right, isLevelA, !isMono);
+			}
+
+			Directory.CreateDirectory(Path.GetDirectoryName(inputFile) + "\\wav_files");
+			var outputPath = Path.Combine(Path.GetDirectoryName(inputFile) + "\\wav_files", Path.GetFileNameWithoutExtension(inputFile) + ".wav");
+			using (var outStream = File.Create(outputPath))
+			{
+				WriteWAV(outStream, new WAVHeader { ChannelNumber = (ushort)(isMono ? 1 : 2), Frequency = frequency }, left, right);
+			}
+		}
+
 		public static void ResetAudioFiltersDelay()
 		{
 			lk0 = 0;
@@ -20,18 +43,6 @@ namespace ExtractCLUT.Helpers
 			lk1 = 0;
 			rk1 = 0;
 		}
-
-		//    constexpr inline int16_t lim16(const int32_t data)
-		//{
-		//    if(data > INT16_MAX)
-		//        return INT16_MAX;
-
-		//    if(data<INT16_MIN)
-		//        return INT16_MIN;
-
-		//    return data;
-		//}
-
 
 		private static short Lim16(int num)
 		{

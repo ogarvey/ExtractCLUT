@@ -87,7 +87,7 @@ namespace ExtractCLUT
       }
     }
 
-    public static Bitmap CreateImage(byte[] imageBin, List<Color> colors, int Width, int Height)
+    public static Bitmap CreateImage(byte[] imageBin, List<Color> colors, int Width, int Height, bool useTransparency = false)
     {
       // convert each byte of imageBin to an int and use that as an index into the colors array to create a 384 pixel wide image
       var image = new Bitmap(Width, Height);
@@ -97,6 +97,10 @@ namespace ExtractCLUT
       var y = 0;
       var width = 1;
       var height = 1;
+      if (useTransparency)
+      {
+        colors[0] = Color.Transparent;
+      }
       foreach (var b in imageBin)
       {
         brush.Color = colors[b];
