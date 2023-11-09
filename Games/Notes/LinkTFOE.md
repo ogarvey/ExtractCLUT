@@ -20,21 +20,20 @@ As you can see below, only the first label image has the correct size, in this i
 #### ldata label images:
 ![Alt text](Resources/LinkTFOE/Images/ldata/ldata_313464.png)
 
-
-ldata label image sizes|
+ldata label image sizes | 
 ---------|
 84|
 92|
 96|
-10|
-10|
-11|
-12|
-12|
-13|
-13|
-14|
-15|
+100|
+104|
+112|
+120|
+124|
+132|
+136|
+148|
+156|
 
 #### ldata main image 2:
 ![Alt text](Resources/LinkTFOE/Images/ldata/ldata_76C08.png)
