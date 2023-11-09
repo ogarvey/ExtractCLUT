@@ -1,6 +1,6 @@
 # ExtractCLUT
 
-Began life as a simple console app to experiment with extracting a CLUT palette from CD-i game files.
+As you may be able to tell from the name, this app began life as a simple console app to experiment with extracting a CLUT palette from CD-i game files.
 
 Has since morphed into a collection of experiments in extracting and parsing files from various CD-i titles, including audio, images, and video.
 
