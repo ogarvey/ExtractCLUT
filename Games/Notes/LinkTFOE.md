@@ -43,9 +43,11 @@ ldata label image sizes |
 
 Palettes can be found in lanim.rtr, and ldata.rtr. Again, these can be found by searching for the IDAT header bytes, but this time, the palette will be the 0x180 bytes preceding the start of the IDAT header.
 
+Also in ldata.rtr are some CLUT palettes, which can be found by searching for 0xC3 0x00 0x00 and one of (0x00, 0x01,0x02,0x03) and taking the following 0x100 bytes
+
 ### lanim.rtr
 
-Contains 7 palettes, 3 of which appear to be duplicates.
+Contains 7 unindexed palettes, 3 of which appear to be duplicates.
 
 ![Palette: 1](Resources/LinkTFOE/Images/lanim/165109868.png)
 ![Palette: 2](Resources/LinkTFOE/Images/lanim/165118888.png)
@@ -59,7 +61,13 @@ Contains 7 palettes, 3 of which appear to be duplicates.
 
 ### ldata.rtr
 
-Contains 72 palettes, of which there again appear to be some duplicates
+Contains 6 indexed palettes, which need to be grouped in pairs to form 3 palettes
+
+![Alt text](Resources/LinkTFOE/Images/ldata/404104.png)
+![Alt text](Resources/LinkTFOE/Images/ldata/404624.png)
+![Alt text](Resources/LinkTFOE/Images/ldata/406152.png)
+
+Contains 72 unindexed palettes, of which there again appear to be some duplicates
 
 ![Alt text](Resources/LinkTFOE/Images/ldata/0.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/486020.png)
