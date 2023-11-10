@@ -63,6 +63,8 @@ Contains 7 unindexed palettes, 3 of which appear to be duplicates.
 
 Contains 6 indexed palettes, which need to be grouped in pairs to form 3 palettes
 
+The first palette is used in all cutscenes, with the initial white colour being replaced with transparency.
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/404104.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/404624.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/406152.png)
