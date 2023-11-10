@@ -74,30 +74,31 @@ Contains 72 unindexed palettes, of which there again appear to be some duplicate
 ![Alt text](Resources/LinkTFOE/Images/ldata/901172.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/1346144.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/1764608.png)
-![Alt text](Resources/LinkTFOE/Images/ldata/2202260.png)
 
+![Alt text](Resources/LinkTFOE/Images/ldata/2202260.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/2651924.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/3079640.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/3510392.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/3938384.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/4354640.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/4787876.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/5221112.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/5668292.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/6083996.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/6528620.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/6965792.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/7398752.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/7819976.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/8268812.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/8690588.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/9126032.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/9576800.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/9997268.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/10434716.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/10863812.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/11284832.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/11717516.png)
@@ -109,30 +110,31 @@ Contains 72 unindexed palettes, of which there again appear to be some duplicate
 ![Alt text](Resources/LinkTFOE/Images/ldata/13892324.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/14321696.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/14749136.png)
-![Alt text](Resources/LinkTFOE/Images/ldata/15169532.png)
 
+![Alt text](Resources/LinkTFOE/Images/ldata/15169532.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/15603872.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/16047944.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/16485392.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/16915040.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/17340200.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/17772332.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/18208952.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/18628796.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/19075700.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/19508936.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/19935272.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/20353184.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/20783660.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/21215240.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/21645716.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/22082060.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/22522268.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/22939904.png)
-
 ![Alt text](Resources/LinkTFOE/Images/ldata/23388464.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/23814452.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/24249968.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/24672020.png)
@@ -144,11 +146,12 @@ Contains 72 unindexed palettes, of which there again appear to be some duplicate
 ![Alt text](Resources/LinkTFOE/Images/ldata/26838200.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/27286484.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/27703844.png)
-![Alt text](Resources/LinkTFOE/Images/ldata/28153232.png)
 
+![Alt text](Resources/LinkTFOE/Images/ldata/28153232.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/28587020.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/29015216.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/29447900.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/29884172.png)
+
 ![Alt text](Resources/LinkTFOE/Images/ldata/30312920.png)
 ![Alt text](Resources/LinkTFOE/Images/ldata/30746708.png)
