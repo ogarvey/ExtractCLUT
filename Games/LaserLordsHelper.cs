@@ -433,3 +433,67 @@ namespace ExtractCLUT.Games
     }
   }
 }
+
+// var framesFile = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\video\space_v_1_0_QHY_Normal_3.bin";
+// var originalImage = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\video\space_v_1_0_QHY_Normal_2.bin";
+
+// LaserLordsHelper.ReadDyuvFramesFile(framesFile, originalImage);
+
+// var fontfile = @"C:\Dev\Projects\Gaming\CD-i\AIW\ALICE IN WONDERLAND\records\atnc24cl\data\atnc24cl.ai1";
+
+// var bytes = File.ReadAllBytes(fontfile).Skip(0x44).Take(0x24).ToArray();
+
+// var fontFileData = new CdiFontFile(bytes);
+
+// Console.WriteLine($"Found file data: ");
+
+// var luxor9 = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\luxor\data\luxor_d_9.bin";
+
+// var screen = LaserLordsHelper.GetScreenBytes(luxor9);
+
+// var animationFrames = new List<Bitmap>();
+
+
+// animationFrames.Add(screenImage);
+
+// for (int i = 0; i < 3; i++)
+// {
+//   ColorHelper.RotateSubset(palette, 85, 88, 1);
+//   screenImage = LaserLordsHelper.CreateScreenImage(tiles, screen, palette);
+
+//   animationFrames.Add(screenImage);
+// }
+
+
+
+// using (var gifWriter = new GifWriter(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\luxor\data\output\luxor_9_1000.gif", 1000, 0))
+// {
+//   foreach (var cockpitImage in animationFrames)
+//   {
+//     gifWriter.WriteFrame(cockpitImage);
+//   }
+// }
+
+// var tileBytes = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\argos\data\argos_d_5.bin");
+// var palettOffset1 = 0x10004;
+// var paletteOffset2 = 0x10108;
+
+// var paletteBytes = tileBytes.Skip(palettOffset1).Take(0x100).ToArray();
+// paletteBytes = paletteBytes.Concat(tileBytes.Skip(paletteOffset2).Take(0x100)).ToArray();
+// var palette = ColorHelper.ReadPalette(paletteBytes);
+// // var screens = LaserLordsHelper.GetAllScreensBytes(@"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos\data-eor\output\");
+// var tiles = LaserLordsHelper.ReadScreenTiles(tileBytes);
+
+// foreach (var (tile, index) in tiles.WithIndex())
+// {
+//   var tileImage = LaserLordsHelper.CreateTileImage(tile, palette);
+//   tileImage.Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\records\argos\data\output\tiles\argos_{index}.png");
+// }
+
+// foreach (var (screen, index) in screens.WithIndex())
+// {
+//   var screenImage = LaserLordsHelper.CreateScreenImage(tiles, screen, palette);
+//   screenImage.Save($@"C:\Dev\Personal\Projects\Gaming\CD-i\Extracted\Laser Lords\NewRecords\argos\data-eor\output\screens\argos_{index + 5}.png");
+// }
+
+

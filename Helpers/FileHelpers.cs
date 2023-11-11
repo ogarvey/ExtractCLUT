@@ -5,6 +5,7 @@ using ExtractCLUT.Model;
 
 public static class FileHelpers
 {
+  private const int subHeaderOffset = 16;
   public static List<byte[]> SplitBinaryFileByNullBytes(string filePath, int? offset)
   {
     var chunks = new List<byte[]>();
@@ -509,8 +510,9 @@ public static class FileHelpers
     }
   }
 
-  public static void WriteIndividualSectorsToFolder(List<SectorInfo> sectors, string outputPath)
+  public static void WriteIndividualSectorsToFolder(List<SectorInfo> sectors, string path)
   {
+    var outputPath = Path.Combine(path, $@"NewRecords/{Path.GetFileNameWithoutExtension(sectors.First().CdiFile)}/output/individual-sectors");
     foreach (var (sector, i) in sectors.WithIndex())
     {
       var sectorFileName = $"i{sector.SectorIndex}_ch{sector.Channel}";
@@ -613,5 +615,70 @@ public static class FileHelpers
     }
 
     return offsets;
+  }
+  
+  public static byte[] FindSequenceAndGetPriorBytes(string filePath, byte[] sequence, int bytesToGet)
+  {
+    byte[] fileBytes = File.ReadAllBytes(filePath);
+    byte[] sequenceBytes = sequence;
+
+    // Convert to list to use the IndexOf function.
+    List<byte> byteList = new List<byte>(fileBytes);
+
+    for (int i = 0; i < byteList.Count; i++)
+    {
+      // Use SequenceEqual to check if the next few elements in the list are equal to the sequence
+      if (byteList.Skip(i).Take(sequenceBytes.Length).SequenceEqual(sequenceBytes))
+      {
+        // We've found the sequence, now get the prior bytes.
+        int startIndex = Math.Max(0, i - bytesToGet);
+        return fileBytes.Skip(startIndex).Take(bytesToGet).ToArray();
+      }
+    }
+
+    return null; // or throw an exception, or whatever you want to do if the sequence is not found.
+  }
+
+  public static void ExtractAll(string path, string? extension = "rtf")
+  {
+    var files = Directory.GetFiles(path, $"*.{extension}");
+
+    foreach (var file in files)
+    {
+      var SectorInfos = new List<SectorInfo>();
+      var Chunks = SplitBinaryFileintoSectors(file, 2352);
+
+      foreach (var (chunk, index) in Chunks.WithIndex())
+      {
+        if (chunk.Length < 2352)
+        {
+          continue;
+        }
+        var sectorInfo = new SectorInfo(file, chunk)
+        {
+          SectorIndex = index,
+          OriginalOffset = index * 2352,
+          FileNumber = chunk[subHeaderOffset],
+          Channel = chunk[subHeaderOffset + 1],
+          SubMode = chunk[subHeaderOffset + 2],
+          CodingInformation = chunk[subHeaderOffset + 3]
+        };
+        SectorInfos.Add(sectorInfo);
+      }
+      var dataSectors = SectorInfos.Where(x => x.IsData && !x.IsEmptySector).ToList();
+      var videoSectors = SectorInfos.Where(x => x.IsVideo && !x.IsEmptySector).ToList();
+      var monoAudioSectors = SectorInfos.Where(x => x.IsAudio && x.IsMono && !x.IsEmptySector).ToList();
+      var stereoAudioSectors = SectorInfos.Where(x => x.IsAudio && !x.IsMono && !x.IsEmptySector).ToList();
+
+      StripCdiData(SectorInfos, path, file);
+      ParseDataSectors(dataSectors, path, file);
+      ParseVideoSectors(videoSectors, path, file);
+      ParseMonoAudioSectorsByChannel(monoAudioSectors, path, file);
+      ParseMonoAudioSectorsByEOR(monoAudioSectors, path, file);
+      ParseStereoAudioSectors(stereoAudioSectors, path, file);
+      ParseStereoAudioSectorsByChannel(stereoAudioSectors, path, file);
+      ParseSectorsByEOR(SectorInfos, path, file);
+      WriteIndividualSectorsToFolder(SectorInfos, path);
+    }
   }
 }
