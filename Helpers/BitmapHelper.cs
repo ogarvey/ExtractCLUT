@@ -7,16 +7,75 @@ using System.Drawing.Imaging;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Color = SixLabors.ImageSharp.Color;
-using Image = SixLabors.ImageSharp.Image;
 using Point = System.Drawing.Point;
 using Rectangle = System.Drawing.Rectangle;
 using System.Drawing;
+using Image = System.Drawing.Image;
+using Color = System.Drawing.Color;
+using SizeF = System.Drawing.SizeF;
+using ColorMatrix = System.Drawing.Imaging.ColorMatrix;
 
 namespace ExtractCLUT.Helpers
 {
+
+  
   public static class BitmapHelper
   {
+    public static Image TintImage(Image originalImage, Color tint)
+    {
+      // Create a new bitmap with the same size as the original image
+      Bitmap tintedImage = new Bitmap(originalImage.Width, originalImage.Height);
+
+      // Create a ColorMatrix and set its tint
+      float[][] colorMatrixElements = {
+        new float[] { tint.R / 255.0f, 0, 0, 0, 0 },
+        new float[] { 0, tint.G / 255.0f, 0, 0, 0 },
+        new float[] { 0, 0, tint.B / 255.0f, 0, 0 },
+        new float[] { 0, 0, 0, 1, 0 },
+        new float[] { 0, 0, 0, 0, 1 }
+      };
+
+      ColorMatrix colorMatrix = new ColorMatrix(colorMatrixElements);
+
+      using (ImageAttributes attributes = new ImageAttributes())
+      {
+        attributes.SetColorMatrix(colorMatrix);
+
+        using (Graphics g = Graphics.FromImage(tintedImage))
+        {
+          g.DrawImage(
+              originalImage,
+              new Rectangle(0, 0, originalImage.Width, originalImage.Height),
+              0, 0, originalImage.Width, originalImage.Height,
+              GraphicsUnit.Pixel,
+              attributes);
+        }
+      }
+
+      return tintedImage;
+    }
+
+    public static Image AddBitmapText(Image bitmap, string text)
+    {
+      using (Graphics graphics = Graphics.FromImage(bitmap))
+      {
+        // Set the smoothing mode for better text quality
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+        // Define the font and brush for the text
+        using (Font font = new Font("Arial", 4, FontStyle.Bold))
+        using (Brush textBrush = new SolidBrush(Color.Cyan))
+        {
+
+          // Draw the text (index) on the square
+          SizeF textSize = graphics.MeasureString(text, font);
+
+          graphics.DrawString(text, font, textBrush, 0,0);
+        }
+      }
+      return bitmap;
+    }
     const int Ymask = 0x00ff0000;
     const int Umask = 0x0000ff00;
     const int Vmask = 0x000000ff;

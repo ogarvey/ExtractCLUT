@@ -8,6 +8,81 @@ namespace ExtractCLUT.Games
 {
     public static class ZeldasAdventure
     {
+        static void ExtractSpriteData()
+        {
+
+            var file = @"C:\Dev\Projects\Gaming\CD-i\Zelda_Release\Output\zelda\zelda.rtf_1_1_RL7_Normal_Even_805.bin";
+
+            var data = File.ReadAllBytes(file);
+            // number of data blobs
+            var offsetCount = data[0x3];
+
+            var offsets = new List<int>();
+
+            // Get the offsets
+            for (int i = 8; offsets.Count < offsetCount; i += 4)
+            {
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(data, i, 4);
+                }
+                var offset = BitConverter.ToInt32(data, i);
+                offsets.Add(offset);
+            }
+
+            var byteArrays = new List<byte[]>();
+
+            // Get the data blobs
+            foreach (var item in offsets)
+            {
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(data, item, 4);
+                }
+                var length = BitConverter.ToInt32(data, item);
+                byteArrays.Add(data.Skip(item + 4).Take(length).ToArray());
+            }
+
+
+            foreach (var (spriteImage, counter) in byteArrays.WithIndex())
+            {
+                var index = 0;
+                var imageBytes = new byte[0];
+                while (index < spriteImage.Length)
+                {
+                    var blankPixelsToAdd = 0;
+                    var banks = 0;
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        Array.Reverse(spriteImage, index, 2);
+                        blankPixelsToAdd = BitConverter.ToInt16(spriteImage, index);
+                        index += 2;
+                        Array.Reverse(spriteImage, index, 2);
+                        banks = BitConverter.ToInt16(spriteImage, index);
+                        index += 2;
+                    }
+
+                    var bankByteCount = banks * 4;
+
+                    imageBytes = imageBytes.Concat(Enumerable.Repeat<byte>(0, blankPixelsToAdd)).ToArray();
+
+                    Console.WriteLine($"Blank pixels added: {blankPixelsToAdd}, new length: {imageBytes.Length}");
+
+                    var bankImageBytes = spriteImage.Skip(index).Take(bankByteCount).ToArray();
+                    imageBytes = imageBytes.Concat(bankImageBytes).ToArray();
+
+                    Console.WriteLine($"Bank pixel added: {bankImageBytes.Length}, new length: {imageBytes.Length}");
+
+                    index += bankByteCount;
+                }
+
+                var outputFile = Path.GetFileNameWithoutExtension(file) + $"_{counter}_parsed.bin";
+                var outputDir = Path.Combine(Path.GetDirectoryName(file), "parsed");
+                Directory.CreateDirectory(outputDir);
+                File.WriteAllBytes(Path.Combine(outputDir, outputFile), imageBytes);
+            }
+
+        }
         private static string _rl7Path = @"C:\Dev\Projects\Gaming\CD-i\Zelda\records\zelda_rl\video\zelda_rl_v_1_1_RL7_Normal_3.bin";
         private static string _rlDyuvPath = @"C:\Dev\Projects\Gaming\CD-i\Zelda\records\zelda_rl\video\zelda_rl_v_1_1_DYUV_Normal_4.bin";
         private static string _overDyuvPath = @"C:\Dev\Projects\Gaming\CD-i\Zelda\records\over\video\over_v_1_1_DYUV_Normal_1.bin";

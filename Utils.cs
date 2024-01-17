@@ -4,11 +4,41 @@ using Color = System.Drawing.Color;
 using SixLabors.ImageSharp.Formats.Gif;
 using Image = SixLabors.ImageSharp.Image;
 using SizeF = System.Drawing.SizeF;
+using System.Text;
+using Encoder = System.Drawing.Imaging.Encoder;
 
 namespace ExtractCLUT
 {
   public static class Utils
   {
+    public static string ReadNullTerminatedString(this BinaryReader reader)
+    {
+      var byteList = new List<byte>();
+      byte currentByte;
+
+      while ((currentByte = reader.ReadByte()) != 0x00)
+      {
+        byteList.Add(currentByte);
+      }
+
+      return Encoding.ASCII.GetString(byteList.ToArray());
+    }
+    public static int bytesToInt(this byte[] bytes)
+    {
+      return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+    }
+    public static int ReadBigEndianUInt16(BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(2);
+      Array.Reverse(bytes);
+      return BitConverter.ToUInt16(bytes, 0);
+    }
+    public static int ReadBigEndianUInt32(BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(4);
+      Array.Reverse(bytes);
+      return BitConverter.ToInt32(bytes, 0);
+    }
     public static bool MatchesSequence(BinaryReader reader, byte[] sequence)
     {
       for (int i = 0; i < sequence.Length; i++)
@@ -205,7 +235,16 @@ namespace ExtractCLUT
       // Save the final frame of the GIF animation
       bitmaps[0].SaveAdd(encoderParams);
     }
-
+    public static int ExtractNumber(string fileName)
+    {
+      // Split the filename on the underscore and parse the first part as an integer
+      var parts = fileName.Split('_');
+      if (parts.Length > 0 && int.TryParse(parts[^1], out int number))
+      {
+        return number;
+      }
+      return 0; // Default to 0 if no number is found or the parsing fails
+    }
     public static byte? PeekByte(this BinaryReader reader)
     {
       if (reader.BaseStream.Position >= reader.BaseStream.Length)

@@ -9,13 +9,190 @@ using static ExtractCLUT.Helpers.ColorHelper;
 using ExtractCLUT.Models;
 using ExtractCLUT.Writers;
 using Color = System.Drawing.Color;
+using Image = System.Drawing.Image;
+using static OGLibCDi.Helpers.ImageFormatHelper;
 
 namespace ExtractCLUT.Games
 {
   public static class LaserLordsHelper
   {
+    static void TileBehaviour(int baseIndexX, int baseIndexY)
+    {
+      var indexXMinus1 = baseIndexX + -1;
+      var _TILE_TO_LEFT_OF_PLAYER = GetTileAtCoords(indexXMinus1, baseIndexY);
+      var CURRENT_TILE = GetTileAtCoords(baseIndexX, baseIndexY);
+      var indexXPlus1 = baseIndexX + 1;
+      var TILE_TO_RIGHT_OF_PLAYER = GetTileAtCoords(indexXPlus1, baseIndexY);
+      var indexYPlus1 = baseIndexY + 1;
+      var _TILE_DIAGONALLY_UP_LEFT_OF_PLAYER = GetTileAtCoords(indexXMinus1, indexYPlus1);
+      var TILE_BELOW = GetTileAtCoords(baseIndexX, indexYPlus1);
+      var _TILE_DIAGONALLY_DOWN_RIGHT_OF_PLAYER = GetTileAtCoords(indexXPlus1, indexYPlus1);
+      var yPosition = baseIndexY + -4;
+      var _TILE_TO_LEFT_AND_4_ABOVE_PLAYER = GetTileAtCoords(indexXMinus1, yPosition);
+      var _TILE_4_ABOVE_PLAYER = GetTileAtCoords(baseIndexX, yPosition);
+      var _TILE_TO_RIGHT_AND_4_ABOVE_PLAYER = GetTileAtCoords(indexXPlus1, yPosition);
+      var _TILE_ABOVE_PLAYER = GetTileAtCoords(baseIndexX, baseIndexY + -1);
+      var TILE_2_ABOVE_PLAYER = GetTileAtCoords(baseIndexX, baseIndexY + -2);
+    }
 
-    public static Bitmap CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
+        private static object GetTileAtCoords(int indexXMinus1, int baseIndexY)
+        {
+            throw new NotImplementedException();
+        }
+
+        public class ImageLine
+    {
+      public int LeftOffset { get; set; }
+      public List<byte> Pixels { get; set; }
+      public int RemainingPixels { get; set; }
+    }
+
+    public static List<ImageLine> DecodeImage(byte[] data)
+    {
+      List<ImageLine> imageLines = new List<ImageLine>();
+      int i = 0;
+
+      while (i < data.Length - 1)
+      {
+
+        ImageLine line = new ImageLine();
+        if (data[i] == 0x00 && data[i + 1] != 0x38)
+        {
+          line.LeftOffset = data[i + 1];
+          i += 2;
+        }
+        else if (data[i] == 0x00 && data[i + 1] == 0x38)
+        {
+          line.LeftOffset = 0;
+          line.Pixels = new List<byte>();
+          for (int j = 0; j < 56; j++)
+          {
+            line.Pixels.Add(0x00);
+            if (line.LeftOffset + line.Pixels.Count == 56)
+            {
+              break;
+            }
+          }
+        }
+        else
+        {
+          line.LeftOffset = 0;
+        }
+        line.Pixels = new List<byte>();
+
+        while (i < data.Length - 1)
+        {
+          if (line.LeftOffset + line.Pixels.Count == 56)
+          {
+            imageLines.Add(line);
+            break;
+          }
+          if (data[i] == 0x00)
+          {
+            if (line.LeftOffset + line.Pixels.Count == 56)
+            {
+              imageLines.Add(line);
+              break;
+            }
+            if (i + 2 < data.Length && data[i + 2] == 0x00)
+            {
+              line.RemainingPixels = data[i + 1];
+              i += 2;
+              if (line.LeftOffset + line.Pixels.Count == 56)
+              {
+                imageLines.Add(line);
+                break;
+              }
+              break;
+            }
+            else
+            {
+              int numberOfNullBytes = data[i + 1];
+              for (int j = 0; j < numberOfNullBytes; j++)
+              {
+                line.Pixels.Add(0x00);
+                if (line.LeftOffset + line.Pixels.Count == 56)
+                {
+                  break;
+                }
+              }
+              i += 2;
+            }
+          }
+          else
+          {
+            line.Pixels.Add(data[i]);
+            i++;
+            if (line.LeftOffset + line.Pixels.Count == 56)
+            {
+              imageLines.Add(line);
+              break;
+            }
+          }
+
+          if (i >= data.Length - 1 || ((line.LeftOffset + line.Pixels.Count) == 56))
+          {
+            imageLines.Add(line);
+            break;
+          }
+        }
+
+        imageLines.Add(line);
+
+      }
+
+      return imageLines;
+    }
+
+    public static Bitmap CreateBitmapFromImageLines(List<ImageLine> imageLines, List<Color> colorPalette, bool isplayer = false)
+    {
+      try
+      {
+        var height = imageLines.Count;
+        int width = imageLines.Max(x => x.LeftOffset + x.Pixels.Count + x.RemainingPixels);
+        Bitmap bitmap = new Bitmap(width, height);
+        int currentLine = 0;
+
+        using (Graphics g = Graphics.FromImage(bitmap))
+        {
+          g.Clear(Color.Transparent);
+        }
+
+        foreach (ImageLine line in imageLines)
+        {
+          int x = line.LeftOffset;
+
+          for (int i = 0; i < line.Pixels.Count; i++)
+          {
+            byte currentByte = line.Pixels[i];
+
+            // transparent where bytes are null bytes
+            if (currentByte == 0x00)
+            {
+              bitmap.SetPixel(x, currentLine, Color.Transparent);
+            }
+            else if (!isplayer && ((currentByte & 0xF0) == 0xD0) || isplayer && (currentByte & 0xF0) == 0xC0)
+            {
+              byte colorIndex = (byte)(currentByte & 0x0F);
+              Color color = colorPalette[colorIndex];
+              bitmap.SetPixel(x, currentLine, color);
+            }
+
+            x++;
+          }
+
+          currentLine++;
+        }
+
+        return bitmap;
+      }
+      catch (Exception)
+      {
+
+        return null;
+      }
+    }
+    public static Image CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
     {
       var mapTiles = new List<byte[]>();
       for (int i = 0; i < _mapData.Length; i += 2)
@@ -37,7 +214,7 @@ namespace ExtractCLUT.Games
           int tilePixelY = y % 8;
           int tilePixelIndex = tilePixelX + (tilePixelY * 8);
           int colorIndex = mapTiles[tileIndex][tilePixelIndex];
-          Color color = _colors[colorIndex];
+          Color color = _colors[colorIndex % 128];
           tempScreenBitmap.SetPixel(x, y, color);
         }
       }
@@ -237,10 +414,10 @@ namespace ExtractCLUT.Games
         Buffer.BlockCopy(originalImageBytes, 0, newImageBytes, 0, originalImageBytes.Length);
         foreach (var frame in container.Frames)
         {
-          var x = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? (frame.Offset * 4) % width : (frame.Offset) % width;
-          var y = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? (frame.Offset * 4) / width : (frame.Offset) / width;
+          var x = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? frame.Offset * 4 % width : frame.Offset % width;
+          var y = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? frame.Offset * 4 / width : frame.Offset / width;
 
-          var test2 = (int)GetOffset((ushort)((ushort)y), (ushort)width);
+          var test2 = (int)GetOffset((ushort)(ushort)y, (ushort)width);
 
           var offset = test2 + x;
           // Create a new byte array with the size of the original image
@@ -325,7 +502,7 @@ namespace ExtractCLUT.Games
       var cockpitControlImageBytes = File.ReadAllBytes(Path.Combine(spaceDataFilesPath, imageBinFile)).Skip(0x10e00).ToArray();
       var paletteBytes = File.ReadAllBytes(Path.Combine(spaceDataFilesPath, paletteBinFile));
 
-      var palette = ColorHelper.ConvertBytesToRGB(paletteBytes.Take(0x300).ToArray());
+      var palette = ConvertBytesToRGB(paletteBytes.Take(0x300).ToArray());
 
       var cockpitScreenImageList = new List<Bitmap>();
       var cockpitControlsImageList = new List<Bitmap>();
@@ -407,7 +584,7 @@ namespace ExtractCLUT.Games
 
     }
 
-    public static Bitmap CreateTileImage(byte[] tile, List<Color> palette)
+    public static Image CreateTileImage(byte[] tile, List<Color> palette, bool idOverlay = false)
     {
       if (palette.Count < 256)
       {
@@ -430,6 +607,182 @@ namespace ExtractCLUT.Games
         }
       }
       return tileImage;
+    }
+
+    public static Color DetermineTileBehaviour(int tileIndex)
+    {
+
+      if (((tileIndex == 0) || (0x1f < tileIndex)) && (tileIndex < 0x58 || (0x5f < tileIndex)))
+      {
+        
+        if ((0x1f < tileIndex) && (tileIndex < 0x40))
+        {
+          // COLLISION = 1;
+          return Color.Red;
+        }
+        if ((tileIndex == 0x40) || (tileIndex == 0x43) || (tileIndex == 0x46) ||
+           tileIndex == 0x49 || (tileIndex == 0x4c))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //CLIMBABLE = 1;
+          //_DAT_800029a4 = 1;
+          return Color.LimeGreen;
+        }
+        if ((tileIndex == 0x41) || (tileIndex == 0x44) ||
+           tileIndex == 0x47 || tileIndex == 0x4a || (tileIndex == 0x4d))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //CLIMBABLE = 1;
+          //_DAT_800029a0 = 1;
+          return Color.LimeGreen;
+        }
+        if ((tileIndex == 0x42) || (tileIndex == 0x45) || (tileIndex == 0x48) ||
+           tileIndex == 0x4b || (tileIndex == 0x4e))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //CLIMBABLE = 1;
+          return Color.LimeGreen;
+        }
+        if ((0x5f < tileIndex) && (tileIndex < 0x63))
+        {
+          //_DAT_80002990 = 1;
+          return Color.HotPink;
+        }
+        if ((0x62 < tileIndex) && (tileIndex < 0x66))
+        {
+          //_DAT_80002990 = 1;
+          return Color.HotPink;
+        }
+        if ((0x65 < tileIndex) && (tileIndex < 0x69))
+        {
+          //_DAT_8000298c = 2;
+          //_DAT_80002990 = 1;
+          return Color.HotPink;
+        }
+        if ((tileIndex == 0x69) || (tileIndex == 0x6d))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //_DAT_8000297c = 1;
+          return Color.Orange;
+        }
+        if ((tileIndex == 0x6a) || (tileIndex == 0x6e))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //_DAT_80002978 = 1;
+          return Color.Orange;
+        }
+        if ((tileIndex == 0x6b) || (tileIndex == 0x6f))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          return Color.Orange;
+        }
+        if ((tileIndex == 0x6c) || (tileIndex == 0x4f))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          return Color.RoyalBlue;
+        }
+        if ((0x4f < tileIndex) && (tileIndex < 0x56))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //CONDITION2 = 1;
+          return Color.RoyalBlue;
+        }
+        if ((0x55 < tileIndex) && (tileIndex < 0x58))
+        {
+          //DAT_80002980 = 1;
+          return Color.RoyalBlue;
+        }
+        if ((tileIndex == 0x70) || (tileIndex == 0x71))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          return Color.Orange;
+        }
+        if ((tileIndex == 0x72) || (tileIndex == 0x73))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          //_DAT_80002968 = 1;
+          return Color.RoyalBlue;
+        }
+        if ((tileIndex == 0x78) || (tileIndex == 0x79))
+        {
+          //TRANSFORMLOOKUPSTATUS = 1;
+          return Color.RoyalBlue;
+        }
+        if ((0x73 < tileIndex) && (tileIndex < 0x77))
+        {
+          return Color.RoyalBlue;
+        }
+        if (tileIndex == 0x77)
+        {
+          return Color.RoyalBlue;
+        }
+        else
+        {
+          if ((0x7a < tileIndex) && (tileIndex < 0x80))
+          {
+            return Color.RoyalBlue;
+          }
+          if (tileIndex != 0x7a)
+          {
+            return Color.Coral;
+          }
+        }
+      }
+      return Color.Cyan;
+    }
+
+    public static void ExtractInventory()
+    {
+      var llInventory = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\argos.rtf_1_4_172.bin");
+
+      var palBytes = llInventory.Take(0x80).ToArray();
+      var palette = ReadPalette(palBytes);
+
+      var imageBytes = llInventory.Skip(0x80).Take(0x8000).ToArray();
+      var tileList = new List<byte[]>();
+
+      for (int i = 0; i < 0x8000; i += 64)
+      {
+        tileList.Add(imageBytes.Skip(i).Take(64).ToArray());
+      }
+
+      for (int i = 0; i < tileList.Count; i += 64)
+      {
+        var listOfQuads = tileList.Skip(i).Take(64).ToList();
+        // image is made up of 4 tiles, each tile is 8x8 pixels
+        for (int j = 0; j < 32; j += 2)
+        {
+          var quadTopLeft = listOfQuads[j];
+          var quadTopRight = listOfQuads[j + 1];
+          var quadBottomLeft = listOfQuads[j + 32];
+          var quadBottomRight = listOfQuads[j + 33];
+          var combinedQuads = new byte[256];
+          for (int x = 0; x < 16; x++)
+          {
+            for (int y = 0; y < 16; y++)
+            {
+              if (x < 8 && y < 8)
+              {
+                combinedQuads[x + y * 16] = quadTopLeft[x + y * 8];
+              }
+              else if (x >= 8 && y < 8)
+              {
+                combinedQuads[x + y * 16] = quadTopRight[x - 8 + y * 8];
+              }
+              else if (x < 8 && y >= 8)
+              {
+                combinedQuads[x + y * 16] = quadBottomLeft[x + (y - 8) * 8];
+              }
+              else if (x >= 8 && y >= 8)
+              {
+                combinedQuads[x + y * 16] = quadBottomRight[x - 8 + (y - 8) * 8];
+              }
+            }
+          }
+          var image = GenerateClutImage(palette, combinedQuads, 16, 16);
+          image.Scale4().Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\output\combined\x4\{i}_{j}.png");
+        }
+      }
     }
   }
 }
@@ -497,3 +850,86 @@ namespace ExtractCLUT.Games
 // }
 
 
+// var tileFile = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Output\hive\hive.rtf_1_1_111.bin";
+// var tileBytes = File.ReadAllBytes(tileFile);
+
+// var screenBytes = tileBytes.Skip(0x10000).ToArray();
+// var screens = new List<byte[]>();
+
+// for (int i = 0; i < screenBytes.Length; i += 0x800)
+// {
+//   screens.Add(screenBytes.Skip(i).Take(0x800).ToArray());
+// }
+
+// var tiles = LaserLordsHelper.ReadScreenTiles(tileBytes);
+
+// var paletteFile = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Output\hive\hive.rtf_1_2_143.bin";
+
+// var paletteBytes = File.ReadAllBytes(paletteFile).Take(0x208).ToArray();
+
+// var palette = ReadClutBankPalettes(paletteBytes, 2);
+
+// var outputPath = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Output\hive\screens\slgifs\";
+// var tileOutputPath = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Output\hive\tiles\tinted\";
+
+// Directory.CreateDirectory(outputPath);
+// Directory.CreateDirectory(tileOutputPath);
+
+// var images = new List<Image>();
+
+// // foreach (var (screen, index) in screens.WithIndex())
+// // {
+// //   for (int i = 0; i < 20; i++)
+// //   {
+// //     var image = LaserLordsHelper.CreateScreenImage(tiles, screen, palette);
+// //     images.Add(image);
+// //     RotateSubset(palette, 80, 83, 1);
+// //     if (i % 2 == 0) RotateSubset(palette, 84, 85, 1);
+// //     RotateSubset(palette, 86, 87, 1);
+// //     RotateSubset(palette, 98, 101, 1);
+// //     RotateSubset(palette, 111, 120, 1);
+// //   }
+
+// //   // create gif from these images, then clear the list for the next batch
+// //   CreateGifFromImageList(images, Path.Combine(outputPath, $"hive_{index}.gif"));
+// //   images.Clear();
+// // }
+
+// foreach (var (tile, index) in tiles.WithIndex())
+// {
+//   var image = LaserLordsHelper.CreateTileImage(tile, palette);
+//   if (index < 128)
+//   {
+//     var colour = LaserLordsHelper.DetermineTileBehaviour(index);
+//     image = BitmapHelper.TintImage(image, colour);
+//   }
+//   image.Save(Path.Combine(tileOutputPath, $"hive_{index}.png"), ImageFormat.Png);
+//   // images.Add(image);
+//   // RotateSubset(palette, 80, 83, 1);
+//   // RotateSubset(palette, 84, 85, 1);
+//   // RotateSubset(palette, 86, 88, 1);
+//   // RotateSubset(palette, 90, 92, 1);
+//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
+//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024}.png"), ImageFormat.Png);
+//   // images.Add(image);
+//   // RotateSubset(palette, 80, 83, 1);
+//   // RotateSubset(palette, 84, 85, 1);
+//   // RotateSubset(palette, 86, 88, 1);
+//   // RotateSubset(palette, 90, 92, 1);
+//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
+//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024 * 2}.png"), ImageFormat.Png);
+//   // images.Add(image);
+//   // RotateSubset(palette, 80, 83, 1);
+//   // RotateSubset(palette, 84, 85, 1);
+//   // RotateSubset(palette, 86, 88, 1);
+//   // RotateSubset(palette, 90, 92, 1);
+//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
+//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024 * 3}.png"), ImageFormat.Png);
+//   // images.Add(image);
+
+//   // // create gif from these images, then clear the list for the next batch
+//   // var tileGifOutputDir = Path.Combine(tileOutputPath, "gifs");
+//   // Directory.CreateDirectory(tileGifOutputDir);
+//   // CreateGifFromImageList(images, Path.Combine(tileGifOutputDir, $"hive_{index}.gif"));
+//   // images.Clear();
+// }

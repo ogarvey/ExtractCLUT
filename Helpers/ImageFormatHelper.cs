@@ -8,97 +8,137 @@ using System.Threading.Tasks;
 using ExtractCLUT.Model;
 using static ExtractCLUT.Utils;
 using Color = System.Drawing.Color;
+using Image = System.Drawing.Image;
+using SLImage = SixLabors.ImageSharp.Image;
 using Rectangle = System.Drawing.Rectangle;
+using SixLabors.ImageSharp.Formats.Gif;
 
 namespace ExtractCLUT.Helpers
 {
   public static class ImageFormatHelper
   {
-  
-   public static void Rle7_AllBytes(byte[] dataRLE, List<Color> palette, int width, List<Bitmap> images)
-   {
-     //initialize variables
-     int nrRLEData = dataRLE.Count();
-     byte[] dataDecoded = new byte[0x16800];
-     int posX = 1;
-     int outputIndex = 0;
-     int inputIndex = 0;
-     int initialIndex;
+
+    public static void CreateGifFromImageList(List<Image> images, string outputPath, int delay = 100, int repeat = 0, Image? backgroundFrame = null)
+    {
+      Image<Rgba32>? background = null;
+      if (backgroundFrame != null)
+      {
+        var bytes = backgroundFrame.ImageToBytes();
+        background = SLImage.Load<Rgba32>(bytes);
+      }
+
+      using SLImage gif = new SixLabors.ImageSharp.Image<Rgba32>(backgroundFrame?.Width ?? images[0].Width, backgroundFrame?.Height ?? images[0].Height);
+      var gifMetaData = gif.Metadata.GetGifMetadata();
+      gifMetaData.RepeatCount = (ushort)repeat;
+
+
+      foreach (var image in images)
+      {
+        var bytes = image.ImageToBytes();
+        using (SLImage frameImage = SLImage.Load<Rgba32>(bytes))
+        {
+          // Create a new frame by compositing the current image over the background.
+          using (SLImage frame = new SixLabors.ImageSharp.Image<Rgba32>(backgroundFrame?.Width ?? images[0].Width, backgroundFrame?.Height ?? images[0].Height))
+          {
+            if (background != null)
+            {
+              frame.Mutate(ctx => ctx.DrawImage(background, 1f));
+            }
+            frame.Mutate(ctx => ctx.DrawImage(frameImage, 1f));
+
+            // Set the delay and disposal method for each frame.
+            GifFrameMetadata frameMetadata = frame.Frames.RootFrame.Metadata.GetGifMetadata();
+            frameMetadata.FrameDelay = delay;
+            frameMetadata.DisposalMethod = GifDisposalMethod.RestoreToBackground;
+
+            // Add the frame to the gif.
+            gif.Frames.AddFrame(frame.Frames.RootFrame);
+          }
+        }
+      }
+
+      // Save the final result.
+      gif.SaveAsGif(outputPath);
+
+    }
+
+    public static byte[] ImageToBytes(this Image img)
+    {
+      using (var stream = new MemoryStream())
+      {
+        img.Save(stream, ImageFormat.Png);
+        return stream.ToArray();
+      }
+    }
+    public static void Rle7_AllBytes(byte[] rleData, List<Color> palette, int width, int heightPerImage, List<Bitmap> images)
+    {
+      List<byte[]> lines = new List<byte[]>();
+      List<byte> currentLine = new List<byte>();
+      //initialize variables
+      int nrRLEData = rleData.Length;      
+      int inputIndex = 0;
+      int initialIndex;
 
       //decode RLE7
       while (inputIndex < nrRLEData)
       {
         initialIndex = inputIndex;
         //get run count
-        byte byte1 = @dataRLE[inputIndex++];
         if (inputIndex >= nrRLEData) { break; }
-        if (byte1 >= 128)
+        byte firstByte = rleData[inputIndex++];
+        bool isRun = (firstByte & 0x80) != 0; // Check if the MSB is set
+        byte colorIndex = (byte)(firstByte & 0x7F); // Extract color index (7 bits)
+
+        if (isRun)
         {
-          //draw multiple times
-          byte colorNr = (byte)(byte1 - 128);
-
-          //get runlength
-          byte rl = @dataRLE[inputIndex++];
-
-          //draw x times
-          for (int i = 0; i < rl; i++)
+          if (inputIndex + 1 >= rleData.Length)
           {
-            if (outputIndex >= dataDecoded.Length)
-            {
-              break;
-            }
-            var index = outputIndex++;
-            if (index >= dataDecoded.Length)
-            {
-              break;
-            }
-            dataDecoded[index] = @colorNr;
-            posX++;
+            break;
           }
 
-          //draw until end of line
-          if (rl == 0)
+          byte runLength = rleData[inputIndex + 1];
+          inputIndex += 2;
+
+          if (runLength == 1)
           {
-            while (posX <= width)
-            {
-              if (outputIndex >= dataDecoded.Length)
-              {
-                break;
-              }
-              dataDecoded[outputIndex++] = @colorNr;
-              posX++;
-            }
+            throw new Exception("Invalid RLE data: Run length of 1 is forbidden.");
           }
+
+          int addLength = (runLength == 0) ? (width - currentLine.Count) : runLength;
+
+          if (currentLine.Count + addLength > width)
+          {
+            addLength = width - currentLine.Count;
+          }
+
+          currentLine.AddRange(Enumerable.Repeat(colorIndex, addLength));
         }
-        else
+        else // Single pixel
         {
-          //draw once
-          dataDecoded[outputIndex++] = @byte1;
-          posX++;
+          currentLine.Add(colorIndex);
+          inputIndex++;
         }
 
-        //reset x to 1 if end of line is reached
-        if (posX >= width) { posX = 1; }
-        if (outputIndex >= 0x16800)
+        if (currentLine.Count == width)
         {
-          var offsets = $"{initialIndex:X8}_{inputIndex:X8}";
-          var image = GenerateRle7Image(palette, dataDecoded, width, outputIndex / width, true);
-          images.Add(image);
-          dataDecoded = new byte[0x16800];
-          outputIndex = 0;
-          posX = 1;
+          lines.Add(currentLine.ToArray());
+          currentLine.Clear();
         }
       }
-      /* int requiredSize = dataDecoded.Length - 1;
-      while (dataDecoded[requiredSize] == 0x00)
+
+      // Add the last line if not empty
+      if (currentLine.Count > 0)
       {
-        requiredSize--;
+        lines.Add(currentLine.ToArray());
       }
-      byte[] dataDecoded2 = new byte[requiredSize + 1];
-      Array.Copy(dataDecoded, dataDecoded2, requiredSize + 1); */
-      //decode CLUT to bitmap
-      //return dataDecoded2;
+      if (lines.Count == heightPerImage)
+      {
+        var image = GenerateRle7Image(palette, lines.SelectMany(l => l).ToArray(), width, heightPerImage, true);
+        images.Add(image);
+        lines.Clear();
+      }
     }
+    
     private readonly static int[] dequantizer = { 0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255 };
 
     public static Bitmap DecodeDYUVImage(byte[] encodedData, int Width, int Height)
@@ -213,6 +253,34 @@ namespace ExtractCLUT.Helpers
       return clutImage;
     }
 
+    public static byte[] GenerateClutBytes(List<Color> palette, byte[] clut7Bytes, int Width, int Height)
+    {
+      var clutImage = new byte[Width * Height * 4];
+
+      try
+      {
+
+        for (int y = 0; y < Height; y++)
+        {
+          for (int x = 0; x < Width; x++)
+          {
+            var i = y * Width + x;
+            var paletteIndex = clut7Bytes[i];
+            var color = paletteIndex < palette.Count ? palette[paletteIndex] : Color.Transparent;
+            clutImage[i * 4 + 0] = color.R;
+            clutImage[i * 4 + 1] = color.G;
+            clutImage[i * 4 + 2] = color.B;
+            clutImage[i * 4 + 3] = color.A;
+          }
+        }
+      }
+      catch (System.Exception)
+      {
+        return clutImage;
+      }
+
+      return clutImage;
+    }
     public static Bitmap GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height)
     {
       var clutImage = new Bitmap(Width, Height);
@@ -269,7 +337,7 @@ namespace ExtractCLUT.Helpers
 
     public static Bitmap GenerateRleImage(List<Color> palette, KingdomFileData file, byte[] rl7Bytes)
     {
-      var rleImage = Rle7(rl7Bytes, file.Width, file.Height);
+      var rleImage = Rle7(rl7Bytes, file.Width);
       var rleBitmap = CreateImage(rleImage, palette, file.Width, file.Height);
       return rleBitmap;
     }
@@ -283,7 +351,7 @@ namespace ExtractCLUT.Helpers
 
     public static Bitmap GenerateRle7Image(List<Color> palette, byte[] rl7Bytes, int width, int height, bool useTransparency = false)
     {
-      var rleImage = Rle7(rl7Bytes, width, height);
+      var rleImage = Rle7(rl7Bytes, width);
       var rleBitmap = CreateImage(rleImage, palette, width, height, useTransparency);
       return rleBitmap;
     }
@@ -357,72 +425,71 @@ namespace ExtractCLUT.Helpers
       return dataDecoded;
     }
 
-    public static byte[] Rle7(byte[] dataRLE, int width, int height)
+    public static byte[] Rle7(byte[] rleData, int lineWidth)
     {
-      //initialize variables
-      int nrRLEData = dataRLE.Count();
-      byte[] dataDecoded = new byte[width * height];
-      int posX = 1;
-      int outputIndex = 0;
-      int inputIndex = 0;
+      List<byte[]> lines = new List<byte[]>();
+      List<byte> currentLine = new List<byte>();
 
-      //decode RLE7
-      while ((inputIndex < nrRLEData) && (outputIndex < (width * height)))
+      try
       {
-        //get run count
-        byte byte1 = @dataRLE[inputIndex++];
-        if (inputIndex >= nrRLEData) { break; }
-        if (byte1 >= 128)
+
+        int i = 0;
+        while (i < rleData.Length)
         {
-          //draw multiple times
-          byte colorNr = (byte)(byte1 - 128);
+          byte firstByte = rleData[i];
+          bool isRun = (firstByte & 0x80) != 0; // Check if the MSB is set
+          byte colorIndex = (byte)(firstByte & 0x7F); // Extract color index (7 bits)
 
-          //get runlength
-          byte rl = @dataRLE[inputIndex++];
-
-          //draw x times
-          for (int i = 0; i < rl; i++)
+          if (isRun)
           {
-            if (outputIndex >= dataDecoded.Length)
+            if (i + 1 >= rleData.Length)
             {
               break;
             }
-            var index = outputIndex++;
-            if (index >= dataDecoded.Length)
-            {
-              break;
-            }
-            dataDecoded[index] = @colorNr;
-            posX++;
-          }
 
-          //draw until end of line
-          if (rl == 0)
+            byte runLength = rleData[i + 1];
+            i += 2;
+
+            if (runLength == 1)
+            {
+              throw new Exception("Invalid RLE data: Run length of 1 is forbidden.");
+            }
+
+            int addLength = (runLength == 0) ? (lineWidth - currentLine.Count) : runLength;
+
+            if (currentLine.Count + addLength > lineWidth)
+            {
+              addLength = lineWidth - currentLine.Count;
+            }
+
+            currentLine.AddRange(Enumerable.Repeat(colorIndex, addLength));
+          }
+          else // Single pixel
           {
-            while (posX <= width)
-            {
-              if (outputIndex >= dataDecoded.Length)
-              {
-                break;
-              }
-              dataDecoded[outputIndex++] = @colorNr;
-              posX++;
-            }
+            currentLine.Add(colorIndex);
+            i++;
+          }
+
+          if (currentLine.Count == lineWidth)
+          {
+            lines.Add(currentLine.ToArray());
+            currentLine.Clear();
           }
         }
-        else
-        {
-          //draw once
-          dataDecoded[outputIndex++] = @byte1;
-          posX++;
-        }
 
-        //reset x to 1 if end of line is reached
-        if (posX >= width) { posX = 1; }
+        // Add the last line if not empty
+        if (currentLine.Count > 0)
+        {
+          lines.Add(currentLine.ToArray());
+        }
+      }
+      catch (Exception ex)
+      {
+        //MessageBox.Show($"Error at line {lines.Count}, returning image so far: {ex}");
+        return lines.SelectMany(l => l).ToArray();
       }
 
-      //decode CLUT to bitmap
-      return dataDecoded;
+      return lines.SelectMany(l => l).ToArray();
     }
 
     // requires file to contain iff headers

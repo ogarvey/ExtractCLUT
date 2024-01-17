@@ -1,3 +1,6 @@
 {
-  "dotnet.defaultSolution": "ExtractCLUT.sln"
+  "dotnet.defaultSolution": "ExtractCLUT.sln",
+  "[m68k]": {
+    "editor.rulers": []
+  }
 }

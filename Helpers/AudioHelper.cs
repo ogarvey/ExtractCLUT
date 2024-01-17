@@ -88,7 +88,7 @@ namespace ExtractCLUT.Helpers
 		{
 			ushort bytePerBloc = (ushort)(wavHeader.ChannelNumber * 2);
 			uint bytePerSec = wavHeader.Frequency * bytePerBloc;
-			uint dataSize = (uint)(left.Count * 2 + right.Count * 2);
+			uint dataSize = (uint)(left.Count * 2 *wavHeader.ChannelNumber);
 			uint wavSize = 36 + dataSize;
 
 			using (BinaryWriter writer = new BinaryWriter(outStream, Encoding.ASCII, leaveOpen: true))

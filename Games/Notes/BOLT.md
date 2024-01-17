@@ -1,0 +1,7 @@
+# Bolt Files
+
+## Known Values
+
+@0x0 - 0x42 0x4F 0x4C 0x54 = BOLT
+
+@0xC - 4 byte value representing eof

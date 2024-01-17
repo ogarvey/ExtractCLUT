@@ -1,63 +1,79 @@
-BurnCycle.rtr_v_CLUT7_Normal_1529 
+Width 0x00
+01 80
+Height 0x02
+00 F0
 
-"CLUT" File initial 4 bytes = 0180 00F0 = 384 240
-4 bytes @ 0x08 = 2308 = 8968 - Unknown
-4 bytes @ 0x0C = 001E = 30 (Size of chunks starting at 0x55E)
-4 bytes @ 0x10 = 0003 = 3 - Possibly file number
-4 bytes @ 0x18 = 00080 = 128 - unknown
+??:
+00 00 00 00 23 08 00 00 
 
-Searching for 018000F0 returns 14 hits
+Start of offset list: 0x0C
+00 1E 00 00 
 
-0x00
-0x63DC
-0xDDD8C
-0x1A6220
-0x1DE4DC
-0x231B58
-0x2ECF20
-0x33C610
-0x3F15FC
-0x577BBC
-0xA4A5BC
-0XB2DE10
-0xC83718
-0x1080BB8
+Number of files: 0x10
+00 14 
 
-Trigger (T) : This bit is used to synchronize the application with various
-coding information, like visuals to audio, in real time. The
-bit when set to one generates an interrupt (see VII.4). 
+??:
+00 00 00 00 00 00 00 80 00 00 00 00 
 
-If a trigger bit and an EOR bit are set in the same sector, and the sector was
-not selected via the channel mask, the EOR bit will be reset by the CD driver
-so that it is not acted upon by the driver or the application.
+Offset List 0x1E:
 
-More complicated sychronization methods are possible using an event and/or
-signals (e.g. software interrupts). Events are similar to semaphores and are
-described completely in the CD-RTOS technical manual (Appendix VII.1). The use
-of signals are covered here. Signals may be generated for a process in any of the
-following ways:
-
-- The presence of a trigger (T), end of record (EOR), or end of file (EOF) bit in the
-subheader submode byte of a real-time sector (see SS_Play in VII.2.2.3.2).
-Note: (1) The EOF and T bits should generate interrupts only after file number
-selection.
-(2) The EOR bit should generate an interrupt only after the file and channel
-number selection.
-
-The display of each successive image may be initiated by completion of loading the
-image from disc, if the images are spaced at regular intervals on the disc. If not, e.g. for runlength images, another scheme, such as regularly spaced trigger bits on the
-disc, must be used.
-
-By placing a trigger bit in every 5th sector, the application can be notified when it is time to display a new image. 
-
-If a single runlength picture is greater in size than the allowed four sectors, it might have to be put into a different channel, thus allowing the application to put one or more of the sectors into an empty space where another image used less than 4
-sectors.
-
-### EOR Split
-
-When split by EOR file 5 contains logo, back to back frames
-file 6 contains philips logo starting at offset 0x478c has frame and a half in 6972 bytes (3 sectors)
-
-Offset 2 - Offset 1 = 0xAC7C
-
-Palette indicated by 0x8080 at around 0x40-0x50
+00 00 01 0E 
+00 00 01 28 
+00 00 01 42 
+00 00 01 62 
+00 00 01 8C 
+00 00 01 B8 
+00 00 01 DC 
+00 00 01 FC 
+00 00 02 1C 
+00 00 02 40 
+00 00 02 64 
+00 00 02 88 
+00 00 02 AC 
+00 00 02 D0 
+00 00 02 F4 
+00 00 03 14 
+00 00 03 34 
+00 00 03 52 
+00 00 03 70 
+00 00 03 8E 
+00 00 03 AC 
+00 00 03 CA 
+00 00 03 E8 
+00 00 04 06 
+00 00 04 2E 
+00 00 04 4E 
+00 00 04 72 
+00 00 04 94 
+00 00 04 AE 
+00 00 04 C8 
+00 00 04 E2 
+00 00 04 F4 
+00 00 05 0A 
+00 00 05 20 
+00 00 05 3E 
+00 00 05 60 
+00 00 05 76 
+00 00 05 86 
+00 00 05 96 
+00 00 05 A8 
+00 00 05 BA 
+00 00 05 CC 
+00 00 05 DE 
+00 00 05 F0 
+00 00 06 06 
+00 00 06 16 
+00 00 06 2A 
+00 00 06 3A 
+00 00 06 4A 
+00 00 06 5A 
+00 00 06 6A 
+00 00 06 7A 
+00 00 06 8A 
+00 00 06 9A 
+00 00 06 B2 
+00 00 06 C6 
+00 00 06 E0 
+00 00 06 F6 
+00 00 07 08 
+00 00 07 1E

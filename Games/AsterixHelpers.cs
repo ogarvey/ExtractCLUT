@@ -18,7 +18,7 @@ public static class AsterixHelpers
       if (testFile.Length == 0) continue;
       var colors = ColorHelper.ConvertBytesToRGB(testFile.Skip(04).Take(0x180).ToArray());
       var imageBytes = testFile.Skip(0x184).ToArray();
-      var rleImage = Rle7(imageBytes, 384, 240);
+      var rleImage = Rle7(imageBytes, 384);
       videoFrameList.Add(CreateImage(rleImage, colors, 384, 240));
     }
     if (videoFrameList.Count > 0) ConvertBitmapsToGif(videoFrameList, @$"C:\Dev\Projects\Gaming\CD-i\asterix\records\anims\video\output\{outputId}.gif");

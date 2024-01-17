@@ -6,6 +6,43 @@ using ExtractCLUT.Model;
 public static class FileHelpers
 {
   private const int subHeaderOffset = 16;
+  public static byte[] RemoveConsecutiveZeros(byte[] input)
+  {
+    if (input == null || input.Length == 0)
+    {
+      return input;
+    }
+
+    List<byte> output = new List<byte>();
+    int zeroCount = 0;
+
+    foreach (byte b in input)
+    {
+      if (b == 0x00)
+      {
+        zeroCount++;
+      }
+      else
+      {
+        if (zeroCount < 4)
+        {
+          output.AddRange(Enumerable.Repeat((byte)0x00, zeroCount));
+        }
+
+        zeroCount = 0;
+        output.Add(b);
+      }
+    }
+
+    // Handle trailing zeros
+    if (zeroCount < 4)
+    {
+      output.AddRange(Enumerable.Repeat((byte)0x00, zeroCount));
+    }
+
+    return output.ToArray();
+  }
+
   public static List<byte[]> SplitBinaryFileByNullBytes(string filePath, int? offset)
   {
     var chunks = new List<byte[]>();
@@ -357,6 +394,28 @@ public static class FileHelpers
     }
   }
 
+  public static byte[] RemoveTrailingZeroes(byte[] array)
+  {
+    int lastIndex = array.Length - 1;
+
+    // Find the index of the last non-zero byte
+    while (lastIndex >= 0 && array[lastIndex] == 0)
+    {
+      lastIndex--;
+    }
+
+    // Include one additional zero if the array had trailing zeroes
+    if (lastIndex < array.Length - 1)
+    {
+      lastIndex++;
+    }
+
+    // Create a new array without the trailing zeroes
+    byte[] trimmedArray = new byte[lastIndex + 1];
+    Array.Copy(array, trimmedArray, lastIndex + 1);
+
+    return trimmedArray;
+  }
 
   public static void ParseStereoAudioSectorsByChannel(List<SectorInfo> sectors, string baseDir, string filename)
   {
@@ -680,5 +739,36 @@ public static class FileHelpers
       ParseSectorsByEOR(SectorInfos, path, file);
       WriteIndividualSectorsToFolder(SectorInfos, path);
     }
+  }
+
+  public static byte[] RemoveOneZeroFromTripleZeroSequence(byte[] data)
+  {
+    if (data == null)
+      throw new ArgumentNullException(nameof(data));
+
+    List<byte> processed = new List<byte>(data.Length);
+
+    int i = 0;
+    while (i < data.Length)
+    {
+      // Check if we have a sequence of exactly three 0x00 bytes
+      if (i < data.Length - 2 && data[i] == 0x00 && data[i + 1] == 0x00 && data[i + 2] == 0x00)
+      {
+        // Add two 0x00 bytes instead of three
+        processed.Add(0x00);
+        processed.Add(0x00);
+
+        // Skip the three 0x00 bytes in the original array
+        i += 3;
+      }
+      else
+      {
+        // Add the current byte to the processed array
+        processed.Add(data[i]);
+        i++;
+      }
+    }
+
+    return processed.ToArray();
   }
 }
