@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -8,16 +9,17 @@ namespace ExtractCLUT.Helpers
 {
     public static class BoltFileHelper
     {
-        public static int GetEndOfBoltData(byte[] data)
-        {
-            return BitConverter.ToInt32(data.Skip(0xC).Take(4).Reverse().ToArray(), 0);
-        }
+        private static byte[]? _boltFileData;
+        private static uint _cursorPosition;
+        public const int FLAG_UNCOMPRESSED = 0x8000000;
+        public static int GetEndOfBoltData(byte[] data) => BitConverter
+            .ToInt32(data.Skip(0xC).Take(4).Reverse().ToArray(), 0);
 
-        public static int GetStartOfBoltData(byte[] data)
-        {
-            return BitConverter.ToInt32(data.Skip(0x18).Take(4).Reverse().ToArray(), 0);
-        }
+        public static int GetStartOfBoltData(byte[] data) => BitConverter
+            .ToInt32(data.Skip(0x18).Take(4).Reverse().ToArray(), 0);
 
+        public static void SetCurrentPosition(uint position) => _cursorPosition = position;
+        public static byte ReadByte() => _boltFileData![_cursorPosition++];
         public static List<int> GetBoltOffsets(byte[] data)
         {
             var offsets = new List<int>();
@@ -27,9 +29,9 @@ namespace ExtractCLUT.Helpers
             var index = 0x20;
             while (index < offsets[0])
             {
-                value = BitConverter.ToInt32(data.Skip(index+8).Take(4).Reverse().ToArray(), 0);
+                value = BitConverter.ToInt32(data.Skip(index + 8).Take(4).Reverse().ToArray(), 0);
                 offsets.Add(value);
-                index+=16;
+                index += 16;
             }
 
             return offsets;
@@ -40,25 +42,18 @@ namespace ExtractCLUT.Helpers
             var offsets = new List<BoltOffset>();
 
             var dataStart = GetStartOfBoltData(data);
-            var offsetData = new BoltOffset
-            {
-                Offset = dataStart,
-                InitialDataLength = data.Skip(0x13).Take(1).First() * 0x10,
-                SecondaryDataLength = BitConverter.ToInt32(data.Skip(0x14).Take(4).Reverse().ToArray(), 0)
-            };
+
+            var record = data.Skip(0x10).Take(0x10).ToArray();
+
+            var offsetData = new BoltOffset(record);
+            offsetData.Entries = PopulateEntries(offsetData);
             offsets.Add(offsetData);
             var index = 0x20;
             while (index < dataStart)
             {
-                var initDataLen = data.Skip(index+3).Take(1).First() * 0x10;
-                var secDataLen = BitConverter.ToInt32(data.Skip(index + 4).Take(4).Reverse().ToArray(), 0);
-                var offset = BitConverter.ToInt32(data.Skip(index + 8).Take(4).Reverse().ToArray(), 0);
-                offsetData = new BoltOffset
-                {
-                    Offset = offset,
-                    InitialDataLength = initDataLen,
-                    SecondaryDataLength = secDataLen
-                };
+                record = data.Skip(index).Take(0x10).ToArray();
+                offsetData = new BoltOffset(record);
+                offsetData.Entries = PopulateEntries(offsetData);
                 offsets.Add(offsetData);
                 index += 16;
             }
@@ -66,130 +61,216 @@ namespace ExtractCLUT.Helpers
             return offsets;
         }
 
+        private static List<BoltOffset> PopulateEntries(BoltOffset offsetData)
+        {
+            var entries = new List<BoltOffset>();
+            // Get the entries
+            if (offsetData.FileCount > 0)
+            {
+                for (var i = 0; i < offsetData.FileCount; i++)
+                {
+                    var entryRecord = new byte[0x10];
+                    for (var j = 0; j < 0x10; j++)
+                    {
+                        entryRecord[j] = _boltFileData![offsetData.Offset + (i * 0x10) + j];
+                    }
+                    var entry = new BoltOffset(entryRecord);
+                    entries.Add(entry);
+                }
+            }
+            return entries;
+        }
+
+        public static void ExtractBoltFolder(string outputPath, List<BoltOffset> data)
+        {
+            foreach (var entry in data)
+            {
+                ExtractBoltFile(outputPath, entry);
+            }
+        }
+
+        public static void ExtractBoltFile(string outputPath, BoltOffset data)
+        {
+            var result = new List<byte>();
+
+            if (!data.IsCompressed)
+            {
+                SetCurrentPosition(data.Offset);
+                var byteValue = _boltFileData[_cursorPosition];
+                result.AddRange(Enumerable.Repeat(byteValue, (int)data.UncompressedSize));
+            }
+            else
+            {
+                // Decompress
+                SetCurrentPosition(data.Offset);
+                result = Decompress(data.UncompressedSize);
+            }
+            if (!Directory.Exists(outputPath))
+            {
+                Directory.CreateDirectory(outputPath);
+            }
+            var outputFilePath = Path.Combine(outputPath, $"{data.NameHash}.bin");
+            File.WriteAllBytes(outputFilePath, result.ToArray());
+        }
+
+        public static List<byte> Decompress(uint expectedSize)
+        {
+            uint op_count = 0;
+            uint ext_offset = 0;
+            uint ext_run = 0;
+
+            var result = new List<byte>();
+
+            while (result.Count < expectedSize)
+            {
+                if (_cursorPosition >= _boltFileData!.Length)
+                {
+                    Debugger.Break();
+                    break;
+                }
+                var byteValue = ReadByte();
+                op_count++;
+
+                if ((byteValue & 0x80) != 0) // Check for the high bit
+                {
+                    if ((byteValue & 0x40) != 0) // extension in offset
+                    {
+                        ext_offset <<= 6;
+                        ext_offset |= (uint)byteValue & 0x3F;
+                    }
+                    else if ((byteValue & 0x20) != 0) // extension in runlength
+                    {
+                        ext_run <<= 5;
+                        ext_run |= (uint)byteValue & 0x1F;
+                    }
+                    else if ((byteValue & 0x10) != 0) // extension in both runlength and offset
+                    {
+                        ext_run <<= 2;
+                        ext_offset <<= 2;
+
+                        ext_offset |= (uint)(byteValue & 0b1100) >> 2;
+                        ext_run |= (uint)(byteValue & 0b0011);
+                    }
+                    else // uncompressed
+                    {
+                        uint run_length = ((ext_run << 4) | (uint)(byteValue & 0xF)) + 1;
+                        for (int i = 0; i < run_length; i++)
+                        {
+                            result.Add(ReadByte());
+                        }
+                        op_count = ext_offset = ext_run = 0;
+                    }
+                }
+                else // lookup
+                {
+                    uint target_offset = (uint)(result.Count - 1 - ((ext_offset << 4) | (uint)(byteValue & 0xF)));
+                    uint run_length = ((ext_run << 3) | (uint)(byteValue >> 4)) + op_count + 1;
+
+                    if (result.Count <= target_offset)
+                    {
+                        return result;
+                    }
+
+                    for (int i = 0; i < run_length; i++)
+                    {
+                        result.Add(result[(int)target_offset + i]);
+                    }
+                    op_count = ext_offset = ext_run = 0;
+                }
+            }
+
+            return result;
+        }
+
+        public static void ExtractBoltEntry(string outputPath, BoltOffset data)
+        {
+            if (data.IsFolder)
+            {
+                var folderPath = Path.Combine(outputPath, data.NameHash.ToString());
+                ExtractBoltFolder(folderPath, data.Entries);
+            }
+            else
+            {
+                ExtractBoltFile(outputPath, data);
+            }
+        }
+
         public static void ExtractBoltData(string inputFile, string outputFolder)
         {
             var data = File.ReadAllBytes(inputFile);
-            var offsets = GetBoltOffsetData(data);
-            for (var i = 0; i < offsets.Count; i++)
+            _boltFileData = data;
+            var headerOffsets = GetBoltOffsetData(data);
+
+            foreach (var offset in headerOffsets)
             {
-                var offset = offsets[i];
-                var initialData = data.Skip(offset.Offset).Take(offset.InitialDataLength).ToArray();
-                var secondaryData = data.Skip(offset.Offset + offset.InitialDataLength).Take(offset.SecondaryDataLength).ToArray();
-                var boltOutputFolder = Path.Combine(outputFolder, "bolts");
+                ExtractBoltEntry(outputFolder, offset);
+            }
+
+            var dataOffsets = new List<int>();
+            for (var i = 0; i < headerOffsets.Count; i++)
+            {
+                var offset = headerOffsets[i];
+                var initialData = data.Skip((int)offset.Offset).Take(offset.FileCount * 0x10).ToArray();
+
+                var boltOutputFolder = Path.Combine(outputFolder, "bolts1");
+                var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts1");
                 if (!Directory.Exists(boltOutputFolder))
                 {
                     Directory.CreateDirectory(boltOutputFolder);
                 }
-                File.WriteAllBytes($"{boltOutputFolder}\\{offset.Offset}_Initial.bin", initialData);
-                File.WriteAllBytes($"{boltOutputFolder}\\{offset.Offset}_Secondary.bin", secondaryData);
-
-                var subDataOffset = 0;
-                for (int j = 0, k = 0; j < initialData.Length; j += 16, k++)
+                if (!Directory.Exists(subBoltOutputFolder))
                 {
-                    var byteCount = BitConverter.ToInt16(initialData.Skip(j + 6).Take(2).Reverse().ToArray());
-                    var subFileBytes = secondaryData.Skip(subDataOffset + k + 1).Take(byteCount - 1).ToArray();
-                    subDataOffset += byteCount;
-                    var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts");
-                    if (!Directory.Exists(subBoltOutputFolder))
-                    {
-                        Directory.CreateDirectory(subBoltOutputFolder);
-                    }
-                    File.WriteAllBytes($@"{subBoltOutputFolder}\sb_{offset.Offset}_{j}.bin", subFileBytes);
+                    Directory.CreateDirectory(subBoltOutputFolder);
                 }
+                File.WriteAllBytes($"{boltOutputFolder}\\{offset.Offset}_Initial.bin", initialData);
+                uint lastOffset = 0;
+                for (int j = 0; j < initialData.Length; j += 16)
+                {
+                    var dataOffset = BitConverter.ToInt32(initialData.Skip(j + 8).Take(4).Reverse().ToArray(), 0);
+                    if (dataOffset != 0)
+                    {
+                        dataOffsets.Add(dataOffset);
+                    }
+                    if (j + 16 >= initialData.Length)
+                    {
+                        lastOffset = (i + 1 == headerOffsets.Count) ? (uint)GetEndOfBoltData(data) : headerOffsets[i+1].Offset;
+                    }
+                }
+                for (int j = 0; j < dataOffsets.Count; j++)
+                {
+                    var dataOffset = dataOffsets[j];
+                    var dataLength = (j + 1 < dataOffsets.Count) ? dataOffsets[j + 1] - dataOffset : lastOffset - dataOffset;
+                    var secondaryData = data.Skip(dataOffset).Take((int)dataLength).ToArray();
+                    File.WriteAllBytes($"{subBoltOutputFolder}\\{offset.Offset}_{dataOffset}_Secondary.bin", secondaryData);
+                }
+                dataOffsets.Clear();
             }
-        }
 
-        public static StringBuilder ParseInitialData1B(byte[] initialData)
-        {
-            var sb = new StringBuilder();
-            var index = 0;
-            while (index < initialData.Length)
-            {
-                var subData = initialData.Skip(index).Take(16).ToArray();
-                var subDataOffset = subData.Take(1).First();
-                var subDataLength = subData.Skip(1).Take(1).First();
-                var subDataLength2 = subData.Skip(2).Take(1).First();
-                var subDataLength3 = subData.Skip(3).Take(1).First();
-                var subDataLength4 = subData.Skip(4).Take(1).First();
-                var subDataLength5 = subData.Skip(5).Take(1).First();
-                var subDataLength6 = subData.Skip(6).Take(1).First();
-                var subDataLength7 = subData.Skip(7).Take(1).First();
-                var subDataLength8 = subData.Skip(8).Take(1).First();
-                var subDataLength9 = subData.Skip(9).Take(1).First();
-                var subDataLength10 = subData.Skip(10).Take(1).First();
-                var subDataLength11 = subData.Skip(11).Take(1).First();
-                var subDataLength12 = subData.Skip(12).Take(1).First();
-                var subDataLength13 = subData.Skip(13).Take(1).First();
-                var subDataLength14 = subData.Skip(14).Take(1).First();
-                var subDataLength15 = subData.Skip(15).Take(1).First();
-
-                sb.AppendLine($"Index: {index}");
-                sb.AppendLine("");
-                sb.AppendLine($"Offset: {subDataOffset}, Length: {subDataLength}, Length2: {subDataLength2}, Length3: {subDataLength3}");
-                sb.AppendLine($"Length4: {subDataLength4}, Length5: {subDataLength5}, Length6: {subDataLength6}, Length7: {subDataLength7}");
-                sb.AppendLine($"Length8: {subDataLength8}, Length9: {subDataLength9}, Length10: {subDataLength10}, Length11: {subDataLength11}");
-                sb.AppendLine($"Length12: {subDataLength12}, Length13: {subDataLength13}, Length14: {subDataLength14}, Length15: {subDataLength15}");
-                sb.AppendLine("");
-
-                index += 16;
-            }
-            return sb;
-        }
-
-        public static StringBuilder ParseInitialData2B(byte[] initialData)
-        {
-            var sb = new StringBuilder();
-            var index = 0;
-            while (index < initialData.Length)
-            {
-                var subData = initialData.Skip(index).Take(16).ToArray();
-                var subDataOffset = BitConverter.ToUInt16(subData.Take(2).Reverse().ToArray(), 0);
-                var subDataLength = BitConverter.ToUInt16(subData.Skip(2).Take(2).Reverse().ToArray(), 0);
-                var subDataLength2 = BitConverter.ToUInt16(subData.Skip(4).Take(2).Reverse().ToArray(), 0);
-                var subDataLength3 = BitConverter.ToUInt16(subData.Skip(6).Take(2).Reverse().ToArray(), 0);
-                var subDataLength4 = BitConverter.ToUInt16(subData.Skip(8).Take(2).Reverse().ToArray(), 0);
-                var subDataLength5 = BitConverter.ToUInt16(subData.Skip(10).Take(2).Reverse().ToArray(), 0);
-                var subDataLength6 = BitConverter.ToUInt16(subData.Skip(12).Take(2).Reverse().ToArray(), 0);
-                var subDataLength7 = BitConverter.ToUInt16(subData.Skip(14).Take(2).Reverse().ToArray(), 0);
-
-                sb.AppendLine($"Index: {index}");
-                sb.AppendLine("");
-                sb.AppendLine($"Offset: {subDataOffset}, Length: {subDataLength}, Length2: {subDataLength2}, Length3: {subDataLength3}");
-                sb.AppendLine($"Length4: {subDataLength4}, Length5: {subDataLength5}, Length6: {subDataLength6}, Length7: {subDataLength7}");
-                sb.AppendLine("");
-
-                index += 16;
-            }
-            return sb;
-        }
-
-        public static StringBuilder ParseInitialData4B(byte[] initialData)
-        {
-            var sb = new StringBuilder();
-            var index = 0;
-            while (index < initialData.Length)
-            {
-                var subData = initialData.Skip(index).Take(16).ToArray();
-                var subDataOffset = BitConverter.ToUInt32(subData.Take(4).Reverse().ToArray(), 0);
-                var subDataLength = BitConverter.ToUInt32(subData.Skip(4).Take(4).Reverse().ToArray(), 0);
-                var subDataLength2 = BitConverter.ToUInt32(subData.Skip(8).Take(4).Reverse().ToArray(), 0);
-                var subDataLength3 = BitConverter.ToUInt32(subData.Skip(12).Take(4).Reverse().ToArray(), 0);
-
-                sb.AppendLine($"Index: {index}");
-                sb.AppendLine("");
-                sb.AppendLine($"Offset: {subDataOffset}, Length: {subDataLength}, Length2: {subDataLength2}, Length3: {subDataLength3}");
-                sb.AppendLine("");
-
-                index += 16;
-            }
-            return sb;
         }
     }
 
     public class BoltOffset
     {
-        public int Offset { get; set; }
-        public int InitialDataLength { get; set; }
-        public int SecondaryDataLength { get; set; }
+        public uint Offset { get; }
+        public uint NameHash { get; }
+        public uint UncompressedSize { get; }
+        public uint Flags { get; }
+        public List<BoltOffset> Entries { get; set; }
+        public int FileCount => (int)(Flags & 0xFF);
+        public bool IsFolder => NameHash == 0;
+        public bool IsCompressed => (Flags & BoltFileHelper.FLAG_UNCOMPRESSED) == 0;
+
+        public BoltOffset(byte[] data)
+        {
+            Flags = BitConverter.ToUInt32(data.Take(4).Reverse().ToArray(), 0);
+            UncompressedSize = BitConverter.ToUInt32(data.Skip(0x4).Take(4).Reverse().ToArray(), 0);
+            Offset = BitConverter.ToUInt32(data.Skip(0x8).Take(4).Reverse().ToArray(), 0);
+            NameHash = BitConverter.ToUInt32(data.Skip(0xC).Take(4).Reverse().ToArray(), 0);
+        }
+
+        public override string ToString()
+        {
+            return $"Offset: {Offset}, Entries: {Entries}, NameHash: {NameHash}, UncompressedSize: {UncompressedSize}, Flags: {Flags}";
+        }
     }
 }
