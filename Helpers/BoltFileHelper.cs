@@ -39,6 +39,7 @@ namespace ExtractCLUT.Helpers
 
         public static List<BoltOffset> GetBoltOffsetData(byte[] data)
         {
+            _boltFileData = data;
             var offsets = new List<BoltOffset>();
 
             var dataStart = GetStartOfBoltData(data);
@@ -195,16 +196,55 @@ namespace ExtractCLUT.Helpers
             }
         }
 
+        public static void ParseBoltFile(string file)
+        {
+            var sb = new StringBuilder();
+            var data = File.ReadAllBytes(file);
+            var filename = Path.GetFileNameWithoutExtension(file);
+            var offsetData = GetBoltOffsetData(data);
+
+            sb.AppendLine($"Parsing BOLT Data for {filename}");
+            sb.AppendLine("==========================================");
+            sb.AppendLine();
+
+            foreach (var (offset, index) in offsetData.WithIndex())
+            {
+                sb.AppendLine("Folder Data:");
+                sb.AppendLine("==========================================");
+                sb.AppendLine($"Offset: {offset.Offset:x4} - Flags: {offset.Flags:x4} - IsCompressed: {offset.IsCompressed}");
+                sb.AppendLine($"UncompressedSize: {offset.UncompressedSize:x4} - NameHash: {offset.NameHash:x4}");
+                sb.AppendLine("==========================================");
+                sb.AppendLine();
+                if (offset.IsFolder) sb.AppendLine("File Data:");
+                if (offset.IsFolder) sb.AppendLine("==========================================");
+                if (offset.IsFolder)
+                {
+                    foreach (var entry in offset.Entries)
+                    {
+                        sb.AppendLine($"Offset: {entry.Offset:x4} - Flags: {entry.Flags:x4} - IsCompressed: {entry.IsCompressed}");
+                        sb.AppendLine($"UncompressedSize: {entry.UncompressedSize:x4} - NameHash: {entry.NameHash:x4}");
+                        sb.AppendLine();
+                    }
+                }
+                if (offset.IsFolder) sb.AppendLine();
+                if (offset.IsFolder) sb.AppendLine("==========================================");
+            }
+
+            var outputPath = Path.Combine(Path.GetDirectoryName(file), $"{filename}_parsedData.txt");
+
+            File.WriteAllText(outputPath, sb.ToString());
+        }
         public static void ExtractBoltData(string inputFile, string outputFolder)
         {
             var data = File.ReadAllBytes(inputFile);
+            var filename = Path.GetFileNameWithoutExtension(inputFile);
             _boltFileData = data;
             var headerOffsets = GetBoltOffsetData(data);
 
-            foreach (var offset in headerOffsets)
-            {
-                ExtractBoltEntry(outputFolder, offset);
-            }
+            // foreach (var offset in headerOffsets)
+            // {
+            //     ExtractBoltEntry(outputFolder, offset);
+            // }
 
             var dataOffsets = new List<int>();
             for (var i = 0; i < headerOffsets.Count; i++)
@@ -212,8 +252,8 @@ namespace ExtractCLUT.Helpers
                 var offset = headerOffsets[i];
                 var initialData = data.Skip((int)offset.Offset).Take(offset.FileCount * 0x10).ToArray();
 
-                var boltOutputFolder = Path.Combine(outputFolder, "bolts1");
-                var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts1");
+                var boltOutputFolder = Path.Combine(outputFolder, $"{filename}-bolts");
+                var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts");
                 if (!Directory.Exists(boltOutputFolder))
                 {
                     Directory.CreateDirectory(boltOutputFolder);
