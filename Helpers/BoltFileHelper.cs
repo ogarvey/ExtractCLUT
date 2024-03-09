@@ -116,11 +116,10 @@ namespace ExtractCLUT.Helpers
 
         public static List<byte> Decompress(uint expectedSize)
         {
-            uint op_count = 0;
-            uint ext_offset = 0;
-            uint ext_run = 0;
-
             var result = new List<byte>();
+            uint run_length;
+            uint relOffset;
+            byte b;
 
             while (result.Count < expectedSize)
             {
@@ -130,54 +129,129 @@ namespace ExtractCLUT.Helpers
                     break;
                 }
                 var byteValue = ReadByte();
-                op_count++;
 
-                if ((byteValue & 0x80) != 0) // Check for the high bit
+                switch (byteValue >> 4)
                 {
-                    if ((byteValue & 0x40) != 0) // extension in offset
-                    {
-                        ext_offset <<= 6;
-                        ext_offset |= (uint)byteValue & 0x3F;
-                    }
-                    else if ((byteValue & 0x20) != 0) // extension in runlength
-                    {
-                        ext_run <<= 5;
-                        ext_run |= (uint)byteValue & 0x1F;
-                    }
-                    else if ((byteValue & 0x10) != 0) // extension in both runlength and offset
-                    {
-                        ext_run <<= 2;
-                        ext_offset <<= 2;
-
-                        ext_offset |= (uint)(byteValue & 0b1100) >> 2;
-                        ext_run |= (uint)(byteValue & 0b0011);
-                    }
-                    else // uncompressed
-                    {
-                        uint run_length = ((ext_run << 4) | (uint)(byteValue & 0xF)) + 1;
-                        for (int i = 0; i < run_length; i++)
+                    case 0x0:
+                    case 0x1:
+                        for (uint i = 0; i < (byteValue & 0x1F) + 1; i++)
                         {
                             result.Add(ReadByte());
                         }
-                        op_count = ext_offset = ext_run = 0;
-                    }
-                }
-                else // lookup
-                {
-                    uint target_offset = (uint)(result.Count - 1 - ((ext_offset << 4) | (uint)(byteValue & 0xF)));
-                    uint run_length = ((ext_run << 3) | (uint)(byteValue >> 4)) + op_count + 1;
+                        break;
+                    case 0x2:
+                        run_length = (uint)(byteValue & 0xF) + 1;
+                        result.AddRange(Enumerable.Repeat((byte)0, (int)run_length));
+                        break;
+                    case 0x3:
+                        b = ReadByte();
+                        run_length = (uint)(byteValue & 0xF) + 3;
+                        result.AddRange(Enumerable.Repeat(b, (int)run_length));
+                        break;
+                    case 0x4:
+                    case 0x5:
+                    case 0x6:
+                    case 0x7:
+                        run_length = (uint)(byteValue & 0x7) + 2;
+                        relOffset = (uint)((byteValue >> 3) & 0x7) + 1;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                        }
+                        break;
+                    case 0x8:
+                        b = ReadByte();
+                        run_length = (uint)(b & 0x3f) + 3;
+                        relOffset = (uint)((((byteValue << 8) | b) >> 6) & 0x3f) + 1;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                        }
+                        break;
+                    case 0x9:
+                        b = ReadByte();
+                        run_length = (uint)(b & 0x3) + 3;
+                        relOffset = (uint)((((byteValue << 8) | b) >> 2) & 0x3ff) + 1;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                        }
+                        break;
+                    case 0xA:
+                        b = ReadByte();
+                        run_length = (uint)b << 0x8;
+                        b = ReadByte();
+                        run_length |= b;
 
-                    if (result.Count <= target_offset)
-                    {
-                        return result;
-                    }
+                        relOffset = (uint)(byteValue & 0xf) + 1;
 
-                    for (int i = 0; i < run_length; i++)
-                    {
-                        result.Add(result[(int)target_offset + i]);
-                    }
-                    op_count = ext_offset = ext_run = 0;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                        }
+                        break;
+                    case 0xB:
+                        b = ReadByte();
+                        run_length = (uint)(b & 0x3) << 0x8;
+                        relOffset = (uint)(((((b & 0xff) << 8) | (byteValue << 16)) >> 10) & 0x3ff) + 1;
+
+                        b = ReadByte();
+                        run_length |= b;
+                        run_length += 0x4;
+
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                        }
+                        break;
+                    case 0xC:
+                    case 0xD:
+                        run_length = (uint)(byteValue & 0x3) + 2;
+                        relOffset = (uint)(byteValue >> 2) & 7;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            relOffset++;
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                            relOffset++;
+                        }
+                        break;
+                    case 0xE:
+                        b = ReadByte();
+                        run_length = (uint)(b & 0x3f) + 3;
+                        relOffset = (uint)(((byteValue << 8) | b) >> 6) & 0x3f;
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            relOffset++;
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                            relOffset++;
+                        }
+                        break;
+                    case 0xF:
+                        b = ReadByte();
+                        run_length = (uint)((b & 0x3) << 0x8);
+                        relOffset = (uint)((((b & 0xff) << 8) | (byteValue << 16)) >> 10) & 0x3ff;
+
+                        b = ReadByte();
+                        run_length |= b;
+                        run_length += 0x4;
+
+                        for (uint i = 0; i < run_length; i++)
+                        {
+                            relOffset++;
+                            b = result[result.Count - (int)relOffset];
+                            result.Add(b);
+                            relOffset++;
+                        }
+                        break;
                 }
+
             }
 
             return result;
@@ -241,50 +315,50 @@ namespace ExtractCLUT.Helpers
             _boltFileData = data;
             var headerOffsets = GetBoltOffsetData(data);
 
-            // foreach (var offset in headerOffsets)
-            // {
-            //     ExtractBoltEntry(outputFolder, offset);
-            // }
-
-            var dataOffsets = new List<int>();
-            for (var i = 0; i < headerOffsets.Count; i++)
+            foreach (var offset in headerOffsets)
             {
-                var offset = headerOffsets[i];
-                var initialData = data.Skip((int)offset.Offset).Take(offset.FileCount * 0x10).ToArray();
-
-                var boltOutputFolder = Path.Combine(outputFolder, $"{filename}-bolts");
-                var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts");
-                if (!Directory.Exists(boltOutputFolder))
-                {
-                    Directory.CreateDirectory(boltOutputFolder);
-                }
-                if (!Directory.Exists(subBoltOutputFolder))
-                {
-                    Directory.CreateDirectory(subBoltOutputFolder);
-                }
-                File.WriteAllBytes($"{boltOutputFolder}\\{offset.Offset}_Initial.bin", initialData);
-                uint lastOffset = 0;
-                for (int j = 0; j < initialData.Length; j += 16)
-                {
-                    var dataOffset = BitConverter.ToInt32(initialData.Skip(j + 8).Take(4).Reverse().ToArray(), 0);
-                    if (dataOffset != 0)
-                    {
-                        dataOffsets.Add(dataOffset);
-                    }
-                    if (j + 16 >= initialData.Length)
-                    {
-                        lastOffset = (i + 1 == headerOffsets.Count) ? (uint)GetEndOfBoltData(data) : headerOffsets[i+1].Offset;
-                    }
-                }
-                for (int j = 0; j < dataOffsets.Count; j++)
-                {
-                    var dataOffset = dataOffsets[j];
-                    var dataLength = (j + 1 < dataOffsets.Count) ? dataOffsets[j + 1] - dataOffset : lastOffset - dataOffset;
-                    var secondaryData = data.Skip(dataOffset).Take((int)dataLength).ToArray();
-                    File.WriteAllBytes($"{subBoltOutputFolder}\\{offset.Offset}_{dataOffset}_Secondary.bin", secondaryData);
-                }
-                dataOffsets.Clear();
+                ExtractBoltEntry(outputFolder, offset);
             }
+
+            // var dataOffsets = new List<int>();
+            // for (var i = 0; i < headerOffsets.Count; i++)
+            // {
+            //     var offset = headerOffsets[i];
+            //     var initialData = data.Skip((int)offset.Offset).Take(offset.FileCount * 0x10).ToArray();
+
+            //     var boltOutputFolder = Path.Combine(outputFolder, $"{filename}-bolts");
+            //     var subBoltOutputFolder = Path.Combine(boltOutputFolder, "sub-bolts");
+            //     if (!Directory.Exists(boltOutputFolder))
+            //     {
+            //         Directory.CreateDirectory(boltOutputFolder);
+            //     }
+            //     if (!Directory.Exists(subBoltOutputFolder))
+            //     {
+            //         Directory.CreateDirectory(subBoltOutputFolder);
+            //     }
+            //     File.WriteAllBytes($"{boltOutputFolder}\\{offset.Offset}_Initial.bin", initialData);
+            //     uint lastOffset = 0;
+            //     for (int j = 0; j < initialData.Length; j += 16)
+            //     {
+            //         var dataOffset = BitConverter.ToInt32(initialData.Skip(j + 8).Take(4).Reverse().ToArray(), 0);
+            //         if (dataOffset != 0)
+            //         {
+            //             dataOffsets.Add(dataOffset);
+            //         }
+            //         if (j + 16 >= initialData.Length)
+            //         {
+            //             lastOffset = (i + 1 == headerOffsets.Count) ? (uint)GetEndOfBoltData(data) : headerOffsets[i + 1].Offset;
+            //         }
+            //     }
+            //     for (int j = 0; j < dataOffsets.Count; j++)
+            //     {
+            //         var dataOffset = dataOffsets[j];
+            //         var dataLength = (j + 1 < dataOffsets.Count) ? dataOffsets[j + 1] - dataOffset : lastOffset - dataOffset;
+            //         var secondaryData = data.Skip(dataOffset).Take((int)dataLength).ToArray();
+            //         File.WriteAllBytes($"{subBoltOutputFolder}\\{offset.Offset}_{dataOffset}_Secondary.bin", secondaryData);
+            //     }
+            //     dataOffsets.Clear();
+            // }
 
         }
     }
