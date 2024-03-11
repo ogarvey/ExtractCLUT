@@ -12,13 +12,16 @@ using Image = System.Drawing.Image;
 using SLImage = SixLabors.ImageSharp.Image;
 using Rectangle = System.Drawing.Rectangle;
 using SixLabors.ImageSharp.Formats.Gif;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace ExtractCLUT.Helpers
 {
   public static class ImageFormatHelper
   {
 
-    public static void CreateGifFromImageList(List<Image> images, string outputPath, int delay = 100, int repeat = 0, Image? backgroundFrame = null)
+    public static void CreateGifFromImageList(List<Image> images, string outputPath, int delay = 10, int repeat = 0, Image? backgroundFrame = null)
     {
       Image<Rgba32>? background = null;
       if (backgroundFrame != null)
@@ -30,6 +33,12 @@ namespace ExtractCLUT.Helpers
       using SLImage gif = new SixLabors.ImageSharp.Image<Rgba32>(backgroundFrame?.Width ?? images[0].Width, backgroundFrame?.Height ?? images[0].Height);
       var gifMetaData = gif.Metadata.GetGifMetadata();
       gifMetaData.RepeatCount = (ushort)repeat;
+
+      GifFrameMetadata firstFrameMetadata = gif.Frames.RootFrame.Metadata.GetGifMetadata();
+      firstFrameMetadata.FrameDelay = delay;
+
+      // If the first frame is to be used as background, set its disposal method accordingly.
+      firstFrameMetadata.DisposalMethod = backgroundFrame != null ? GifDisposalMethod.NotDispose : GifDisposalMethod.RestoreToBackground;
 
 
       foreach (var image in images)
@@ -141,14 +150,14 @@ namespace ExtractCLUT.Helpers
     
     private readonly static int[] dequantizer = { 0, 1, 4, 9, 16, 27, 44, 79, 128, 177, 212, 229, 240, 247, 252, 255 };
 
-    public static Bitmap DecodeDYUVImage(byte[] encodedData, int Width, int Height)
+    public static Bitmap DecodeDYUVImage(byte[] encodedData, int Width, int Height, uint Y = 128, uint U = 128, uint V = 128)
     {
       int encodedIndex = 0;                               //reader index
       int width = Width, height = Height;                      //output dimensions
       byte[] decodedImage = new byte[width * height * 4]; //decoded image array
-      uint initialY = 16;    //initial Y value (per line)
-      uint initialU = 128;    //initial U value (per line)
-      uint initialV = 128;    //initial V value (per line)
+      uint initialY = Y;    //initial Y value (per line)
+      uint initialU = U;    //initial U value (per line)
+      uint initialV = V;    //initial V value (per line)
 
       //loop through all output lines
       for (int y = 0; y < height; y++)
@@ -235,7 +244,38 @@ namespace ExtractCLUT.Helpers
       return value;
     }
 
+    public static void CropImageFolder(string folderPath, string extension)
+    {
+      string[] imageFiles = Directory.GetFiles(folderPath, extension); // Change the extension as required
+      var outputFolder = Path.Combine(folderPath, "Cropped");
+      Directory.CreateDirectory(outputFolder);
+      foreach (string imagePath in imageFiles)
+      {
+        // Load the image
+        using (Bitmap originalImage = new Bitmap(imagePath))
+        {
+          // Generate random coordinates for cropping
+          Random rnd = new Random();
+          int x = rnd.Next(0, originalImage.Width - 148);
+          int y = rnd.Next(0, originalImage.Height - 125);
 
+          // Create rectangle for cropping
+          Rectangle cropRect = new Rectangle(x, y, 148, 125);
+
+          // Crop the image
+          using (Bitmap croppedImage = originalImage.Clone(cropRect, originalImage.PixelFormat))
+          {
+            // Save the cropped image with "_icon" suffix
+            string fileName = Path.GetFileNameWithoutExtension(imagePath);
+            string fileExtension = Path.GetExtension(imagePath);
+            string newFileName = $"{fileName}_icon{fileExtension}";
+            string savePath = Path.Combine(outputFolder, newFileName);
+
+            croppedImage.Save(savePath);
+          }
+        }
+      }
+    }
     public static Bitmap GenerateClutImage(List<Color> palette, KingdomFileData file, byte[] clut7Bytes)
     {
       var clutImage = new Bitmap(file.Width, file.Height);
@@ -281,7 +321,7 @@ namespace ExtractCLUT.Helpers
 
       return clutImage;
     }
-    public static Bitmap GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height)
+    public static Bitmap GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height, bool useTransparency = false, int transparencyIndex = 0, bool lowerIndexes = true)
     {
       var clutImage = new Bitmap(Width, Height);
 
@@ -294,7 +334,7 @@ namespace ExtractCLUT.Helpers
           {
             var i = y * Width + x;
             var paletteIndex = clut7Bytes[i];
-            var color = paletteIndex < palette.Count ? palette[paletteIndex] : Color.Transparent;
+            var color = paletteIndex < palette.Count ? (useTransparency && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex) || paletteIndex == 0)) ? Color.Transparent : palette[paletteIndex] : palette[paletteIndex % palette.Count];
             clutImage.SetPixel(x, y, color);
           }
         }

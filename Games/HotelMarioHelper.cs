@@ -7,7 +7,11 @@ using System.Text;
 using System.Threading.Tasks;
 using ExtractCLUT.Helpers;
 using ExtractCLUT.Writers;
+using OGLibCDi.Helpers;
+using OGLibCDi.Models;
 using Color = System.Drawing.Color;
+using ColorHelper = OGLibCDi.Helpers.ColorHelper;
+using ImageFormatHelper = ExtractCLUT.Helpers.ImageFormatHelper;
 
 namespace ExtractCLUT.Games
 {
@@ -21,64 +25,122 @@ namespace ExtractCLUT.Games
   }
   public static class HotelMarioHelper
   {
-    static string _baseDir = @"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\records";
-    static string _introDir = $@"{_baseDir}\intro\video";
-    static string _introOutputDir = $@"{_baseDir}\intro\video\output";
-    static int[] _introRL7_2_Offsets = new int[] { 0x0, 0x5ac8, 0x6cf0, 0xbea4, 0xf51c, 0x158f8 };
-    static int[] _introRL7_2_OffsetLengths = new int[] { 0x51df, 0x9c1, 0x495c, 0x2ec2, 0x51ca, 0x2888 };
-    static int[] _introPaletteOffsets = new int[] { 0x2df18, 0x34428, 0x35fb8, 0x3bb98, 0x3fbe8, 0x47358 };
-    static int[] _introRL7_3_Offsets = new int[] {
-      0x0, 0x914, 0x1228, 0x2450, 0x3678, 0x48a0, 0x5ac8, 0x6cf0,0x7f18, 0x9140,0xa368,0xb590,0xc7b8,0xd9e0,
-      0xec08,0xfe30,0x11058,0x1196c,0x12280,0x12b94,0x134a8,0x13dbc,0x146d0,0x14fe4,0x1620c
-      };
-    static int[] _introRL7_3_OffsetLengths = new int[] {
-      0x63a, 0x8f5, 0xb66, 0xc17, 0xce8, 0xc8e, 0xd41, 0xd08 ,0xd43,0xcb6,0xc27,0xa9f,0xb52,0x9f3,
-      0x9c6,0x980,0x89c,0x766,0x75d,0x6c0,0x6db,0x6b3,0x5dc,0xe8e,0x11e8
-      };
-    static int[] _introPalette2Offsets = new int[] { 0x5a288 };
-    public static void ExtractIntroFiles()
+    public static void ExtractAllImageData(string rtfPath)
     {
-      var introPalette = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\intro.rtf");
 
-      var file = Path.Combine(_introDir, "intro_v_1_15_RL7_Normal_2.bin");
-      var image = File.ReadAllBytes(file);
-      for (int i = 0; i < _introRL7_2_Offsets.Length; i++)
+      var fileList = Directory.GetFiles(rtfPath, "*am.rtf").ToList();
+      fileList.AddRange(Directory.GetFiles(rtfPath, "*av.rtf").ToList());
+      fileList.Add(Path.Combine(rtfPath,"intro.rtf"));
+
+      foreach (var file in fileList)
       {
-        var palette1 = ColorHelper.ConvertBytesToRGB(introPalette.Skip(_introPaletteOffsets[i]).Take(0x180).ToArray()).ToList();
-        var offset = _introRL7_2_Offsets[i];
-        var length = _introRL7_2_OffsetLengths[i];
-        var imageBytes = image.Skip(offset).Take(length).ToArray();
-        var img = ImageFormatHelper.GenerateRle7Image(palette1, imageBytes, 384, 280);
-        img.Save(Path.Combine(_introOutputDir, $"intro_RL7_2_{i}.png"), ImageFormat.Png);
+        var cdiFile = new CdiFile(file);
+        var outputDir = Path.Combine(Path.GetDirectoryName(file), "output");
+        var fileOutputDir = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(file));
+        Directory.CreateDirectory(fileOutputDir);
+
+        // extract palettes
+        var paletteOutputDir = Path.Combine(fileOutputDir, "palettes");
+        Directory.CreateDirectory(paletteOutputDir);
+        var paletteSectors = cdiFile.DataSectors.OrderBy(ds => ds.SectorIndex).ToList();
+
+        var palettes = new List<Tuple<int, List<Color>>>();
+        var offsets = new List<int>();
+
+        foreach (var (sector, index) in paletteSectors.WithIndex())
+        {
+          var bytes = sector.GetSectorData().Take(0x180).ToArray();
+          var palette = ColorHelper.ConvertBytesToRGB(bytes);
+          palettes.Add(new Tuple<int, List<Color>>(sector.SectorIndex, palette));
+          offsets.Add(sector.SectorIndex);
+        }
+
+        palettes = palettes.OrderByDescending(p => p.Item1).ToList();
+
+        // extract DYUV data
+        var dyuvOutputDir = Path.Combine(fileOutputDir, "dyuv");
+        Directory.CreateDirectory(dyuvOutputDir);
+        var dyuvSectors = cdiFile.VideoSectors.Where(ds => ds.Coding.VideoString == "DYUV").OrderBy(ds => ds.SectorIndex).ToList();
+
+        var dyuvData = new List<byte[]>();
+
+        foreach (var (sector, index) in dyuvSectors.WithIndex())
+        {
+          dyuvData.Add(sector.GetSectorData());
+          if (sector.SubMode.IsEOR)
+          {
+            var dyuvBytes = dyuvData.SelectMany(x => x).ToArray();
+            var image = ImageFormatHelper.DecodeDYUVImage(dyuvBytes, 384, 280);
+            var outputName = Path.Combine(dyuvOutputDir, $"dyuv_{sector.SectorIndex}.png");
+            image.Save(outputName, ImageFormat.Png);
+            dyuvData.Clear();
+          }
+        }
+
+        // extract rl7 data
+        var rl7OutputDir = Path.Combine(fileOutputDir, "rl7");
+        Directory.CreateDirectory(rl7OutputDir);
+        var rl7Sectors = cdiFile.VideoSectors.Where(ds => ds.Coding.VideoString == "RL7").OrderBy(ds => ds.SectorIndex).ToList();
+
+        var rl7Data = new List<byte[]>();
+
+        var nextPaletteOffset = palettes[^2].Item1;
+
+        foreach (var (sector, index) in rl7Sectors.WithIndex())
+        {
+          if (sector.SectorIndex > nextPaletteOffset || index == rl7Sectors.Count - 1)
+          {
+            var palette = palettes.FirstOrDefault(x => x.Item1 < rl7Sectors[index - 1].SectorIndex);
+            var colors = palette.Item2;
+            var rl7Bytes = rl7Data.SelectMany(x => x).ToArray();
+            var imageBytes = ImageFormatHelper.Rle7(rl7Bytes, 384);
+            var imageIndex = 0;
+            while (imageBytes.Length >= 384 * 280)
+            {
+              var bytes = imageBytes.Take(384 * 280).ToArray();
+              var image = ImageFormatHelper.GenerateClutImage(colors, bytes, 384, 280, true);
+              var outputName = Path.Combine(rl7OutputDir, $"rl7_{sector.SectorIndex}_{imageIndex}.png");
+              imageIndex++;
+              image.Save(outputName, ImageFormat.Png);
+              imageBytes = imageBytes.Skip(384 * 280).ToArray();
+            }
+            rl7Data.Clear();
+            nextPaletteOffset = palettes.OrderBy(x => x.Item1).FirstOrDefault(x => x.Item1 > sector.SectorIndex)?.Item1 ?? palettes[^1].Item1;
+          }
+          var sectorBytes = sector.GetSectorData();
+          var trimmedBytes = FileHelpers.RemoveTrailingZeroes(sectorBytes);
+          rl7Data.Add(trimmedBytes);
+        }
+
+        // extract clut7 data
+        var clut7OutputDir = Path.Combine(fileOutputDir, "clut7");
+        Directory.CreateDirectory(clut7OutputDir);
+        var clut7Sectors = cdiFile.VideoSectors.Where(ds => ds.Coding.VideoString == "CLUT7").OrderBy(ds => ds.SectorIndex).ToList();
+
+        var clut7Data = new List<byte[]>();
+
+        nextPaletteOffset = palettes[^2].Item1;
+
+        foreach (var (sector, index) in clut7Sectors.WithIndex())
+        {
+          clut7Data.Add(sector.GetSectorData());
+          if (sector.SubMode.IsEOR)
+          {
+            var palette = palettes.FirstOrDefault(x => x.Item1 < sector.SectorIndex - 1).Item2;
+            var clut7Bytes = clut7Data.SelectMany(x => x).ToArray();
+            var imageIndex = 0;
+
+            var image = ImageFormatHelper.GenerateClutImage(palette, clut7Bytes, 384, 280, false);
+            var outputName = Path.Combine(clut7OutputDir, $"clut7_{sector.SectorIndex}.png");
+            image.Save(outputName, ImageFormat.Png);
+
+            clut7Data.Clear();
+            nextPaletteOffset = palettes.OrderBy(x => x.Item1).FirstOrDefault(x => x.Item1 > sector.SectorIndex)?.Item1 ?? palettes[^1].Item1;
+          }
+        }
+
       }
 
-      file = Path.Combine(_introDir, "intro_v_1_15_RL7_Normal_3.bin");
-      var palette = ColorHelper.ConvertBytesToRGB(introPalette.Skip(_introPalette2Offsets[0]).Take(0x180).ToArray()).ToList();
-      var anim = new List<Bitmap>();
-      palette[0] = Color.Transparent;
-      var chunks = FileHelpers.SplitBinaryFileIntoChunks(file, new byte[] { 0x00, 0x00, 0x00 }, true, true, null);
-      foreach (var (chunk, index) in chunks.WithIndex())
-      {
-        var lChunk = chunk.ToList();
-        while (lChunk.Count > 0 && lChunk.First() == 0x00)
-        {
-          lChunk.RemoveAt(0);
-        }
-        if (lChunk.Count == 0)
-        {
-          continue;
-        }
-        var img = ImageFormatHelper.GenerateRle7Image(palette, lChunk.ToArray(), 384, 280);
-        //img.Save(Path.Combine(_introOutputDir, $"intro_RL7_3_{index}.png"), ImageFormat.Png);
-        anim.Add(img);
-      }
-      using (var gifWriter = new GifWriter(Path.Combine(_introOutputDir, $"intro_RL7_3.gif"), 100))
-      {
-        foreach (var img in anim)
-        {
-          gifWriter.WriteFrame(img);
-        }
-      }
     }
 
     public static HMDatFile ParseDatFile(string filePath)
@@ -267,3 +329,28 @@ namespace ExtractCLUT.Games
 //     gifWriter.WriteFrame(img);
 //   }
 // }
+
+// var binData = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L1\L1_av.rtf_1_15_CLUT4_Normal_Even_236.bin");
+
+// var byteList = new List<byte[]>();
+
+// for (int i = 0; i < binData.Length - 0x3f; i += 0x40)
+// {
+//   var newData = new byte[0x80];
+//   var chunk = binData.Skip(i).Take(0x40).ToArray();
+//   // for the first 8 bytes,
+//   for (int j = 0, k = 0; j < 8; j += 2, k++)
+//   {
+//     newData[k * 4] = chunk[1];
+//     newData[k * 4 + 1] = chunk[3];
+//     newData[k * 4 + 2] = chunk[5];
+//     newData[k * 4 + 3] = chunk[7];
+//   }
+//   // copy the remaining 56 bytes to the new array, twice to take up the remaining 112 bytes
+//   Array.Copy(chunk, 8, newData, 16, 56);
+//   Array.Copy(chunk, 8, newData, 72, 56);
+//   byteList.Add(newData);
+// }
+
+// var output = @"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L1\L1_av.rtf_1_15_CLUT4_Normal_Even_236_3.bin";
+// File.WriteAllBytes(output, byteList.SelectMany(x => x).ToArray());

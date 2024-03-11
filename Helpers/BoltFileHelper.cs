@@ -134,7 +134,7 @@ namespace ExtractCLUT.Helpers
                 {
                     case 0x0:
                     case 0x1:
-                        for (uint i = 0; i < (byteValue & 0x1F) + 1; i++)
+                        for (uint i = 0; i < (byteValue & 0x1F) + 1; ++i)
                         {
                             result.Add(ReadByte());
                         }

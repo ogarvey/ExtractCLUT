@@ -192,9 +192,10 @@ namespace ExtractCLUT.Games
         return null;
       }
     }
-    public static Image CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
+    public static Tuple<Image,byte[]> CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
     {
       var mapTiles = new List<byte[]>();
+      var flatArray = new byte[320 * 160];
       for (int i = 0; i < _mapData.Length; i += 2)
       {
         int index = (_mapData[i] << 8) + _mapData[i + 1];
@@ -214,11 +215,12 @@ namespace ExtractCLUT.Games
           int tilePixelY = y % 8;
           int tilePixelIndex = tilePixelX + (tilePixelY * 8);
           int colorIndex = mapTiles[tileIndex][tilePixelIndex];
+          flatArray[x + (y * 320)] = (byte)colorIndex;
           Color color = _colors[colorIndex % 128];
           tempScreenBitmap.SetPixel(x, y, color);
         }
       }
-      return tempScreenBitmap;
+      return new Tuple<Image, byte[]>(tempScreenBitmap, flatArray);
     }
 
     public static List<byte[]> ReadScreenTiles(byte[] data)

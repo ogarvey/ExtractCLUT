@@ -17,18 +17,22 @@ namespace ExtractCLUT.Helpers
                 var newCpu = new MC68000();
                 newCpu.SetAddressSpace(newMemory);
                 newCpu.Reset();
-                //newCpu.SetAddrRegisterLong(3, 72); // pyramid adventures
+                newCpu.SetDataRegisterByte(2, 16); // pyramid adventures
+                newCpu.SetDataRegisterByte(3, 3); // pyramid adventures
+                newCpu.SetDataRegisterByte(5, 1); // pyramid adventures
+                newCpu.SetAddrRegisterLong(3, 72); // pyramid adventures
                 newCpu.SetAddrRegisterLong(7, 65536);
                 newCpu.SetAddrRegisterLong(0, outputOffset);
-                newCpu.SetPC(4);
+                newCpu.SetPC(16);
                 for (var i = 0; i < compiledSpriteData.Length; i++)
                 {
                     newMemory.WriteByte(i, compiledSpriteData[i]);
                 }
-                while (newCpu.GetPC() < compiledSpriteData.Length)
+                while (newCpu.GetPC() < compiledSpriteData.Length && newMemory.ReadByte(newCpu.GetPC()) != 0x4E && newMemory.ReadByte(newCpu.GetPC() + 1) != 0x75)
                 {
                     try
                     {
+                        Console.WriteLine($"Executing at PC: {newCpu.GetPC():X4}");
                         newCpu.Execute();
                     }
                     catch (Exception ex)
@@ -37,7 +41,7 @@ namespace ExtractCLUT.Helpers
                         continue;
                     }
                 }
-                var bytes = new byte[65536 ];
+                var bytes = new byte[65536];
                 for (var i = 0; i < bytes.Length; i++)
                 {
                     bytes[i] = newMemory.ReadByte(i);

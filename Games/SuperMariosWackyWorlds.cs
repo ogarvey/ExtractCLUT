@@ -55,3 +55,49 @@ namespace ExtractCLUT.Games
         }
     }
 }
+
+// var file = @"C:\Dev\Projects\Gaming\CD-i\MARIO\Output\Swamp3.JBR_0_0_0.bin";
+
+// var data = File.ReadAllBytes(file);
+
+// var widthBytes = new byte[] { data[0], data[1] };
+// var heightBytes = new byte[] { data[2], data[3] };
+
+// var widthInTiles = BitConverter.ToInt16(widthBytes.Reverse().ToArray(), 0);
+// var heightInTiles = BitConverter.ToInt16(heightBytes.Reverse().ToArray(), 0);
+
+// var width = widthInTiles * 16;
+// var height = heightInTiles * 16;
+
+// var screenByteCount = widthInTiles * heightInTiles * 2;
+// var tileByteCountArray = new byte[] { 0x00, data[0x4], data[0x5], data[0x6] };
+// var tileByteCount = BitConverter.ToInt32(tileByteCountArray.Reverse().ToArray(), 0);
+// var paletteOffset = FindClutColorTableOffset(data, 2);
+// var tilesOffset = paletteOffset - tileByteCount;
+
+// var tileBytes = data.Skip(tilesOffset).Take(tileByteCount).ToArray();
+// var screenBytes = data.Skip(0x7).Take(screenByteCount).ToArray();
+// var paletteBytes = data.Skip(paletteOffset).Take(0x208).ToArray();
+
+// var palette = ReadClutBankPalettes(paletteBytes, 2);
+
+// var tiles = SuperMariosWackyWorlds.GetScreenTiles(tileBytes);
+
+// foreach (var (tile, index) in tiles.WithIndex())
+// {
+//     var image = GenerateClutImage(palette, tile, 16, 16);
+//     image.Save($@"C:\Dev\Projects\Gaming\CD-i\MARIO\Output\Swamp\tiles\Swamp3\Swamp3_{index}.png", ImageFormat.Png);
+// }
+
+// var screenArray = new ushort[widthInTiles * heightInTiles];
+// var sIndex = 0;
+// for (int i = 0; i < screenArray.Length; i++)
+// {
+//     var value = (ushort)((screenBytes[sIndex] << 8) + screenBytes[sIndex + 1]);
+//     screenArray[i] = (ushort)(value + 1537);
+//     sIndex += 2;
+// }
+
+// // write to a json file
+// var json = JsonSerializer.Serialize(screenArray);
+// File.WriteAllText(@"C:\Dev\Projects\Gaming\CD-i\MARIO\Output\Swamp\screens\Swamp3.json", json);

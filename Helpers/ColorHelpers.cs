@@ -69,6 +69,33 @@ namespace ExtractCLUT.Helpers
       return colors;
     }
 
+    public static int FindClutColorTableOffset(byte[] data, int? startBank = null)
+    {
+      const int ClutHeaderSize = 4;
+      byte[] clut = new byte[256];
+      List<byte[]> clutHeaders = new List<byte[]>() {
+        new byte[] { 0xC3, 0x00, 0x00, 0x00 },
+        new byte[] { 0xC3, 0x00, 0x00, 0x01 },
+        new byte[] { 0xC3, 0x00, 0x00, 0x02 },
+        new byte[] { 0xC3, 0x00, 0x00, 0x03 }
+      };
+      List<byte[]> clutBanks = new List<byte[]>();
+
+      for (int bs = (int)startBank; bs <= 3; bs++)
+      {
+        for (int i = 0; i <= data.Length - ClutHeaderSize; i++)
+        {
+          if (data[i] == clutHeaders[bs][0] && data[i + 1] == clutHeaders[bs][1] &&
+              data[i + 2] == clutHeaders[bs][2] && data[i + 3] == clutHeaders[bs][3])
+          {
+            return i;
+          }
+        }
+      }
+
+      return -1;
+    }
+
     public static void RotateSubset(List<Color> colors, int startIndex, int endIndex, int permutations)
     {
       int subsetSize = endIndex - startIndex + 1;
@@ -121,11 +148,12 @@ namespace ExtractCLUT.Helpers
     public static Bitmap CreateLabelledPalette(List<Color> colors)
     {
       int squareSize = 16;
-      int gridSize = (int)Math.Sqrt(colors.Count); // 16 for a 256 color list
+      int cols = 16;
+      int rows = colors.Count / cols;
 
       // Calculate the width and height of the bitmap
-      int width = squareSize * gridSize;
-      int height = squareSize * gridSize;
+      int width = squareSize * cols;
+      int height = squareSize * rows;
 
       // Create a new bitmap with the calculated dimensions
       Bitmap bitmap = new Bitmap(width, height);
@@ -142,8 +170,8 @@ namespace ExtractCLUT.Helpers
         {
           for (int i = 0; i < colors.Count; i++)
           {
-            int xIndex = i % gridSize;
-            int yIndex = i / gridSize;
+            int xIndex = i % cols;
+            int yIndex = i / cols;
 
             // Draw the 8x8 square
             using (Brush brush = new SolidBrush(colors[i]))
