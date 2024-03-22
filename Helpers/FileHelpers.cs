@@ -1,3 +1,5 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
 using ExtractCLUT;
@@ -404,8 +406,8 @@ public static class FileHelpers
       lastIndex--;
     }
 
-    // Include one additional zero if the array had trailing zeroes
-    if (lastIndex < array.Length - 1)
+    // Include one additional zero if the original number of trailing zeroes was odd
+    if ((array.Length - lastIndex)  == 0)
     {
       lastIndex++;
     }
@@ -415,6 +417,37 @@ public static class FileHelpers
     Array.Copy(array, trimmedArray, lastIndex + 1);
 
     return trimmedArray;
+  }
+
+  private static void ParseFont(byte[] data)
+  {
+
+    // var fontfile = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\ALICE IN WONDERLAND\Output\atnc24cl.ai1_0_0_0.bin";
+
+    // var bytes = File.ReadAllBytes(fontfile).Skip(0x44).Take(0x24).ToArray();
+
+    var fontFileData = new CdiFontFile(data);
+
+    Console.WriteLine($"Found file data: {fontFileData}");
+    var Width = 280 * 8;
+    var Height = 15;
+    var clutImage = new Bitmap(Width, Height, PixelFormat.Format1bppIndexed);
+    for (int y = 0; y < Height; y++)
+    {
+      for (int x = 0; x < Width;)
+      {
+        var i = y * Width + x;
+        var paletteByte = data[i];
+        // for each bit in paletteByte
+        for (int j = 7; j >= 0; j--)
+        {
+          var bit = (paletteByte >> j) & 1;
+          var paletteIndex = bit;
+          var color = paletteIndex == 0 ? Color.Black : Color.White;
+          clutImage.SetPixel(x++, y, color);
+        }
+      }
+    }
   }
 
   public static void ParseStereoAudioSectorsByChannel(List<SectorInfo> sectors, string baseDir, string filename)
@@ -675,7 +708,53 @@ public static class FileHelpers
 
     return offsets;
   }
-  
+
+  public static List<long> FindSequenceOffsets(byte[] data, byte[] sequence)
+  {
+    if (sequence == null || sequence.Length == 0)
+      throw new ArgumentException("Sequence must not be null or empty.");
+
+    List<long> offsets = new List<long>();
+
+    using (var stream = new MemoryStream(data))
+    {
+      byte[] buffer = new byte[sequence.Length]; // Buffer to hold bytes read from the file
+      int sequenceIndex = 0; // Index of the current byte in the sequence
+
+      while (stream.Position < stream.Length)
+      {
+        int b = stream.ReadByte();
+        if (b == -1) break; // End of file
+
+        if (b == sequence[sequenceIndex])
+        {
+          sequenceIndex++; // Move to the next byte in the sequence
+          if (sequenceIndex == sequence.Length)
+          {
+            // Complete sequence found, add offset to list
+            long sequenceStart = stream.Position - sequence.Length;
+            offsets.Add(sequenceStart);
+
+            // Reset sequence index and adjust position to continue search
+            sequenceIndex = 0;
+            stream.Position = sequenceStart + 1;
+          }
+        }
+        else
+        {
+          if (sequenceIndex > 0)
+          {
+            // Partial match found, but current byte does not continue the sequence
+            // Reset sequence index and adjust position to continue search
+            stream.Position -= sequenceIndex;
+            sequenceIndex = 0;
+          }
+        }
+      }
+    }
+
+    return offsets;
+  }
   public static byte[] FindSequenceAndGetPriorBytes(string filePath, byte[] sequence, int bytesToGet)
   {
     byte[] fileBytes = File.ReadAllBytes(filePath);

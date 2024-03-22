@@ -78,5 +78,10 @@ namespace ExtractCLUT.Model
     public int GlyphDataTableLength { get; set; }
     public int FirstBmpOffset { get; set; }
     public int SecondBmpOffset { get; set; }
+
+    public override string ToString()
+    {
+        return $"FontType: {FontType}, Width: {Width}, Height: {Height}, Ascent: {Ascent},\r\nDescent: {Descent}, PixelSize: {PixelSize}, FirstChar: {FirstChar}, LastChar: {LastChar},\r\nLineLength: {LineLength}, GlyphTableOffset: {GlyphTableOffset}, GlyphDataTableLength: {GlyphDataTableLength}, FirstBmpOffset: {FirstBmpOffset}, SecondBmpOffset: {SecondBmpOffset}";
+    }
   }
 }

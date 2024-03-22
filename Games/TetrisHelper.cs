@@ -51,31 +51,34 @@ namespace ExtractCLUT.Games
             var paletteAndData = GetPaletteAndDataBytes(cdiFile);
 
             var palettes = new List<List<Color>>();
-
+            var rl7OutputPath = @$"{outputPath}\rl7";
+            if (!Directory.Exists(rl7OutputPath)) Directory.CreateDirectory(rl7OutputPath);
+            var palettePath = @$"{outputPath}\palettes";
+            if (!Directory.Exists(palettePath)) Directory.CreateDirectory(palettePath);
+            
             foreach (var (blob, index) in paletteAndData.WithIndex())
             {
-                var blobImages = new List<Image>();
-                var palette = index == 10 ?
-                ColorHelper.ReadClutBankPalettes(blob.Skip(0x5a).ToArray(), 4) : ColorHelper.ReadClutBankPalettes(blob.Skip(0x5a).ToArray(), 2);
-                palettes.Add(palette);
-                var palettePath = @$"{outputPath}\palettes";
-                if (!Directory.Exists(palettePath)) Directory.CreateDirectory(palettePath);
-                ColorHelper.WritePalette(@$"{palettePath}\palette_{index}.png", palette);
+                //var blobImages = new List<Image>();
+                // var palette = index == 10 ?
+                // ColorHelper.ReadClutBankPalettes(blob.Skip(0x5a).ToArray(), 4) : ColorHelper.ReadClutBankPalettes(blob.Skip(0x5a).ToArray(), 2);
+                // palettes.Add(palette);
+                // ColorHelper.CreateLabelledPalette(palette).Save(@$"{palettePath}\palette_{index}.png");
 
-                var sectorCounts = TetrisHelper.GetSectorCounts(blob.Skip(0x46a).ToArray());
+                var sectorCounts = GetSectorCounts(blob.Skip(0x46a).ToArray());
 
-                foreach (var sc in sectorCounts)
+                foreach (var (sc, sIndex) in sectorCounts.WithIndex())
                 {
                     var group = rl7Sectors.Take(sc).ToList();
                     var bytes = group.SelectMany(x => x.GetSectorData()).ToArray();
-                    var image = ImageFormatHelper.GenerateRle7Image(palette, bytes, 384, 240, true);
-                    blobImages.Add(image);
+                    File.WriteAllBytes(@$"{rl7OutputPath}\rl7_{index}_{sIndex}.bin", bytes);
+                    // var image = ImageFormatHelper.GenerateRle7Image(palette, bytes, 384, 240, true);
+                    // blobImages.Add(image);
                     rl7Sectors.RemoveRange(0, sc);
                 }
-                var gifOutputPath = @$"{outputPath}\gifs";
-                if (!Directory.Exists(gifOutputPath)) Directory.CreateDirectory(gifOutputPath);
-                ImageFormatHelper.CreateGifFromImageList(blobImages, @$"{gifOutputPath}\gifs\output_{index}.gif", 10);
-                blobImages.Clear();
+                // var gifOutputPath = @$"{outputPath}\gifs";
+                // if (!Directory.Exists(gifOutputPath)) Directory.CreateDirectory(gifOutputPath);
+                // ImageFormatHelper.CreateGifFromImageList(blobImages, @$"{gifOutputPath}\gifs\output_{index}.gif", 10);
+                // blobImages.Clear();
             }
 
         }

@@ -244,7 +244,34 @@ namespace ExtractCLUT.Helpers
       return value;
     }
 
-    public static void CropImageFolder(string folderPath, string extension)
+    public static void CropImageFolder(string folderPath, string extension, int originX, int originY, int width, int height)
+    {
+      string[] imageFiles = Directory.GetFiles(folderPath, extension); // Change the extension as required
+      var outputFolder = Path.Combine(folderPath, "Cropped");
+      Directory.CreateDirectory(outputFolder);
+      foreach (string imagePath in imageFiles)
+      {
+        // Load the image
+        using (Bitmap originalImage = new Bitmap(imagePath))
+        {
+          // Create rectangle for cropping
+          Rectangle cropRect = new Rectangle(originX, originY, width, height);
+
+          // Crop the image
+          using (Bitmap croppedImage = originalImage.Clone(cropRect, originalImage.PixelFormat))
+          {
+            // Save the cropped image with "_icon" suffix
+            string fileName = Path.GetFileNameWithoutExtension(imagePath);
+            string fileExtension = Path.GetExtension(imagePath);
+            string newFileName = $"{fileName}_icon{fileExtension}";
+            string savePath = Path.Combine(outputFolder, newFileName);
+
+            croppedImage.Save(savePath);
+          }
+        }
+      }
+    }
+    public static void CropImageFolderRandom(string folderPath, string extension, int width, int height)
     {
       string[] imageFiles = Directory.GetFiles(folderPath, extension); // Change the extension as required
       var outputFolder = Path.Combine(folderPath, "Cropped");
@@ -256,11 +283,11 @@ namespace ExtractCLUT.Helpers
         {
           // Generate random coordinates for cropping
           Random rnd = new Random();
-          int x = rnd.Next(0, originalImage.Width - 148);
-          int y = rnd.Next(0, originalImage.Height - 125);
+          int x = rnd.Next(0, originalImage.Width - width);
+          int y = rnd.Next(0, originalImage.Height - height);
 
           // Create rectangle for cropping
-          Rectangle cropRect = new Rectangle(x, y, 148, 125);
+          Rectangle cropRect = new Rectangle(x, y, width, height);
 
           // Crop the image
           using (Bitmap croppedImage = originalImage.Clone(cropRect, originalImage.PixelFormat))

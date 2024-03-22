@@ -133,7 +133,14 @@ namespace ExtractCLUT
       }
       foreach (var b in imageBin)
       {
-        brush.Color = colors[b];
+        if (b >= colors.Count)
+        {
+          brush.Color = colors[b % colors.Count];
+        }
+        else
+        {
+          brush.Color = colors[b];
+        }
         graphics.FillRectangle(brush, x, y, width, height);
         x += width;
         if (x >= Width)

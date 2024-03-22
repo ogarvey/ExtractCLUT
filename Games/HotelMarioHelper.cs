@@ -31,9 +31,11 @@ namespace ExtractCLUT.Games
       var fileList = Directory.GetFiles(rtfPath, "*am.rtf").ToList();
       fileList.AddRange(Directory.GetFiles(rtfPath, "*av.rtf").ToList());
       fileList.Add(Path.Combine(rtfPath,"intro.rtf"));
+      fileList.Add(Path.Combine(rtfPath, "exit.rtf"));
 
       foreach (var file in fileList)
       {
+        if (!File.Exists(file)) continue;
         var cdiFile = new CdiFile(file);
         var outputDir = Path.Combine(Path.GetDirectoryName(file), "output");
         var fileOutputDir = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(file));
