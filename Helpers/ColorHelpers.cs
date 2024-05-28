@@ -245,7 +245,7 @@ namespace ExtractCLUT.Helpers
           colors.Add(color);
         }
       }
-      if (count >= 3)
+      if (count >= 3 && data[520] != 0)
       {
         for (int i = 524; i < 524 + length; i += 4)
         {
@@ -253,7 +253,7 @@ namespace ExtractCLUT.Helpers
           colors.Add(color);
         }
       }
-      if (count == 4)
+      if (count == 4 && data[780] != 0)
       {
         for (int i = 784; i < 784 + length; i += 4)
         {

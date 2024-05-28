@@ -11,6 +11,26 @@ namespace ExtractCLUT
 {
   public static class Utils
   {
+    // utils.multiply = function(component, multiplier)
+    // {
+    //   if (!isFinite(multiplier) || multiplier === 0)
+    //   {
+    //     return 0;
+    //   }
+
+    //   return Math.round(component * multiplier);
+    // };
+
+    public static int Multiply(int component, int multiplier)
+    {
+      if (double.IsInfinity(multiplier) || multiplier == 0)
+      {
+        return 0;
+      }
+
+      return (int)Math.Round((double)(component * multiplier));
+    }
+
     public static string ReadNullTerminatedString(this BinaryReader reader)
     {
       var byteList = new List<byte>();
@@ -27,18 +47,27 @@ namespace ExtractCLUT
     {
       return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
     }
-    public static int ReadBigEndianUInt16(BinaryReader reader)
+    public static ushort ReadBigEndianUInt16(BinaryReader reader)
     {
       byte[] bytes = reader.ReadBytes(2);
       Array.Reverse(bytes);
       return BitConverter.ToUInt16(bytes, 0);
     }
-    public static int ReadBigEndianUInt32(BinaryReader reader)
+
+    public static int ReadBigEndianInt16(BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(2);
+      Array.Reverse(bytes);
+      return BitConverter.ToInt16(bytes, 0);
+    }
+
+    public static uint ReadBigEndianUInt32(BinaryReader reader)
     {
       byte[] bytes = reader.ReadBytes(4);
       Array.Reverse(bytes);
-      return BitConverter.ToInt32(bytes, 0);
+      return BitConverter.ToUInt32(bytes, 0);
     }
+    
     public static bool MatchesSequence(BinaryReader reader, byte[] sequence)
     {
       for (int i = 0; i < sequence.Length; i++)

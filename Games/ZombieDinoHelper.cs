@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using OGLibCDi.Helpers;
 using Color = System.Drawing.Color;
 using Image = System.Drawing.Image;
+using static ExtractCLUT.Helpers.FileHelpers;
 
 namespace ExtractCLUT.Games
 {
@@ -33,7 +34,7 @@ namespace ExtractCLUT.Games
 
         public static List<Image> ParseAnimFile(string rl7InputFile, bool transparent = false)
         {
-            var rl7Chunks = FileHelpers.SplitBinaryFileintoSectors(rl7InputFile, 2324);
+            var rl7Chunks = SplitBinaryFileintoSectors(rl7InputFile, 2324);
             
             var rl7Images = new List<Image>();
            

@@ -7,10 +7,9 @@ using ExtractCLUT.Helpers;
 using static ExtractCLUT.Utils;
 using static ExtractCLUT.Helpers.ColorHelper;
 using ExtractCLUT.Models;
-using ExtractCLUT.Writers;
 using Color = System.Drawing.Color;
 using Image = System.Drawing.Image;
-using static OGLibCDi.Helpers.ImageFormatHelper;
+using static ExtractCLUT.Helpers.ImageFormatHelper;
 
 namespace ExtractCLUT.Games
 {
@@ -35,12 +34,12 @@ namespace ExtractCLUT.Games
       var TILE_2_ABOVE_PLAYER = GetTileAtCoords(baseIndexX, baseIndexY + -2);
     }
 
-        private static object GetTileAtCoords(int indexXMinus1, int baseIndexY)
-        {
-            throw new NotImplementedException();
-        }
+    private static object GetTileAtCoords(int indexXMinus1, int baseIndexY)
+    {
+      throw new NotImplementedException();
+    }
 
-        public class ImageLine
+    public class ImageLine
     {
       public int LeftOffset { get; set; }
       public List<byte> Pixels { get; set; }
@@ -64,15 +63,7 @@ namespace ExtractCLUT.Games
         else if (data[i] == 0x00 && data[i + 1] == 0x38)
         {
           line.LeftOffset = 0;
-          line.Pixels = new List<byte>();
-          for (int j = 0; j < 56; j++)
-          {
-            line.Pixels.Add(0x00);
-            if (line.LeftOffset + line.Pixels.Count == 56)
-            {
-              break;
-            }
-          }
+          line.Pixels = Enumerable.Repeat((byte)0x00, 56).ToList();
         }
         else
         {
@@ -133,6 +124,7 @@ namespace ExtractCLUT.Games
           if (i >= data.Length - 1 || ((line.LeftOffset + line.Pixels.Count) == 56))
           {
             imageLines.Add(line);
+            if (i >= data.Length - 1) return imageLines;
             break;
           }
         }
@@ -140,7 +132,7 @@ namespace ExtractCLUT.Games
         imageLines.Add(line);
 
       }
-
+      // if (imageLines.Count > 48) imageLines.RemoveRange(48, imageLines.Count - 48);
       return imageLines;
     }
 
@@ -192,7 +184,7 @@ namespace ExtractCLUT.Games
         return null;
       }
     }
-    public static Tuple<Image,byte[]> CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
+    public static Tuple<Image, byte[]> CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
     {
       var mapTiles = new List<byte[]>();
       var flatArray = new byte[320 * 160];
@@ -286,34 +278,21 @@ namespace ExtractCLUT.Games
       var chunks = ReadSlideBytes(slidesBinFile);
 
       Console.WriteLine(chunks.Count);
-      List<Bitmap> images = new();
-      List<Bitmap> scaledImages = new();
+      List<Image> images = new();
+      List<Image> scaledImages = new();
       foreach (var chunk in chunks)
       {
         if (chunk.Length >= 92160)
         {
-          var image = ImageFormatHelper.DecodeDYUVImage(chunk, 384, 240);
+          var image = DecodeDYUVImage(chunk, 384, 240);
           var scaledImage = BitmapHelper.Scale4(image);
           images.Add(image);
           scaledImages.Add(scaledImage);
         }
       }
 
-      using (var gifWriter = new GifWriter(Path.Combine(outputFolder, "slides.gif"), 200, -1))
-      {
-        foreach (var image in images)
-        {
-          gifWriter.WriteFrame(image);
-        }
-      }
-
-      using (var gifWriter = new GifWriter(Path.Combine(outputFolder, "slidesX4.gif"), 400, -1))
-      {
-        foreach (var image in scaledImages)
-        {
-          gifWriter.WriteFrame(image);
-        }
-      }
+      CreateGifFromImageList(images, Path.Combine(outputFolder, "slides.gif"), 20);
+      CreateGifFromImageList(scaledImages, Path.Combine(outputFolder, "slidesX4.gif"), 40);
 
     }
     public static List<byte[]> ReadSlideBytes(string filePath)
@@ -395,20 +374,23 @@ namespace ExtractCLUT.Games
 
     public static void CreateDyuvImages(List<DyuvFrameContainer> containers, string originalImage)
     {
-      var height = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? 240 : 144;
-      var width = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? 384 : 316;
-      var imageList = new List<Bitmap>();
-      var imageListX4 = new List<Bitmap>();
+      var isSpace = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase);
+      var height = isSpace ? 240 : 144;
+      var width = isSpace ? 384 : 316;
+      var imageList = new List<Image>();
+
       // read originalImage into a byte array
       byte[] originalImageBytes = File.ReadAllBytes(originalImage).Take(92160).ToArray();
+      var outputDirectory = @$"{Path.GetDirectoryName(originalImage)}\output\{Path.GetFileNameWithoutExtension(originalImage)}\";
 
-      Bitmap initialImage = ImageFormatHelper.DecodeDYUVImage(originalImageBytes, width, originalImageBytes.Length / width);
+      if (!Directory.Exists(outputDirectory))
+      {
+        Directory.CreateDirectory(outputDirectory);
+      }
+
+      Image initialImage = ImageFormatHelper.DecodeDYUVImage(originalImageBytes, width, originalImageBytes.Length / width, 16);
       imageList.Add(initialImage);
-      initialImage.Save(@$"{Path.GetDirectoryName(originalImage)}\output\{Path.GetFileNameWithoutExtension(originalImage)}_initial.png");
-
-      Bitmap initialImageX4 = BitmapHelper.Scale4(ImageFormatHelper.DecodeDYUVImage(originalImageBytes, width, originalImageBytes.Length / width));
-      imageListX4.Add(initialImageX4);
-      initialImageX4.Save(@$"{Path.GetDirectoryName(originalImage)}\output\x4\{Path.GetFileNameWithoutExtension(originalImage)}_initial_X4.png");
+      initialImage.Save(@$"{outputDirectory}\{Path.GetFileNameWithoutExtension(originalImage)}_initial.png");
 
       foreach (var (container, index) in containers.WithIndex())
       {
@@ -416,8 +398,8 @@ namespace ExtractCLUT.Games
         Buffer.BlockCopy(originalImageBytes, 0, newImageBytes, 0, originalImageBytes.Length);
         foreach (var frame in container.Frames)
         {
-          var x = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? frame.Offset * 4 % width : frame.Offset % width;
-          var y = originalImage.Contains("space", StringComparison.OrdinalIgnoreCase) ? frame.Offset * 4 / width : frame.Offset / width;
+          var x = isSpace ? frame.Offset * 4 % width : frame.Offset % width;
+          var y = isSpace ? frame.Offset * 4 / width : frame.Offset / width;
 
           var test2 = (int)GetOffset((ushort)(ushort)y, (ushort)width);
 
@@ -432,27 +414,11 @@ namespace ExtractCLUT.Games
           Buffer.BlockCopy(frame.Bytes, 0, newImageBytes, offset, frame.Bytes.Length);
         }
         originalImageBytes = newImageBytes;
-        Bitmap newImage = ImageFormatHelper.DecodeDYUVImage(newImageBytes, width, newImageBytes.Length / width);
+        Image newImage = ImageFormatHelper.DecodeDYUVImage(newImageBytes, width, newImageBytes.Length / width, 16);
         imageList.Add(newImage);
-        newImage.Save(@$"{Path.GetDirectoryName(originalImage)}\output\space_{index}.png");
-        Bitmap newImageX4 = BitmapHelper.Scale4(ImageFormatHelper.DecodeDYUVImage(newImageBytes, width, newImageBytes.Length / width));
-        imageListX4.Add(newImageX4);
-        newImageX4.Save(@$"{Path.GetDirectoryName(originalImage)}\output\x4\space_{index}_X4.png");
+        newImage.Save(@$"{outputDirectory}\{(isSpace ? "space" : $"{Path.GetFileNameWithoutExtension(originalImage)}")}_{index}.png");
       }
-      using (var gifWriter = new GifWriter(@$"{Path.GetDirectoryName(originalImage)}\output\space.gif", 100, -1))
-      {
-        foreach (var image in imageList)
-        {
-          gifWriter.WriteFrame(image);
-        }
-      }
-      using (var gifWriter = new GifWriter(@$"{Path.GetDirectoryName(originalImage)}\output\x4\space.gif", 100, -1))
-      {
-        foreach (var image in imageListX4)
-        {
-          gifWriter.WriteFrame(image);
-        }
-      }
+      ImageFormatHelper.CreateGifFromImageList(imageList, @$"{outputDirectory}\{(isSpace ? "space" : $"{Path.GetFileNameWithoutExtension(originalImage)}")}.gif");
     }
 
     private static uint GetOffset(ushort param_1, ushort param_2)
@@ -474,6 +440,10 @@ namespace ExtractCLUT.Games
       chunkBuffer = chunkBuffer.Skip(4).ToArray();
       for (int i = 0; i < cont.Lines; i++)
       {
+        if (chunkBuffer.Length < 4)
+        {
+          break;
+        }
         DyuvFrame chunkData = new DyuvFrame();
         bytePair = new byte[] { chunkBuffer[1], chunkBuffer[0] };
         chunkData.Offset = BitConverter.ToUInt16(bytePair, 0);
@@ -506,9 +476,9 @@ namespace ExtractCLUT.Games
 
       var palette = ConvertBytesToRGB(paletteBytes.Take(0x300).ToArray());
 
-      var cockpitScreenImageList = new List<Bitmap>();
-      var cockpitControlsImageList = new List<Bitmap>();
-      var paletteImageList = new List<Bitmap>();
+      var cockpitScreenImageList = new List<Image>();
+      var cockpitControlsImageList = new List<Image>();
+      var paletteImageList = new List<Image>();
 
       var cockpitScreenImage = new Bitmap(384, 180);
       var cockpitControlsImage = new Bitmap(384, 60);
@@ -575,15 +545,8 @@ namespace ExtractCLUT.Games
         cockpitControlsImageList.Add(cockpitControlsImage);
       }
 
-      using (var gifWriter = new GifWriter(Path.Combine(spaceDataFilesOutPath, "cockpitScreenImageList.gif"), 500, 0))
-      {
-        foreach (var cockpitImage in cockpitScreenImageList)
-        {
-          gifWriter.WriteFrame(cockpitImage);
-        }
-      }
-
-
+      CreateGifFromImageList(cockpitScreenImageList, Path.Combine(spaceDataFilesOutPath, "cockpitScreenImageList.gif"), 50, 0);
+      CreateGifFromImageList(cockpitControlsImageList, Path.Combine(spaceDataFilesOutPath, "cockpitControlsImageList.gif"), 50, 0);
     }
 
     public static Image CreateTileImage(byte[] tile, List<Color> palette, bool idOverlay = false)
@@ -616,7 +579,7 @@ namespace ExtractCLUT.Games
 
       if (((tileIndex == 0) || (0x1f < tileIndex)) && (tileIndex < 0x58 || (0x5f < tileIndex)))
       {
-        
+
         if ((0x1f < tileIndex) && (tileIndex < 0x40))
         {
           // COLLISION = 1;
@@ -750,39 +713,47 @@ namespace ExtractCLUT.Games
 
       for (int i = 0; i < tileList.Count; i += 64)
       {
-        var listOfQuads = tileList.Skip(i).Take(64).ToList();
-        // image is made up of 4 tiles, each tile is 8x8 pixels
-        for (int j = 0; j < 32; j += 2)
+        if (i <= 320)
         {
-          var quadTopLeft = listOfQuads[j];
-          var quadTopRight = listOfQuads[j + 1];
-          var quadBottomLeft = listOfQuads[j + 32];
-          var quadBottomRight = listOfQuads[j + 33];
-          var combinedQuads = new byte[256];
-          for (int x = 0; x < 16; x++)
+          var listOfQuads = tileList.Skip(i).Take(64).ToList();
+          // image is made up of 4 tiles, each tile is 8x8 pixels
+          for (int j = 0; j < 32; j += 2)
           {
-            for (int y = 0; y < 16; y++)
+            var quadTopLeft = listOfQuads[j];
+            var quadTopRight = listOfQuads[j + 1];
+            var quadBottomLeft = listOfQuads[j + 32];
+            var quadBottomRight = listOfQuads[j + 33];
+            var combinedQuads = new byte[256];
+            for (int x = 0; x < 16; x++)
             {
-              if (x < 8 && y < 8)
+              for (int y = 0; y < 16; y++)
               {
-                combinedQuads[x + y * 16] = quadTopLeft[x + y * 8];
-              }
-              else if (x >= 8 && y < 8)
-              {
-                combinedQuads[x + y * 16] = quadTopRight[x - 8 + y * 8];
-              }
-              else if (x < 8 && y >= 8)
-              {
-                combinedQuads[x + y * 16] = quadBottomLeft[x + (y - 8) * 8];
-              }
-              else if (x >= 8 && y >= 8)
-              {
-                combinedQuads[x + y * 16] = quadBottomRight[x - 8 + (y - 8) * 8];
+                if (x < 8 && y < 8)
+                {
+                  combinedQuads[x + y * 16] = quadTopLeft[x + y * 8];
+                }
+                else if (x >= 8 && y < 8)
+                {
+                  combinedQuads[x + y * 16] = quadTopRight[x - 8 + y * 8];
+                }
+                else if (x < 8 && y >= 8)
+                {
+                  combinedQuads[x + y * 16] = quadBottomLeft[x + (y - 8) * 8];
+                }
+                else if (x >= 8 && y >= 8)
+                {
+                  combinedQuads[x + y * 16] = quadBottomRight[x - 8 + (y - 8) * 8];
+                }
               }
             }
+            var image = GenerateClutImage(palette, combinedQuads, 16, 16, true);
+            image.Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\output\combined\{i}_{j}.png");
           }
-          var image = GenerateClutImage(palette, combinedQuads, 16, 16);
-          image.Scale4().Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\output\combined\x4\{i}_{j}.png");
+        }
+        else if (i > 320)
+        {
+          // Song Icons which are 16 tiles, each icon is 4x4 tiles, each tile is 8x8 pixels
+          var listOfQuads = tileList.Skip(i).Take(256).ToList();
         }
       }
     }
@@ -934,4 +905,66 @@ namespace ExtractCLUT.Games
 //   // Directory.CreateDirectory(tileGifOutputDir);
 //   // CreateGifFromImageList(images, Path.Combine(tileGifOutputDir, $"hive_{index}.gif"));
 //   // images.Clear();
+// }
+
+
+// var ravannaRtf = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\tekton.rtf";
+
+// var outputFolder = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Analysis\SprOutput2\tekton
+// ";
+
+// Directory.CreateDirectory(outputFolder);
+
+// var ravannaCdi = new CdiFile(ravannaRtf);
+
+// var dataSectors = ravannaCdi.DataSectors.Where(s => s.Channel == 2).OrderBy(s => s.SectorIndex).Skip(1).ToList();
+
+// var tempSectorList = new List<CdiSector>();
+
+// foreach (var (sector, index) in dataSectors.WithIndex())
+// {
+//   tempSectorList.Add(sector);
+//   if (sector.SubMode.IsEOR)
+//   {
+//     var ravannaSpriteData = tempSectorList.SelectMany(s => s.GetSectorData()).ToArray();
+
+//     var ravannaPalette = ReadPalette(ravannaSpriteData.Skip(0x20).Take(0x40).ToArray());
+
+//     var offsetData = ravannaSpriteData.Skip(0x60).Take(0xe).ToArray();
+
+//     var offsets = new List<int>();
+
+//     for (int i = 0; i < offsetData.Length; i += 2)
+//     {
+//       var offset = BitConverter.ToUInt16(offsetData.Skip(i).Take(2).Reverse().ToArray(), 0);
+//       offsets.Add(offset);
+//     }
+
+//     var data = ravannaSpriteData.Skip(0x6e).ToArray();
+
+//     var blobs = new List<byte[]>();
+
+//     for (int i = 0; i < offsets.Count; i++)
+//     {
+//       var start = offsets[i];
+//       var end = i == offsets.Count - 1 ? offsets[i] : offsets[i + 1];
+//       var blob = data.Skip(start).Take(end - start).ToArray();
+//       blobs.Add(blob);
+//     }
+
+
+//     foreach (var (blob, bIndex) in blobs.WithIndex())
+//     {
+//       if (blob.Length == 0) continue;
+//       var decodedBlob = DecodeImage(blob);
+//       var image = CreateBitmapFromImageLines(decodedBlob, ravannaPalette, false);
+//       var outputName = Path.Combine(outputFolder, $"{sector.SectorIndex}_{bIndex}.png");
+//       if (image != null && OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+//       {
+//         image.Save(outputName, ImageFormat.Png);
+//       }
+//     }
+//     dataSectors = dataSectors.Skip(tempSectorList.Count).ToList();
+//     tempSectorList.Clear();
+//   }
 // }

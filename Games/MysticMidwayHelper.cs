@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using ExtractCLUT.Helpers;
-using ExtractCLUT.Writers;
 using static ExtractCLUT.Helpers.ImageFormatHelper;
 using OGLibCDi;
 using OGLibCDi.Models;

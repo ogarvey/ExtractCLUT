@@ -9,16 +9,144 @@ using ExtractCLUT.Model;
 using Color = System.Drawing.Color;
 using OGLibCDi.Models;
 using OGLibCDi.Helpers;
-using ImageFormatHelper = OGLibCDi.Helpers.ImageFormatHelper;
+using ImageFormatHelper = ExtractCLUT.Helpers.ImageFormatHelper;
 using ColorHelper = OGLibCDi.Helpers.ColorHelper;
+using AudioHelper = ExtractCLUT.Helpers.AudioHelper;
 
 namespace ExtractCLUT.Games
 {
     public static class BurnCycle
     {
+        // 0ffset 0x00 (2byte value) in the file is assumed to be the width of the image
+        // Offset 0x02 (2byte value) in the file is assumed to be the height of the image
+        // Offset ?? 0x06/0x08 (4byte/2byte)?? in the file seems to be a flag to indicate the type of data in the file
+        // 0x0308 = CLUT7 - Byte Count Encoded
+        // 0x2308 = CLUT7 - Offset Encoded
+        // 0x0508 = DYUV - Byte Count Encoded
+
+        // Offset 0x0a (4byte value) in the file indicates start of byte counts or offsets, so far only 0x1e has been seen
+        // Offset 0x0e (4byte value) in the file indicates total sector count in overall "file"
+        // Offset 0x16 (4byte value) in the file unknown, so far either 4bytes of 0x00, or 3 bytes of 0x00 followed by 0x80
+        // - Only appears in CLUT7 files - count of colours in palette?
+
+        // Offset 0x1e in the file is the start of the 4 byte counts or offsets (240 records of 4 bytes each)
+        // Offset 0x3de in the file is the start of the ?? line ?? data (240 records of 2 bytes each)
+        // Offset 0x5be in the file is the start of the palette data (384 bytes unindexed)
+        // Offset 0x73e in the file is the start of the image data
+
         private const string MAIN_DATA_FILE = @"BurnCycle.rtr";
         private const string MAIN_OUTPUT_FOLDER = @"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\output";
 
+        public static void ExtractAudio()
+        {
+
+            var BurnCycleFile = @"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\BurnCycle.rtf";
+            var BurnCycle = new CdiFile(BurnCycleFile);
+
+            var audioSectors = BurnCycle.Sectors.Where(x => x.Coding.VideoString == "DYUV" && x.Channel == 17)
+              .OrderBy(x => x.SectorIndex).ToList();
+
+            var audioData = new List<byte[]>();
+
+            foreach (var (sector, index) in BurnCycle.Sectors.WithIndex())
+            {
+                if (sector.Coding.VideoString == "DYUV" && sector.Channel == 17)
+                {
+                    audioData.Add(sector.GetSectorData().Take(0x900).ToArray());
+                }
+                if (sector.SubMode.IsEOR && audioData.Count > 0)
+                {
+                    var errorCount = 0;
+                    var outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_18900_4bps_stereo_{sector.SectorIndex}.bin");
+                    var bytes = audioData.SelectMany(x => x).ToArray();
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 18900, 4, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (18900, 4, false): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_18900_4bps_mono_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 18900, 4, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (18900, 4, true): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_18900_8bps_stereo_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 18900, 8, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (18900, 8, false): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_18900_8bps_mono_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 18900, 8, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (18900, 8, false): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_38700_4bps_stereo_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 38700, 4, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (38700, 4, false): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_38700_4bps_mono_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 38700, 4, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (38700, 4, true): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_38700_8bps_stereo_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 38700, 8, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (38700, 8, false): {ex.Message}");
+                    }
+                    outputFileName = Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_38700_8bps_mono_{sector.SectorIndex}.bin");
+                    try
+                    {
+                        AudioHelper.OutputAudio(bytes, outputFileName, 38700, 8, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        errorCount++;
+                        Console.WriteLine($"Error decoding audio (38700, 8, true): {ex.Message}");
+                    }
+                    if (errorCount == 8)
+                    {
+                        File.WriteAllBytes(Path.Combine(@"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\audio", $"audio_{sector.SectorIndex}_ERROR.bin"), bytes);
+                    }
+                    audioData.Clear();
+                }
+            }
+
+        }
         public static void ExtractClutChannel(CdiFile bcDataFile, int channel)
         {
             var clut7Sectors = bcDataFile.VideoSectors
@@ -146,6 +274,109 @@ namespace ExtractCLUT.Games
             }
             //if (sectorCounts.Count > 0) sectorCounts[0] = sectorCounts[0] - 1; // first sector count is always 1 less than the value in the file
             return sectorCounts;
+        }
+
+        public static void ParseOffsetsFile(string dataFile, bool isCLUT7 = true)
+        {
+            var fileData = File.ReadAllBytes(dataFile);
+
+            var fileChunks = new List<byte[]>();
+
+            for (int i = 0; i < fileData.Length; i += 0x914)
+            {
+                fileChunks.Add(fileData.Skip(i).Take(0x914).ToArray());
+            }
+
+            var palette = ColorHelper.ConvertBytesToRGB(fileData.Skip(0x3de).Take(0x180).ToArray());
+
+            var offsets = new List<int>();
+
+            for (int i = 0x1e; i < 0x3de; i += 4)
+            {
+                offsets.Add(BitConverter.ToInt32(fileData.Skip(i).Take(4).Reverse().ToArray(), 0));
+            }
+            var outputDir = Path.Combine(Path.GetDirectoryName(dataFile), "ParsedOffsetData");
+            Directory.CreateDirectory(outputDir);
+            var currentFileChunk = 0;
+            var byteList = new List<byte[]>();
+            foreach (var (offset, oIndex) in offsets.WithIndex())
+            {
+                if (offset == 0) currentFileChunk++;
+                
+                var bytesToTake = (oIndex == offsets.Count - 1 || offsets[oIndex + 1] == 0)? 0x914 - offset : offsets[oIndex + 1] - offset;
+                var bytes = (oIndex == offsets.Count - 1 || offsets[oIndex + 1] == 0) ? FileHelpers.RemoveTrailingZeroes(fileChunks[currentFileChunk].Skip(offset).Take(bytesToTake).ToArray()) : fileChunks[currentFileChunk].Skip(offset).Take(bytesToTake).ToArray();
+                File.WriteAllBytes(Path.Combine(outputDir, $"offset_{oIndex}_{offset}.bin"), bytes);
+                
+                if (bytes[^1] == 0x80) {
+                    // add an extra byte to the end of the file
+                    bytes = bytes.Concat(new byte[] { 0x00 }).ToArray();
+                }
+                byteList.Add(bytes);
+            }
+
+            var image = ImageFormatHelper.GenerateRle7Image(palette, byteList.SelectMany(s => s).ToArray(), 384, 240, false);
+            
+            image.Save(Path.Combine(outputDir, Path.GetFileNameWithoutExtension(dataFile) + ".png"), ImageFormat.Png);
+        }
+
+        public static void ParseByteCountFile(string dataFile, bool isCLUT7 = true)
+        {
+            var byteCountStart = 0x1e;
+            var byteCounts = new List<uint>();
+
+            var dataStart = isCLUT7 ? 0x73e : 0x5be;
+            var lineNumsStart = 0x3de;
+            var data = File.ReadAllBytes(dataFile);
+
+            for (int i = 0; i < 240; i++)
+            {
+                var byteCount = BitConverter.ToUInt32(data.Skip(byteCountStart + (i * 4)).Take(4).Reverse().ToArray(), 0);
+                byteCounts.Add(byteCount);
+            }
+
+            var lineNums = new List<int>();
+
+            for (int i = 0; i < 240; i++)
+            {
+                var lineNum = data.Skip(lineNumsStart + (i * 2) + 1).Take(1).First();
+                lineNums.Add(lineNum);
+            }
+
+            var palette = ColorHelper.ConvertBytesToRGB(data.Skip(0x5be).Take(0x180).ToArray());
+
+            data = data.Skip(0x5be).ToArray();
+            var lines = new List<byte[]>();
+            var orderedLines = new List<byte[]>();
+            foreach (var (byteCount, index) in byteCounts.WithIndex())
+            {
+                var totalLines = byteCount / 384;
+                if (byteCount == 0)
+                {
+                    lines.Add([]);
+                    continue;
+                }
+                for (int i = 0; i < totalLines; i++)
+                {
+                    var bytes = data.Take((int)(byteCount / totalLines)).ToArray();
+                    lines.Add(bytes);
+                    data = data.Skip((int)(byteCount / totalLines)).ToArray();
+                    while (data.Length > 0 && data[0] == 0x00)
+                    {
+                        data = data.Skip(1).ToArray();
+                    }
+                }
+            }
+
+            var outputDir = @"C:\Dev\Projects\Gaming\CD-i\Burn Cycle\Output\output\binary";
+            Directory.CreateDirectory(outputDir);
+
+            foreach (var (line, index) in lineNums.WithIndex())
+            {
+                orderedLines.Add(lines[line]);
+            }
+
+            File.WriteAllBytes(Path.Combine(outputDir, Path.GetFileNameWithoutExtension(dataFile)+".bin"), orderedLines.SelectMany(x => x).ToArray());
+
         }
 
         public static List<int> FindPaletteSequence(byte[] data, byte?[] mask)

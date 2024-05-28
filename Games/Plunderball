@@ -1,0 +1,129 @@
+var inputFile = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Intro.rtr";
+
+var cdiFile = new CdiFile(inputFile);
+
+var palette1Bytes = cdiFile.Sectors.Where(x => x.SectorIndex == 269)
+  .First().GetSectorData().Skip(4).Take(0x180).ToArray();
+
+var palette2Bytes = cdiFile.Sectors.Where(x => x.SectorIndex == 1280)
+  .First().GetSectorData().Skip(4).Take(0x180).ToArray();
+
+var palette1 = ConvertBytesToRGB(palette1Bytes);
+var palette2 = ConvertBytesToRGB(palette2Bytes);
+
+var rl7Sectors = cdiFile.VideoSectors.Where(x => x.Coding.VideoString == "RL7")
+  .OrderBy(x => x.SectorIndex).ToList();
+
+var images = new List<Image>();
+var byteGroups = new List<byte[]>();
+
+foreach (var (sector, index) in rl7Sectors.WithIndex())
+{
+  var bytes = sector.GetSectorData();
+  byteGroups.Add(bytes);
+  if (sector.SubMode.IsTrigger) {
+    var palette = sector.SectorIndex >= 1280 ? palette2 : palette1;
+    var data = byteGroups.SelectMany(x => x).ToArray();
+    var image = GenerateRle7Image(palette, data, 384, 240, true);
+    //image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\output\IntroFrames\{sector.SectorIndex}.png", ImageFormat.Png);
+    images.Add(image);
+    byteGroups.Clear();
+  }
+}
+
+CreateGifFromImageList(images, @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\output\Gifs\Intro.gif", 25);
+var blobs20FC = FileHelpers.ExtractSpriteByteSequences(null, File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\pinball.rtr_1_1_43151.bin"), new byte[] { 0x20, 0xfc }, new byte[] { 0x4e, 0x75 });
+var blobs243C = FileHelpers.ExtractSpriteByteSequences(null, File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\pinball.rtr_1_1_43151.bin"), new byte[] { 0x24, 0x3c }, new byte[] { 0x4e, 0x75 });
+var blobs5488 = FileHelpers.ExtractSpriteByteSequences(null, File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\pinball.rtr_1_1_43151.bin"), new byte[] { 0x54, 0x88 }, new byte[] { 0x4e, 0x75 });
+var blobs5088 = FileHelpers.ExtractSpriteByteSequences(null, File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\pinball.rtr_1_1_43151.bin"), new byte[] { 0x50, 0x88 }, new byte[] { 0x4e, 0x75 });
+var blobs5688 = FileHelpers.ExtractSpriteByteSequences(null, File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\pinball.rtr_1_1_43151.bin"), new byte[] { 0x56, 0x88 }, new byte[] { 0x4e, 0x75 });
+
+var paletteFile = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\Palettes\pinball.rtr_1_0_0.bin";
+var paletteData = File.ReadAllBytes(paletteFile).Skip(4).Take(768).ToArray();
+var palette = ConvertBytesToRGB(paletteData);
+
+var outputFolder = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Plunderball\Output\decoded";
+Directory.CreateDirectory(outputFolder);
+var blobs20FCFolder = Path.Combine(outputFolder, "blobs20FCbins");
+var blobs243CFolder = Path.Combine(outputFolder, "blobs243Cbins");
+var blobs5488Folder = Path.Combine(outputFolder, "blobs5488bins");
+var blobs5088Folder = Path.Combine(outputFolder, "blobs5088bins");
+var blobs5688Folder = Path.Combine(outputFolder, "blobs5688bins");
+
+var blobs20FCImageFolder = Path.Combine(outputFolder, "blobs20FCimages");
+var blobs243CImageFolder = Path.Combine(outputFolder, "blobs243Cimages");
+var blobs5488ImageFolder = Path.Combine(outputFolder, "blobs5488images");
+var blobs5088ImageFolder = Path.Combine(outputFolder, "blobs5088images");
+var blobs5688ImageFolder = Path.Combine(outputFolder, "blobs5688images");
+
+Directory.CreateDirectory(blobs20FCFolder);
+Directory.CreateDirectory(blobs20FCImageFolder);
+Directory.CreateDirectory(blobs243CFolder);
+Directory.CreateDirectory(blobs243CImageFolder);
+Directory.CreateDirectory(blobs5488Folder);
+Directory.CreateDirectory(blobs5488ImageFolder);
+Directory.CreateDirectory(blobs5088Folder);
+Directory.CreateDirectory(blobs5088ImageFolder);
+Directory.CreateDirectory(blobs5688Folder);
+Directory.CreateDirectory(blobs5688ImageFolder);
+
+
+foreach (var (blob, index) in blobs20FC.WithIndex())
+{
+  var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
+  File.WriteAllBytes(Path.Combine(blobs20FCFolder, $"{index}_decoded.bin"), decodedBlob);
+  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var outputName = Path.Combine(blobs20FCImageFolder, $"{index}.png");
+  if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+  {
+    image.Save(outputName, ImageFormat.Png);
+  }
+}
+
+foreach (var (blob, index) in blobs243C.WithIndex())
+{
+  var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
+  File.WriteAllBytes(Path.Combine(blobs243CFolder, $"{index}_decoded.bin"), decodedBlob);
+  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var outputName = Path.Combine(blobs243CImageFolder, $"{index}.png");
+  if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+  {
+    image.Save(outputName, ImageFormat.Png);
+  }
+}
+
+foreach (var (blob, index) in blobs5488.WithIndex())
+{
+  var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
+  File.WriteAllBytes(Path.Combine(blobs5488Folder, $"{index}_decoded.bin"), decodedBlob);
+  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var outputName = Path.Combine(blobs5488ImageFolder, $"{index}.png");
+  if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+  {
+    image.Save(outputName, ImageFormat.Png);
+  }
+}
+
+foreach (var (blob, index) in blobs5088.WithIndex())
+{
+  var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
+  File.WriteAllBytes(Path.Combine(blobs5088Folder, $"{index}_decoded.bin"), decodedBlob);
+  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var outputName = Path.Combine(blobs5088ImageFolder, $"{index}.png");
+  if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+  {
+    image.Save(outputName, ImageFormat.Png);
+  }
+}
+
+foreach (var (blob, index) in blobs5688.WithIndex())
+{
+  var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
+  File.WriteAllBytes(Path.Combine(blobs5688Folder, $"{index}_decoded.bin"), decodedBlob);
+  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var outputName = Path.Combine(blobs5688ImageFolder, $"{index}.png");
+  if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
+  {
+    image.Save(outputName, ImageFormat.Png);
+  }
+}

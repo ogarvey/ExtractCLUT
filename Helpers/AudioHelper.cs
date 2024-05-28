@@ -1,12 +1,122 @@
 using System.Text;
 using System;
 using System.IO;
+using System.Diagnostics;
 
 namespace ExtractCLUT.Helpers
 {
 
 	public static class AudioHelper
 	{
+		private static string ffmpegPath = "ffmpeg";
+		public static void ConvertIffToWav(string inputFilePath, string outputFilePath)
+		{
+			// Create a new process to run ffmpeg
+			Process ffmpegProcess = new Process();
+
+			// Set up the process start info
+			ffmpegProcess.StartInfo.FileName = "ffmpeg";
+			ffmpegProcess.StartInfo.Arguments = $"-i \"{inputFilePath}\" \"{outputFilePath}\"";
+			ffmpegProcess.StartInfo.UseShellExecute = false;
+			ffmpegProcess.StartInfo.RedirectStandardOutput = true;
+			ffmpegProcess.StartInfo.RedirectStandardError = true;
+			ffmpegProcess.StartInfo.CreateNoWindow = true;
+
+			// Set up event handlers to capture output and error data
+			ffmpegProcess.OutputDataReceived += (sender, e) =>
+			{
+				if (!string.IsNullOrEmpty(e.Data))
+				{
+					Console.WriteLine($"Output: {e.Data}");
+				}
+			};
+			ffmpegProcess.ErrorDataReceived += (sender, e) =>
+			{
+				if (!string.IsNullOrEmpty(e.Data))
+				{
+					Console.WriteLine($"Error: {e.Data}");
+				}
+			};
+
+			// Start the process
+			ffmpegProcess.Start();
+
+			// Begin asynchronous read of the output and error streams
+			ffmpegProcess.BeginOutputReadLine();
+			ffmpegProcess.BeginErrorReadLine();
+
+			// Wait for the process to exit
+			ffmpegProcess.WaitForExit();
+
+			// Check if the process exited successfully
+			if (ffmpegProcess.ExitCode != 0)
+			{
+				throw new Exception($"ffmpeg exited with code {ffmpegProcess.ExitCode}");
+			}
+		}
+		public static void ConvertMp2ToWavAndMp3(string inputFilePath, string outputPath, string format = "wav")
+		{
+			try
+			{
+				if (!File.Exists(inputFilePath))
+				{
+					throw new FileNotFoundException("The input file does not exist.");
+				}
+
+				if (format != "wav" && format != "mp3")
+				{
+					throw new ArgumentException("The output format must be either 'wav' or 'mp3'.");
+				}
+
+				if (format == "wav")
+				{
+					// Convert to WAV
+					string wavArguments = $"-i \"{inputFilePath}\" \"{outputPath}\"";
+					ExecuteFFmpegCommand(wavArguments);
+				}
+				else
+				{
+					// Convert to MP3
+					string mp3Arguments = $"-i \"{inputFilePath}\" \"{outputPath}\"";
+					ExecuteFFmpegCommand(mp3Arguments);
+				}
+				Console.WriteLine("Conversion completed successfully.");
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"An error occurred: {ex.Message}");
+			}
+		}
+
+		private static void ExecuteFFmpegCommand(string arguments)
+		{
+			ProcessStartInfo startInfo = new ProcessStartInfo
+			{
+				FileName = ffmpegPath,
+				Arguments = arguments,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				UseShellExecute = false,
+				CreateNoWindow = true
+			};
+
+			using (Process process = new Process { StartInfo = startInfo })
+			{
+				process.Start();
+				string output = process.StandardOutput.ReadToEnd();
+				string error = process.StandardError.ReadToEnd();
+				process.WaitForExit();
+
+				if (process.ExitCode != 0)
+				{
+					throw new Exception($"FFmpeg error: {error}");
+				}
+				else
+				{
+					Console.WriteLine(output);
+				}
+			}
+		}
 		private static readonly int[] K0 = { 0, 240, 460, 392 };
 		private static readonly int[] K1 = { 0, 0, -208, -220 };
 
@@ -15,7 +125,7 @@ namespace ExtractCLUT.Helpers
 		private static int lk1 = 0;
 		private static int rk1 = 0;
 
-		public static void OutputAudio(byte[] inputData, string inputFile, uint frequency, byte bps, bool isMono)
+		public static void OutputAudio(byte[] inputData, string outputFile, uint frequency, byte bps, bool isMono)
 		{
 			List<short> left = new List<short>();
 			List<short> right = new List<short>();
@@ -28,9 +138,7 @@ namespace ExtractCLUT.Helpers
 				DecodeAudioSector(chunk, left, right, isLevelA, !isMono);
 			}
 
-			Directory.CreateDirectory(Path.GetDirectoryName(inputFile) + "\\wav_files");
-			var outputPath = Path.Combine(Path.GetDirectoryName(inputFile) + "\\wav_files", Path.GetFileNameWithoutExtension(inputFile) + ".wav");
-			using (var outStream = File.Create(outputPath))
+			using (var outStream = File.Create(outputFile))
 			{
 				WriteWAV(outStream, new WAVHeader { ChannelNumber = (ushort)(isMono ? 1 : 2), Frequency = frequency }, left, right);
 			}

@@ -6,12 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ExtractCLUT.Helpers;
-using ExtractCLUT.Writers;
 using OGLibCDi.Helpers;
 using OGLibCDi.Models;
 using Color = System.Drawing.Color;
 using ColorHelper = OGLibCDi.Helpers.ColorHelper;
 using ImageFormatHelper = ExtractCLUT.Helpers.ImageFormatHelper;
+using static ExtractCLUT.Helpers.FileHelpers;
 
 namespace ExtractCLUT.Games
 {
@@ -19,12 +19,184 @@ namespace ExtractCLUT.Games
   {
     public string OriginalFile { get; set; }
     public List<string> SpriteNames { get; set; }
-    public List<int> SpriteNameOffsets { get; set; }
-    public List<int> SpriteDataOffsets { get; set; }
+    public List<uint> SpriteNameOffsets { get; set; }
+    public List<uint> SpriteDataOffsets { get; set; }
     public string Text { get; set; }
   }
   public static class HotelMarioHelper
   {
+    public static void ExtractSprites(string inputFolder, bool existingData = false, bool parsePreSprites = false, List<Color> mainPalette = null, List<Color> marioPalette = null, List<Color> luigiPalette = null)
+    {
+      var files = Directory.GetFiles(inputFolder, "*_dat.rtf").ToList();
+      files.Add(Path.Combine(inputFolder, "intro.rtf"));
+      //files.Add(Path.Combine(inputFolder, "exit.rtf"));
+      files.Add(Path.Combine(inputFolder, "cdi_hotel"));
+      var outputDirs = existingData ? Directory.GetDirectories(Path.Combine(inputFolder, "Output")).ToList() : new List<string>();
+
+      if (!existingData) {
+        foreach (var file in files)
+        {
+          var cdiFile = new CdiFile(file);
+
+          var outputDir = Path.Combine(inputFolder, "Output", Path.GetFileNameWithoutExtension(file));
+          Directory.CreateDirectory(outputDir);
+          outputDirs.Add(outputDir);
+          var dataSectors = cdiFile.DataSectors.OrderBy(s => s.SectorIndex).ToList();
+
+          var sectorList = new List<CdiSector>();
+
+          foreach (var sector in dataSectors)
+          {
+            sectorList.Add(sector);
+            if (sector.SubMode.IsEOR || sector == dataSectors.Last())
+            {
+              var data = sectorList.SelectMany(x => x.GetSectorData()).ToArray();
+              var index = sectorList.First().SectorIndex;
+              var output = Path.Combine(outputDir, $"{index}.bin");
+              File.WriteAllBytes(output, data);
+              sectorList.Clear();
+            }
+          }
+        }
+      }
+
+      foreach (var dir in outputDirs)
+      {
+        files = Directory.GetFiles(dir, "*.bin").ToList();
+        foreach (var file in files)
+        {
+          var blobs = ExtractSpriteByteSequences(file);
+         
+          var outputDir = Path.Combine(dir, "Sprites", Path.GetFileNameWithoutExtension(file));
+          
+          Directory.CreateDirectory(outputDir);
+          foreach (var (blob, index) in blobs.WithIndex())
+          {
+            try
+            {
+              var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0);
+              var output = Path.Combine(outputDir, $"{index}.bin");
+              File.WriteAllBytes(output, decodedBlob);
+              if (mainPalette != null || (file.Contains("intro") && (marioPalette != null || luigiPalette != null)))
+              {
+                var palette = file.Contains("intro") ? marioPalette : mainPalette;
+                var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 384, 240, true);
+                Rectangle cropRect = new Rectangle(0, 0, 32, 32);
+
+                // Crop the image
+                using (Bitmap croppedImage = image.Clone(cropRect, image.PixelFormat))
+                {
+                  // if every pixel of image is black, skip saving
+                  for (int x = 0; x < croppedImage.Width; x++)
+                  {
+                    for (int y = 0; y < croppedImage.Height; y++)
+                    {
+                      if (croppedImage.GetPixel(x, y).ToArgb() != Color.Black.ToArgb())
+                      {
+                        break;
+                      }
+                      if (x == croppedImage.Width - 1 && y == croppedImage.Height - 1)
+                      {
+                        return;
+                      }
+                    }
+                  }
+
+                  // Save the cropped image with "_icon" suffix
+
+                  var imgOutputPath = Path.Combine(outputDir, "images_32x32");
+                  Directory.CreateDirectory(imgOutputPath);
+                  var outputName = Path.Combine(imgOutputPath, $"{index}.png");
+                  croppedImage.Save(outputName, ImageFormat.Png);
+                }
+                cropRect = new Rectangle(0, 0, 64, 64);
+
+                // Crop the image
+                using (Bitmap croppedImage = image.Clone(cropRect, image.PixelFormat))
+                {
+                  // if every pixel of image is black, skip saving
+                  for (int x = 0; x < croppedImage.Width; x++)
+                  {
+                    for (int y = 0; y < croppedImage.Height; y++)
+                    {
+                      if (croppedImage.GetPixel(x, y).ToArgb() != Color.Black.ToArgb())
+                      {
+                        break;
+                      }
+                      if (x == croppedImage.Width - 1 && y == croppedImage.Height - 1)
+                      {
+                        return;
+                      }
+                    }
+                  }
+
+                  // Save the cropped image with "_icon" suffix
+
+                  var imgOutputPath = Path.Combine(outputDir, "images_64x64");
+                  Directory.CreateDirectory(imgOutputPath);
+                  var outputName = Path.Combine(imgOutputPath, $"{index}.png");
+                  croppedImage.Save(outputName, ImageFormat.Png);
+                }
+                if (file.Contains("intro") && luigiPalette != null)
+                {
+                  cropRect = new Rectangle(0, 0, 32, 32);
+                  image = ImageFormatHelper.GenerateClutImage(luigiPalette, decodedBlob, 384, 240, true);
+                  using (Bitmap croppedImage = image.Clone(cropRect, image.PixelFormat))
+                  {
+                    // if every pixel of image is black, skip saving
+                    for (int x = 0; x < croppedImage.Width; x++)
+                    {
+                      for (int y = 0; y < croppedImage.Height; y++)
+                      {
+                        if (croppedImage.GetPixel(x, y).ToArgb() != Color.Black.ToArgb())
+                        {
+                          break;
+                        }
+                        if (x == croppedImage.Width - 1 && y == croppedImage.Height - 1)
+                        {
+                          return;
+                        }
+                      }
+                    }
+
+                    // Save the cropped image with "_icon" suffix
+
+                    var imgOutputPath = Path.Combine(outputDir, "luigi_images_32x32");
+                    Directory.CreateDirectory(imgOutputPath);
+                    var outputName = Path.Combine(imgOutputPath, $"{index}.png");
+                    croppedImage.Save(outputName, ImageFormat.Png);
+                  }
+                }
+              }
+            }
+            catch (Exception)
+            {
+              //Console.WriteLine($"Error decoding sprite {index} in {file}");
+            }
+          }
+
+          if (parsePreSprites) {
+            var preSpriteBlobs = ExtractPreSpriteByteSequences(file);
+            var preSpriteOutputDir = Path.Combine(dir, "PreSprites", Path.GetFileNameWithoutExtension(file));
+            Directory.CreateDirectory(preSpriteOutputDir);
+            foreach (var (blob, index) in preSpriteBlobs.WithIndex())
+            {
+              try
+              {
+                var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0);
+                var output = Path.Combine(preSpriteOutputDir, $"{index}.bin");
+                File.WriteAllBytes(output, decodedBlob.Skip(blob.Length + 0x20).ToArray());
+              }
+              catch (Exception ex)
+              {
+                Console.WriteLine($"Error decoding pre-sprite {index} in {file}");
+              }
+            }
+          }
+        }
+      }
+
+    }
     public static void ExtractAllImageData(string rtfPath)
     {
 
@@ -145,14 +317,130 @@ namespace ExtractCLUT.Games
 
     }
 
+    public static List<byte[]> ExtractIDATPalettes(string filePath)
+    {
+      // Byte sequences to find
+      byte[] endSequence = [0x49, 0x44, 0x41, 0x54];
+
+      // Read all bytes from the file
+      byte[] fileContent = File.ReadAllBytes(filePath);
+
+      List<byte[]> extractedSequences = new List<byte[]>();
+      int currentIndex = 0;
+
+      while (currentIndex < fileContent.Length)
+      {
+        // Find the end sequence starting from where the start sequence was found
+        int endIndex = FindSequence(fileContent, endSequence, currentIndex);
+
+        if (endIndex == -1) // No end sequence found after the start
+          break;
+
+        // Calculate length to copy (including the end sequence)
+        int length = 0x180;
+
+        // Copy the sequence from start to end (including the end sequence)
+        byte[] extracted = new byte[length];
+        Array.Copy(fileContent, endIndex-0x180, extracted, 0, length);
+        extractedSequences.Add(extracted);
+
+        // Move the current index to the byte after the current end sequence
+        currentIndex =  endIndex+1;
+      }
+
+      return extractedSequences;
+    }
+
+    public static List<byte[]> ExtractSpriteByteSequences(string filePath)
+    {
+      // Byte sequences to find
+      byte[] startSequence = [0x2f, 0x09];
+      byte[] endSequence = [0x4e, 0x75];
+
+      // Read all bytes from the file
+      byte[] fileContent = File.ReadAllBytes(filePath);
+
+      List<byte[]> extractedSequences = new List<byte[]>();
+      int currentIndex = 0;
+
+      while (currentIndex < fileContent.Length)
+      {
+        // Find the start sequence
+        int startIndex = FindSequence(fileContent, startSequence, currentIndex);
+
+        if (startIndex == -1) // No more start sequences found
+          break;
+
+        // Find the end sequence starting from where the start sequence was found
+        int endIndex = FindSequence(fileContent, endSequence, startIndex);
+
+        if (endIndex == -1) // No end sequence found after the start
+          break;
+
+        // Calculate length to copy (including the end sequence)
+        int length = endIndex - startIndex + endSequence.Length;
+
+        // Copy the sequence from start to end (including the end sequence)
+        byte[] extracted = new byte[length];
+        Array.Copy(fileContent, startIndex, extracted, 0, length);
+        extractedSequences.Add(extracted);
+
+        // Move the current index to the byte after the current end sequence
+        currentIndex = endIndex + endSequence.Length;
+      }
+
+      return extractedSequences;
+    }
+
+    public static List<byte[]> ExtractPreSpriteByteSequences(string filePath)
+    {
+      // Byte sequences to find
+      byte[] startSequence = [0x4e, 0x55];
+      byte[] endSequence = [0x4e, 0x75];
+
+      // Read all bytes from the file
+      byte[] fileContent = File.ReadAllBytes(filePath);
+
+      List<byte[]> extractedSequences = new List<byte[]>();
+      int currentIndex = 0;
+
+      while (currentIndex < fileContent.Length)
+      {
+        // Find the start sequence
+        int startIndex = FindSequence(fileContent, startSequence, currentIndex);
+
+        if (startIndex == -1) // No more start sequences found
+          break;
+
+        // Find the end sequence starting from where the start sequence was found
+        int endIndex = FindSequence(fileContent, endSequence, startIndex);
+
+        if (endIndex == -1) // No end sequence found after the start
+          break;
+
+        // Calculate length to copy (including the end sequence)
+        int length = endIndex - startIndex + endSequence.Length;
+
+        // Copy the sequence from start to end (including the end sequence)
+        byte[] extracted = new byte[length];
+        Array.Copy(fileContent, startIndex, extracted, 0, length);
+        extractedSequences.Add(extracted);
+
+        // Move the current index to the byte after the current end sequence
+        currentIndex = endIndex + endSequence.Length;
+      }
+
+      return extractedSequences;
+    }
+
     public static HMDatFile ParseDatFile(string filePath)
     {
       var hmData = new HMDatFile
       {
         OriginalFile = Path.GetFileName(filePath),
         SpriteNames = new List<string>(),
-        SpriteNameOffsets = new List<int>(),
-        SpriteDataOffsets = new List<int>()
+        SpriteNameOffsets = new List<uint>(),
+        SpriteDataOffsets = new List<uint>()
       };
       bool addToSpriteNameList = true;
 
@@ -161,17 +449,17 @@ namespace ExtractCLUT.Games
       {
         // Read integer at offset 0x0C as big endian
         reader.BaseStream.Seek(0x0C, SeekOrigin.Begin);
-        int startOffset = Utils.ReadBigEndianUInt32(reader);
+        uint startOffset = Utils.ReadBigEndianUInt32(reader);
 
         // Read integer at offset 0x05
         reader.BaseStream.Seek(0x04, SeekOrigin.Begin);
-        int endOffset = Utils.ReadBigEndianUInt32(reader); 
+        uint endOffset = Utils.ReadBigEndianUInt32(reader); 
         
         reader.BaseStream.Seek(0x3C, SeekOrigin.Begin);
 
         while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
-          int offset = Utils.ReadBigEndianUInt32(reader);
+          uint offset = Utils.ReadBigEndianUInt32(reader);
 
           // Check for the sequence of 0x00 0x00 0x00 0x00
           if (offset == 0)
@@ -203,7 +491,7 @@ namespace ExtractCLUT.Games
         {
           // Read bytes from startOffset to endOffset
           reader.BaseStream.Seek(startOffset, SeekOrigin.Begin);
-          byte[] textBytes = reader.ReadBytes(endOffset - startOffset);
+          byte[] textBytes = reader.ReadBytes((int)(endOffset - startOffset));
 
           // Convert bytes to string and add to list
           hmData.Text = Encoding.ASCII.GetString(textBytes); // Assuming ASCII encoding
@@ -219,140 +507,3 @@ namespace ExtractCLUT.Games
   }
 }
 
-// var palette = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L0_av.rtf_1_15_111.bin");
-// var imageData = File.ReadAllBytes(@"c:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L0_av.rtf_1_15_CLUT7_Normal_Even_112.bin");
-// var colors = ConvertBytesToRGB(palette);
-
-// var colors2 = colors.Select(c => c).ToList();
-
-// var initialBgImage = GenerateClutImage(colors, imageData, 384, 280);
-// var bgImages = new List<Bitmap>();
-// var bgImages2 = new List<Bitmap>();
-
-// bgImages.Add(initialBgImage);
-// bgImages2.Add(initialBgImage);
-
-// for (int i = 0; i < 12; i++)
-// {
-//   RotateSubset(colors2, 92, 104, 1);
-//   var image = GenerateClutImage(colors2, imageData, 384, 280);
-//   image.Save($@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\gifs\bg{i}.png");
-//   bgImages.Add(image);
-//   ReverseRotateSubset(colors, 93, 104, 1);
-//   image = GenerateClutImage(colors, imageData, 384, 280);
-//   image.Save($@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\gifs\bg2{i}.png");
-//   bgImages2.Add(image);
-// }
-
-// var outputPath = @"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\gifs\";
-// Directory.CreateDirectory(outputPath);
-
-// using (var gifWriter = new GifWriter(Path.Combine(outputPath, "bg.gif"), 100))
-// {
-//   foreach (var image in bgImages)
-//   {
-//     gifWriter.WriteFrame(image);
-//   }
-// }
-
-// using (var gifWriter = new GifWriter(Path.Combine(outputPath, "bg2.gif"), 100))
-// {
-//   foreach (var image in bgImages2)
-//   {
-//     gifWriter.WriteFrame(image);
-//   }
-// }
-// var palette = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L3\palettes\L3_av.rtf_1_15_116.bin").Take(384).ToArray();
-
-// var imageData = File.ReadAllBytes(@"c:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L3\CLUT7\Stages\L3_av.rtf_1_15_CLUT7_Normal_Even_117.bin");
-
-// var outputPath = @"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\gifs\";
-// Directory.CreateDirectory(outputPath);
-
-// var colors = ConvertBytesToRGB(palette);
-
-// var colors2 = colors.Select(c => c).ToList();
-
-// var initialBgImage = GenerateClutBytes(colors, imageData, 384, 280);
-// var bgImages = new List<byte[]>();
-// var bgImages2 = new List<byte[]>();
-
-// var initialPalImage = CreateLabelledPalette(colors);
-// var palImages  = new List<Bitmap>();
-// var palImages2 = new List<Bitmap>();
-
-// palImages.Add(initialPalImage);
-// palImages2.Add(initialPalImage);
-
-// bgImages.Add(initialBgImage);
-// bgImages2.Add(initialBgImage);
-// for (int i = 0; i <= 14; i++)
-// {
-//   RotateSubset(colors2, 82, 97, 1);
-//   palImages.Add(CreateLabelledPalette(colors2));
-//   var image = GenerateClutBytes(colors2, imageData, 384, 280);
-//   bgImages.Add(image);
-
-//   ReverseRotateSubset(colors, 82, 97, 1);
-//   palImages2.Add(CreateLabelledPalette(colors));
-//   var image2 = GenerateClutBytes(colors, imageData, 384, 280);
-//   bgImages2.Add(image2);
-// }
-
-
-// using (var gifWriter = new GifWriter(Path.Combine(outputPath, "Level3_palette.gif"), 500, 0))
-// {
-//   foreach (var img in palImages)
-//   {
-//     gifWriter.WriteFrame(img);
-//   }
-// }
-
-// // using (var gifWriter = new GifWriter(Path.Combine(outputPath, "Level3_s1_x4_500.gif"), 500, 0))
-// // {
-// //   foreach (var img in bgImages)
-// //   {
-// //     gifWriter.WriteFrame(img);
-// //   }
-// // }
-
-// using (var gifWriter = new GifWriter(Path.Combine(outputPath, "Level3_palette_alt.gif"), 500,0))
-// {
-//   foreach (var img in palImages2)
-//   {
-//     gifWriter.WriteFrame(img);
-//   }
-// }
-
-// using (var gifWriter = new GifWriter(Path.Combine(outputPath, "Level3_s1_alt_x4_500.gif"), 500,0))
-// {
-//   foreach (var img in bgImages2)
-//   {
-//     gifWriter.WriteFrame(img);
-//   }
-// }
-
-// var binData = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L1\L1_av.rtf_1_15_CLUT4_Normal_Even_236.bin");
-
-// var byteList = new List<byte[]>();
-
-// for (int i = 0; i < binData.Length - 0x3f; i += 0x40)
-// {
-//   var newData = new byte[0x80];
-//   var chunk = binData.Skip(i).Take(0x40).ToArray();
-//   // for the first 8 bytes,
-//   for (int j = 0, k = 0; j < 8; j += 2, k++)
-//   {
-//     newData[k * 4] = chunk[1];
-//     newData[k * 4 + 1] = chunk[3];
-//     newData[k * 4 + 2] = chunk[5];
-//     newData[k * 4 + 3] = chunk[7];
-//   }
-//   // copy the remaining 56 bytes to the new array, twice to take up the remaining 112 bytes
-//   Array.Copy(chunk, 8, newData, 16, 56);
-//   Array.Copy(chunk, 8, newData, 72, 56);
-//   byteList.Add(newData);
-// }
-
-// var output = @"C:\Dev\Projects\Gaming\CD-i\Hotel Mario\Output\L1\L1_av.rtf_1_15_CLUT4_Normal_Even_236_3.bin";
-// File.WriteAllBytes(output, byteList.SelectMany(x => x).ToArray());
