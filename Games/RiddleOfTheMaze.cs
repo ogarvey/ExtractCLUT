@@ -2,6 +2,7 @@ using static ExtractCLUT.Helpers.ColorHelper;
 using static ExtractCLUT.Helpers.ImageFormatHelper;
 using OGLibCDi.Models;
 using System.Drawing.Imaging;
+using ExtractCLUT.Helpers;
 
 namespace ExtractCLUT.Games
 {
@@ -41,8 +42,8 @@ namespace ExtractCLUT.Games
                     }
                     var paletteData = paletteSector.GetSectorData().Skip(4).Take(0x180).ToArray();
                     var palette = ConvertBytesToRGB(paletteData);
-                    var image = imageSectors.Count > 40 ? GenerateClutImage(palette, imageData, 488, 322)
-                      : GenerateClutImage(palette, imageData, 384, 240);
+                    var image = imageSectors.Count > 40 ? ImageFormatHelper.GenerateClutImage(palette, imageData, 488, 322)
+                      : ImageFormatHelper.GenerateClutImage(palette, imageData, 384, 240);
                     image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\Riddle of the Maze (R)\Asset Extraction\CLUT7\output\{index}.png", ImageFormat.Png);
                     imageSectors.Clear();
                 }

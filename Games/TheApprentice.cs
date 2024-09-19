@@ -73,7 +73,7 @@ namespace ExtractCLUT.Games
 					}
 
 					var statusBar = aFile.SubFiles[1].Take(0x1a40).ToArray();
-					var statusBarImage = GenerateClutImage(palettes[0], statusBar, 320, 21, true);
+					var statusBarImage = ImageFormatHelper.GenerateClutImage(palettes[0], statusBar, 320, 21, true);
 					statusBarImage.Save(Path.Combine(outputFolder, "StatusBar.png"), ImageFormat.Png);
 
 					var spriteBlobs = new List<byte[]>();
@@ -106,7 +106,7 @@ namespace ExtractCLUT.Games
 					foreach (var (blob, index) in spriteBlobs.WithIndex())
 					{
 						var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 0x180);
-						var image = GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
+						var image = ImageFormatHelper.GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
 						image = (Bitmap)CropImage(image, 20, 5, 0, 1);
 						images.Add(image);
 						var outputName = Path.Combine(tileFolder, $"{index / 4}.png");
@@ -150,7 +150,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 128, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -169,7 +169,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -182,7 +182,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -197,7 +197,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -230,7 +230,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 128, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -246,7 +246,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -257,7 +257,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -275,7 +275,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -314,7 +314,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -330,7 +330,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -341,7 +341,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -355,7 +355,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -394,7 +394,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -410,7 +410,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -421,7 +421,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -435,7 +435,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -472,7 +472,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -488,7 +488,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -499,7 +499,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -515,7 +515,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -550,7 +550,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -566,7 +566,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -577,7 +577,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -589,7 +589,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -622,7 +622,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -638,7 +638,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < bgTileData.Length; i += 1600)
 			{
 				var tile = bgTileData.Skip(i).Take(1600).ToArray();
-				var image = GenerateClutImage(palette2, tile, 80, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 80, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\BGTiles\{i / 1600}.png", ImageFormat.Png);
 			}
 
@@ -649,7 +649,7 @@ namespace ExtractCLUT.Games
 			for (int i = 0; i < sideTileData.Length; i += 400)
 			{
 				var tile = sideTileData.Skip(i).Take(400).ToArray();
-				var image = GenerateClutImage(palette2, tile, 20, 20);
+				var image = ImageFormatHelper.GenerateClutImage(palette2, tile, 20, 20);
 				image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\level{level}\SideTiles\{i / 80}.png", ImageFormat.Png);
 			}
 
@@ -663,7 +663,7 @@ namespace ExtractCLUT.Games
 				if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
 				{
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					var image = GenerateClutImage(palette, output, 384, 240, true);
+					var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -687,7 +687,7 @@ namespace ExtractCLUT.Games
 			var clutFolder = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\go_gfx\clut";
 			Directory.CreateDirectory(clutFolder);
 
-			var image = GenerateClutImage(palettes[1], clutImageData, 384, 220);
+			var image = ImageFormatHelper.GenerateClutImage(palettes[1], clutImageData, 384, 220);
 			image.Save($@"{clutFolder}\0.png", ImageFormat.Png);
 
 			data = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\go_gfx\2.bin");
@@ -704,7 +704,7 @@ namespace ExtractCLUT.Games
 				{
 					var pIndex = 0;
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					image = GenerateClutImage(palettes[pIndex], output, 384, 240, true);
+					image = ImageFormatHelper.GenerateClutImage(palettes[pIndex], output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -721,7 +721,7 @@ namespace ExtractCLUT.Games
 				{
 					var pIndex = 0;
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					GenerateClutImage(palettes[pIndex], output, 384, 240, true).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
+					ImageFormatHelper.GenerateClutImage(palettes[pIndex], output, 384, 240, true).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
 				}
@@ -744,11 +744,11 @@ namespace ExtractCLUT.Games
 			var clutFolder = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\con_gfx\clut";
 			Directory.CreateDirectory(clutFolder);
 			
-			var image = GenerateClutImage(palettes[1], clutImageData, 320, 220);
+			var image = ImageFormatHelper.GenerateClutImage(palettes[1], clutImageData, 320, 220);
 			image.Save($@"{clutFolder}\0.png", ImageFormat.Png);
 
 			clutImageData = data.Skip(70844).Take(61120).ToArray();
-			image = GenerateClutImage(palettes[3], clutImageData, 320, 191);
+			image = ImageFormatHelper.GenerateClutImage(palettes[3], clutImageData, 320, 191);
 			image.Save($@"{clutFolder}\1.png", ImageFormat.Png);
 
 			var spriteData = data.Skip(131964).Take(0xd036).ToArray();
@@ -763,7 +763,7 @@ namespace ExtractCLUT.Games
 				{
 					var pIndex = spriteIndex == 32 ? 2: spriteIndex < 32 ? 3 : 4;
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					image = GenerateClutImage(palettes[pIndex], output, 384, 240, true);
+					image = ImageFormatHelper.GenerateClutImage(palettes[pIndex], output, 384, 240, true);
 					CropImage(image, 192, 128, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
@@ -773,7 +773,7 @@ namespace ExtractCLUT.Games
 			data = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\The Apprentice - Release\Analysis\con_gfx\2.bin");
 
 			clutImageData = data.Skip(0x1C).Take(61120).ToArray();
-			image = GenerateClutImage(palettes[5], clutImageData, 320, 191);
+			image = ImageFormatHelper.GenerateClutImage(palettes[5], clutImageData, 320, 191);
 			image.Save($@"{clutFolder}\2.png", ImageFormat.Png);
 
 			spriteData = data.Skip(61584).Take(0x265f6).ToArray();
@@ -784,7 +784,7 @@ namespace ExtractCLUT.Games
 				{
 					var pIndex = (spriteIndex >43 && spriteIndex < 52)  ? 5 : spriteIndex > 72 ? 0 : spriteIndex > 70 ? 3 : 4;
 					var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-					GenerateClutImage(palettes[pIndex], output, 384, 240, true).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
+					ImageFormatHelper.GenerateClutImage(palettes[pIndex], output, 384, 240, true).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
 					spriteIndex++;
 					startIndex = i + 2;
 				}
@@ -963,7 +963,7 @@ namespace ExtractCLUT.Games
 			{
 				var offset = 0x2 + (i * 4);
 				var length = BitConverter.ToInt32(FileData.Skip(offset).Take(4).Reverse().ToArray(), 0);
-				length = 0x800 * ((length / 0x800) + 1);
+				length = (length % 0x800) == 0 ? 0x800 * (length / 0x800) : 0x800 * ((length / 0x800) + 1);
 				SubFileOffsets.Add(length);
 			}
 
@@ -1059,7 +1059,7 @@ namespace ExtractCLUT.Games
 //     // {
 //     var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 0x180);
 //     //File.WriteAllBytes($@"{decodedBlobFolder}\{index}.bin", decodedBlob);
-//     var image = GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
+//     var image = ImageFormatHelper.GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
 //     image = (Bitmap)CropImage(image, 20, 5, 0, 1);
 //     images.Add(image);
 //     var outputName = Path.Combine(outputFolder, $"{index / 4}.png");

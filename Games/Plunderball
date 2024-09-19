@@ -72,7 +72,7 @@ foreach (var (blob, index) in blobs20FC.WithIndex())
 {
   var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
   File.WriteAllBytes(Path.Combine(blobs20FCFolder, $"{index}_decoded.bin"), decodedBlob);
-  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 334, 240, true);
   var outputName = Path.Combine(blobs20FCImageFolder, $"{index}.png");
   if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
   {
@@ -84,7 +84,7 @@ foreach (var (blob, index) in blobs243C.WithIndex())
 {
   var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
   File.WriteAllBytes(Path.Combine(blobs243CFolder, $"{index}_decoded.bin"), decodedBlob);
-  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 334, 240, true);
   var outputName = Path.Combine(blobs243CImageFolder, $"{index}.png");
   if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
   {
@@ -96,7 +96,7 @@ foreach (var (blob, index) in blobs5488.WithIndex())
 {
   var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
   File.WriteAllBytes(Path.Combine(blobs5488Folder, $"{index}_decoded.bin"), decodedBlob);
-  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 334, 240, true);
   var outputName = Path.Combine(blobs5488ImageFolder, $"{index}.png");
   if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
   {
@@ -108,7 +108,7 @@ foreach (var (blob, index) in blobs5088.WithIndex())
 {
   var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
   File.WriteAllBytes(Path.Combine(blobs5088Folder, $"{index}_decoded.bin"), decodedBlob);
-  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 334, 240, true);
   var outputName = Path.Combine(blobs5088ImageFolder, $"{index}.png");
   if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
   {
@@ -120,7 +120,7 @@ foreach (var (blob, index) in blobs5688.WithIndex())
 {
   var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 334);
   File.WriteAllBytes(Path.Combine(blobs5688Folder, $"{index}_decoded.bin"), decodedBlob);
-  var image = GenerateClutImage(palette, decodedBlob, 334, 240, true);
+  var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 334, 240, true);
   var outputName = Path.Combine(blobs5688ImageFolder, $"{index}.png");
   if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
   {

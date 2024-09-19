@@ -4,6 +4,7 @@ using OGLibCDi.Models;
 using System.Drawing.Imaging;
 using System.Drawing;
 using System.Diagnostics;
+using ExtractCLUT.Helpers;
 
 namespace ExtractCLUT.Games
 {
@@ -303,9 +304,9 @@ public static class Functions
         // imageData = ExtractSprite(sprite, 384, ref width, ref height);
 
         //decode CLUT of sprite
-        // var image = GenerateClutImage(colorTable, imageData, width, height, true);
+        // var image = ImageFormatHelper.GenerateClutImage(colorTable, imageData, width, height, true);
         // image.Save(fileName, ImageFormat.Png);
-        var image = GenerateClutImage(colorTable, sprite, 384, 240);
+        var image = ImageFormatHelper.GenerateClutImage(colorTable, sprite, 384, 240);
         if (sizeList.Count > 0)
         {
             for (int sIndex = 0; sIndex < sizeList.Count; sIndex++)

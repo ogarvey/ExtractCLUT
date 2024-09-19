@@ -63,7 +63,7 @@ namespace ExtractCLUT.Helpers
         //     if (chunk.Length == 0 || chunk.Length < 8) continue;
         //     var output = CompiledSpriteHelper.DecodeCompiledSprite(chunk).Skip(chunk.Length + 0x20).ToArray();
         //     //File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\ZELDA - The Wand of Gamelon\Output\{oIndex}_sprite_{index}.bin", output);
-        //     var image = GenerateClutImage(palette, output, 416, 240, true);
+        //     var image = ImageFormatHelper.GenerateClutImage(palette, output, 416, 240, true);
         //     var outputName = Path.Combine(folder, $"sprite_{index}.png");
         //     image.Save(outputName, ImageFormat.Png);
 

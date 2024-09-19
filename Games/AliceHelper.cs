@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using ExtractCLUT.Helpers;
 using static OGLibCDi.Helpers.ColorHelper;
-using static OGLibCDi.Helpers.ImageFormatHelper;
 
 namespace ExtractCLUT.Games
 {
@@ -57,7 +57,7 @@ namespace ExtractCLUT.Games
                             }
                         }
                     }
-                    var image = GenerateClutImage(palette, combinedQuads, 16, 16);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, combinedQuads, 16, 16);
                     image.Save($@"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\ALICE IN WONDERLAND\Output\Alice_Rooms\combined\{i}_{j}.png");
                 }
             }

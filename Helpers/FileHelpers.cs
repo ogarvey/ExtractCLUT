@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using ExtractCLUT;
 using ExtractCLUT.Model;
 
@@ -513,6 +514,134 @@ namespace ExtractCLUT.Helpers
       }
 
       return processed.ToArray();
+    }
+
+    public static List<string> ExtractFilenames(string inputFilePath)
+    {
+      List<string> filenames = new List<string>();
+      const int bufferSize = 1024 * 1024; // 1 MB buffer size
+      byte[] buffer = new byte[bufferSize];
+      string remainingData = string.Empty;
+
+      using (FileStream fs = new FileStream(inputFilePath, FileMode.Open, FileAccess.Read))
+      using (BinaryReader reader = new BinaryReader(fs))
+      {
+        while (reader.BaseStream.Position < 0x52000)
+        {
+          int bytesRead = reader.Read(buffer, 0, bufferSize);
+          string chunk = remainingData + Encoding.ASCII.GetString(buffer, 0, bytesRead);
+
+          // Find potential filenames
+          string pattern = @"[a-zA-Z0-9_\-\.]+";
+          Regex regex = new Regex(pattern, RegexOptions.IgnoreCase);
+          MatchCollection matches = regex.Matches(chunk);
+
+          // Process matches
+          for (int i = 0; i < matches.Count; i++)
+          {
+            string matchValue = matches[i].Value;
+            // If it's the last match and it's incomplete, save it to remainingData
+            if (i == matches.Count - 1 && reader.BaseStream.Position < reader.BaseStream.Length && !char.IsWhiteSpace(chunk[chunk.Length - 1]))
+            {
+              remainingData = matchValue;
+            }
+            else
+            {
+              if (IsValidFilename(matchValue))
+              {
+                filenames.Add(matchValue);
+              }
+            }
+          }
+
+          // If no matches, reset remainingData
+          if (matches.Count == 0)
+          {
+            remainingData = string.Empty;
+          }
+        }
+      }
+
+      return filenames;
+    }
+
+    public static void ExtractFBXModels(string inputFilePath, string outputDirectory)
+    {
+      const int bufferSize = 1024 * 1024; // 1 MB buffer size
+      byte[] buffer = new byte[bufferSize];
+
+      string fbxAsciiHeader = "; FBX";
+      string fbxBinaryHeader = "Kaydara FBX Binary";
+      List<long> fbxStartPositions = new List<long>();
+
+      using (FileStream fs = new FileStream(inputFilePath, FileMode.Open, FileAccess.Read))
+      using (BinaryReader reader = new BinaryReader(fs))
+      {
+        long fileLength = reader.BaseStream.Length;
+        reader.BaseStream.Position = 0x21430000;
+        while (reader.BaseStream.Position < fileLength)
+        {
+          int bytesRead = reader.Read(buffer, 0, bufferSize);
+          string chunk = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+          if (fbxStartPositions.Count > 0)
+          {
+            break;
+          }
+          int index = 0;
+          while (index < chunk.Length)
+          {
+            int asciiPos = chunk.IndexOf(fbxAsciiHeader, index);
+            int binaryPos = chunk.IndexOf(fbxBinaryHeader, index);
+
+            int foundPos = -1;
+            if (asciiPos != -1 && (asciiPos < binaryPos || binaryPos == -1))
+            {
+              foundPos = asciiPos;
+            }
+            else if (binaryPos != -1 && (binaryPos < asciiPos || asciiPos == -1))
+            {
+              foundPos = binaryPos;
+            }
+
+            if (foundPos != -1)
+            {
+              fbxStartPositions.Add(reader.BaseStream.Position - bytesRead + foundPos);
+              index = foundPos + 1;
+              break;
+            }
+            else
+            {
+              break;
+            }
+          }
+
+          // Move the reader back a bit to ensure we catch headers that might span across buffer boundaries
+          reader.BaseStream.Position -= fbxAsciiHeader.Length;
+        }
+
+        for (int i = 0; i < fbxStartPositions.Count; i++)
+        {
+          long startPosition = fbxStartPositions[i];
+          long endPosition = (i + 1 < fbxStartPositions.Count) ? fbxStartPositions[i + 1] : fileLength;
+
+          fs.Seek(startPosition, SeekOrigin.Begin);
+          long dataSize = endPosition - startPosition;
+          byte[] fbxData = reader.ReadBytes((int)dataSize);
+
+          string outputFilePath = Path.Combine(outputDirectory, $"extracted_{i}.fbx");
+          File.WriteAllBytes(outputFilePath, fbxData);
+
+          Console.WriteLine($"Extracted FBX model {i} to {outputFilePath}");
+        }
+      }
+
+      Console.WriteLine("Extraction completed.");
+    }
+    static bool IsValidFilename(string filename)
+    {
+      // Simple heuristic to filter out unlikely filenames
+      // Adjust the criteria based on your specific needs
+      return filename.Length > 3 && filename.Contains(".");
     }
   }
 

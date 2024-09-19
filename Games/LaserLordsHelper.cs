@@ -746,7 +746,7 @@ namespace ExtractCLUT.Games
                 }
               }
             }
-            var image = GenerateClutImage(palette, combinedQuads, 16, 16, true);
+            var image = ImageFormatHelper.GenerateClutImage(palette, combinedQuads, 16, 16, true);
             image.Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\output\combined\{i}_{j}.png");
           }
         }

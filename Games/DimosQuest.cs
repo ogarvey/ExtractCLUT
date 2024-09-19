@@ -143,7 +143,7 @@ namespace ExtractCLUT.Games
                     var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 0x180);
                     // File.WriteAllBytes(Path.Combine(blobDir, $"{index}.bin"), blob);
                     // File.WriteAllBytes(Path.Combine(blobDir, $"{index}_decoded.bin"), decodedBlob);
-                    var image = GenerateClutImage(palette, decodedBlob, 384, 240, true);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 384, 240, true);
                     var outputName = Path.Combine(outputDir, $"{index}.png");
                     if (OperatingSystem.IsWindowsVersionAtLeast(6, 1))
                     {

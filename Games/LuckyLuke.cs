@@ -35,8 +35,190 @@ namespace ExtractCLUT.Games
     // 0x29 - Babe?
     // 0x3? - Enemy/Hazard
 
+
     public static class LuckyLuke
     {
+        public static List<List<Image>> BossBlockParser(byte[] data, List<Color> palette)
+        {
+            var imageLists = new List<List<Image>>();
+            var spriteDataList = new List<List<VFSpriteData>>();
+
+            var blobStart = BitConverter.ToUInt32(data.Take(4).Reverse().ToArray(), 0);
+            var overallDataStart = blobStart;
+            var blobEnd = BitConverter.ToUInt32(data.Skip(4).Take(4).Reverse().ToArray(), 0);
+
+            var blob = data.Skip((int)blobStart).Take((int)(blobEnd - blobStart)).ToArray();
+
+
+            blobStart = blobEnd;
+
+            var shouldSeek = true;
+            var headerOffsetList = new List<uint>();
+            var spriteHeaderBlobs = new List<byte[]>();
+            var spriteBlobs = new List<byte[]>();
+            var index = 0xc;
+            while (shouldSeek)
+            {
+                var headerOffset = BitConverter.ToUInt32(data.Skip(index).Take(4).Reverse().ToArray(), 0);
+
+                if (headerOffset > overallDataStart)
+                {
+                    shouldSeek = false;
+                    break;
+                }
+                headerOffsetList.Add(headerOffset);
+                index += 4;
+            }
+
+            headerOffsetList = headerOffsetList.OrderBy(x => x).ToList();
+
+            for (int i = 0; i < headerOffsetList.Count; i++)
+            {
+                var start = (int)headerOffsetList[i];
+                var end = i == headerOffsetList.Count - 1 ? (int)overallDataStart : (int)headerOffsetList[i + 1];
+                var spriteHeaderBlob = data.Skip(start).Take((int)(end - start)).ToArray();
+                spriteHeaderBlobs.Add(spriteHeaderBlob);
+            }
+
+
+            foreach (var sData in spriteHeaderBlobs)
+            {
+                var tempList = new List<VFSpriteData>();
+
+                for (int i = 0; i < sData.Length; i += 16)
+                {
+                    if (i + 15 >= sData.Length)
+                    {
+                        break;
+                    }
+                    if (sData.Skip(i + 0xc).Take(1).First() == 0x80)
+                    {
+                        var offset = BitConverter.ToInt32(sData.Skip(i + 4).Take(4).Reverse().ToArray(), 0);
+                        var width = sData.Skip(i + 13).Take(1).First();
+                        var height = BitConverter.ToInt16(sData.Skip(i + 14).Take(2).Reverse().ToArray(), 0);
+                        tempList.Add(new VFSpriteData { Width = width, Height = height, Offset = offset });
+                    }
+                    else
+                    {
+                        // for (int j=0; j <sData.Length; j+=4)
+                        // {
+                        //     var offset = BitConverter.ToInt32(sData.Skip(j).Take(4).Reverse().ToArray(), 0);
+                        //     var width = 384;
+                        //     var height = 240;
+                        //     tempList.Add(new VFSpriteData { Width = width, Height = height, Offset = offset });
+                        // }
+                    }
+
+                }
+                spriteDataList.Add(tempList);
+            }
+
+            foreach (var list in spriteDataList)
+            {
+                var tempImageList = new List<Image>();
+                foreach (var sprite in list)
+                {
+                    var sData = data.Skip(sprite.Offset).ToArray();
+                    var output = CompiledSpriteHelper.DecodeCompiledSprite(sData, 0, 0x180);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
+                    if (sprite.Width <= 0 || sprite.Height <= 0 || sprite.Width >= 384 || sprite.Height >= 240)
+                    {
+                        tempImageList.Add(image);
+                        continue;
+                    }
+                    tempImageList.Add(CropImage(image, sprite.Width, sprite.Height, 0, 1));
+                }
+                imageLists.Add(tempImageList);
+            }
+
+            // get lowest offset in spriteDataList
+            blobEnd = (uint)spriteDataList.SelectMany(x => x).Min(x => x.Offset);
+            blob = data.Skip((int)blobStart).Take((int)(blobEnd - blobStart)).ToArray();
+
+            overallDataStart = BitConverter.ToUInt32(blob.Take(4).Reverse().ToArray(), 0);
+            shouldSeek = true;
+            headerOffsetList = new List<uint>();
+            spriteHeaderBlobs = new List<byte[]>();
+            spriteBlobs = new List<byte[]>();
+            index = 0;
+            while (shouldSeek)
+            {
+                var headerOffset = BitConverter.ToUInt32(blob.Skip(index).Take(4).Reverse().ToArray(), 0);
+
+                if (headerOffset > 0xFFF)
+                {
+                    shouldSeek = false;
+                    break;
+                }
+                headerOffsetList.Add(headerOffset);
+                index += 4;
+            }
+
+            headerOffsetList = headerOffsetList.OrderBy(x => x).ToList();
+
+            for (int i = 0; i < headerOffsetList.Count; i++)
+            {
+                var start = (int)headerOffsetList[i];
+                var end = i == headerOffsetList.Count - 1 ? (int)overallDataStart : (int)headerOffsetList[i + 1];
+                var spriteHeaderBlob = blob.Skip(start).Take((int)(end - start)).ToArray();
+                spriteHeaderBlobs.Add(spriteHeaderBlob);
+            }
+
+
+            foreach (var sData in spriteHeaderBlobs)
+            {
+                var tempList = new List<VFSpriteData>();
+
+                for (int i = 0; i < sData.Length; i += 16)
+                {
+                    if (i + 15 >= sData.Length)
+                    {
+                        break;
+                    }
+                    if (sData.Skip(i + 0xc).Take(1).First() == 0x80)
+                    {
+                        var offset = BitConverter.ToInt32(sData.Skip(i + 4).Take(4).Reverse().ToArray(), 0);
+                        var width = sData.Skip(i + 13).Take(1).First();
+                        var height = BitConverter.ToInt16(sData.Skip(i + 14).Take(2).Reverse().ToArray(), 0);
+                        tempList.Add(new VFSpriteData { Width = width, Height = height, Offset = offset });
+                    }
+                    else
+                    {
+                        // for (int j=0; j <sData.Length; j+=4)
+                        // {
+                        //     var offset = BitConverter.ToInt32(sData.Skip(j).Take(4).Reverse().ToArray(), 0);
+                        //     var width = 384;
+                        //     var height = 240;
+                        //     tempList.Add(new VFSpriteData { Width = width, Height = height, Offset = offset });
+                        // }
+                    }
+
+                }
+                spriteDataList.Add(tempList);
+            }
+
+            foreach (var list in spriteDataList)
+            {
+                var tempImageList = new List<Image>();
+                foreach (var sprite in list)
+                {
+                    var sData = blob.Skip(sprite.Offset).ToArray();
+                    var output = CompiledSpriteHelper.DecodeCompiledSprite(sData, 0, 0x180);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
+                    if (sprite.Width <= 0 || sprite.Height <= 0 || sprite.Width >= 384 || sprite.Height >= 240)
+                    {
+                        tempImageList.Add(image);
+                        continue;
+                    }
+                    tempImageList.Add(CropImage(image, sprite.Width, sprite.Height, 0, 1));
+                }
+                imageLists.Add(tempImageList);
+            }
+
+
+
+            return imageLists;
+        }
         public static List<byte[]> BlockParser(byte[] data, bool isBlock1 = false, bool isTileSpriteBlock = false)
         {
             // First 4 bytes = offset of data start
@@ -55,7 +237,7 @@ namespace ExtractCLUT.Games
                     {
                         for (int j = 0; j < 12; j += 4)
                         {
-                            offset = (uint)(BitConverter.ToUInt32(data.Skip(i + 8 + j).Take(4).Reverse().ToArray(), 0) + (i+4));
+                            offset = (uint)(BitConverter.ToUInt32(data.Skip(i + 8 + j).Take(4).Reverse().ToArray(), 0) + (i + 4));
                             offsets.Add(offset);
                         }
                     }
@@ -147,7 +329,7 @@ namespace ExtractCLUT.Games
             }
             return new Tuple<int, uint>(-1, 0);
         }
-        
+
         public static Image CombineFGImages(List<Image> images)
         {
             int tileWidth = 4; // Width of each tile
@@ -204,7 +386,7 @@ namespace ExtractCLUT.Games
 
             return combinedImage;
         }
-       
+
         public static void ExtractAllLevelData(string blkFolder, string outputFolder)
         {
             Directory.CreateDirectory(outputFolder);
@@ -402,7 +584,7 @@ namespace ExtractCLUT.Games
             {
                 var tileOffset = (int)uintList[i] * 40;
                 var tileBytes = tileData.Skip(tileOffset).Take(40).ToArray();
-                var tileImage = GenerateClutImage(palette, tileBytes, 2, 20);
+                var tileImage = ImageFormatHelper.GenerateClutImage(palette, tileBytes, 2, 20);
                 tempImageList.Add(tileImage);
                 if (tempImageList.Count == 10)
                 {
@@ -439,7 +621,7 @@ namespace ExtractCLUT.Games
             {
                 var tileOffset = (int)uintList[i] * 80;
                 var tileBytes = tileData.Skip(tileOffset).Take(80).ToArray();
-                var tileImage = GenerateClutImage(palette, tileBytes, 4, 20, true);
+                var tileImage = ImageFormatHelper.GenerateClutImage(palette, tileBytes, 4, 20, true);
                 tempImageList.Add(tileImage);
                 if (tempImageList.Count == 5)
                 {
@@ -466,7 +648,7 @@ namespace ExtractCLUT.Games
                 else
                 {
                     var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, 0, 0x180);
-                    var image = GenerateClutImage(palette, output, 384, 240, true);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
                     var cropped = CropImage(image, 4, 20, 0, 1);
                     tempImageList.Add(cropped);
                 }
@@ -525,7 +707,7 @@ namespace ExtractCLUT.Games
                 {
                     var data = blockData.Skip(sprite.Offset).ToArray();
                     var output = CompiledSpriteHelper.DecodeCompiledSprite(data, 0, 0x180);
-                    var image = GenerateClutImage(palette, output, 384, 240, true);
+                    var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
                     if (sprite.Width <= 0 || sprite.Height <= 0 || sprite.Width > 384 || sprite.Height > 240)
                     {
                         tempImageList.Add(image);

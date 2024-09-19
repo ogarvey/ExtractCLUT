@@ -54,18 +54,25 @@ namespace ExtractCLUT
       return BitConverter.ToUInt16(bytes, 0);
     }
 
-    public static int ReadBigEndianInt16(BinaryReader reader)
+    public static short ReadBigEndianInt16(this BinaryReader reader)
     {
       byte[] bytes = reader.ReadBytes(2);
       Array.Reverse(bytes);
       return BitConverter.ToInt16(bytes, 0);
     }
 
-    public static uint ReadBigEndianUInt32(BinaryReader reader)
+    public static uint ReadBigEndianUInt32(this BinaryReader reader)
     {
       byte[] bytes = reader.ReadBytes(4);
       Array.Reverse(bytes);
       return BitConverter.ToUInt32(bytes, 0);
+    }
+
+    public static int ReadBigEndianInt32(this BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(4);
+      Array.Reverse(bytes);
+      return BitConverter.ToInt32(bytes, 0);
     }
     
     public static bool MatchesSequence(BinaryReader reader, byte[] sequence)

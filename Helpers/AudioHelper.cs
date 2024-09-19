@@ -8,6 +8,32 @@ namespace ExtractCLUT.Helpers
 
 	public static class AudioHelper
 	{
+		public static void ConvertPcmToWav(byte[] pcmData, string wavFilePath, int sampleRate, int channels, int bitsPerSample)
+		{
+			using (var wavStream = new FileStream(wavFilePath, FileMode.Create, FileAccess.Write))
+			using (var writer = new BinaryWriter(wavStream))
+			{
+				// RIFF header
+				writer.Write(new char[4] { 'R', 'I', 'F', 'F' });
+				writer.Write(36 + pcmData.Length); // File size minus first 8 bytes
+				writer.Write(new char[4] { 'W', 'A', 'V', 'E' });
+
+				// fmt subchunk
+				writer.Write(new char[4] { 'f', 'm', 't', ' ' });
+				writer.Write(16); // Subchunk size (16 for PCM)
+				writer.Write((short)1); // Audio format (1 = PCM)
+				writer.Write((short)channels); // Number of channels
+				writer.Write(sampleRate); // Sample rate
+				writer.Write(sampleRate * channels * bitsPerSample / 8); // Byte rate
+				writer.Write((short)(channels * bitsPerSample / 8)); // Block align
+				writer.Write((short)bitsPerSample); // Bits per sample
+
+				// data subchunk
+				writer.Write(new char[4] { 'd', 'a', 't', 'a' });
+				writer.Write(pcmData.Length); // Data chunk size
+				writer.Write(pcmData); // Write PCM data to wav file
+			}
+		}
 		private static string ffmpegPath = "ffmpeg";
 		public static void ConvertIffToWav(string inputFilePath, string outputFilePath)
 		{
@@ -54,6 +80,7 @@ namespace ExtractCLUT.Helpers
 				throw new Exception($"ffmpeg exited with code {ffmpegProcess.ExitCode}");
 			}
 		}
+		
 		public static void ConvertMp2ToWavAndMp3(string inputFilePath, string outputPath, string format = "wav")
 		{
 			try

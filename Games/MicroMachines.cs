@@ -4,6 +4,7 @@ using static ExtractCLUT.Helpers.ImageFormatHelper;
 using System.Drawing;
 using System.Drawing.Imaging;
 using OGLibCDi.Models;
+using ExtractCLUT.Helpers;
 
 namespace ExtractCLUT.Games
 {
@@ -50,7 +51,7 @@ namespace ExtractCLUT.Games
                 var height = spriteData[spriteOffsets[i] + 1];
                 var bytesToTake = width*height;
                 var sprite = spriteData.Skip(spriteOffsets[i] + 2).Take(bytesToTake).ToArray();
-                var image = GenerateClutImage(palette, sprite, width, height, useTransparency, transparencyIndex, lowerIndexes);
+                var image = ImageFormatHelper.GenerateClutImage(palette, sprite, width, height, useTransparency, transparencyIndex, lowerIndexes);
                 image.Save($@"{outputDirectory}\sprite_{i}{(useTransparency ? "tp" : "")}.png", ImageFormat.Png);
             }
 
@@ -127,7 +128,7 @@ namespace ExtractCLUT.Games
             var blockOutputPath = Path.Combine(outputPath, "blocks");
             foreach (var (tile, index) in tiles.WithIndex())
             {
-                var image = GenerateClutImage(palette, tile, 16, 16);
+                var image = ImageFormatHelper.GenerateClutImage(palette, tile, 16, 16);
                 image.Save($@"{tileOutputPath}\{blockName}_{index}.png", ImageFormat.Png);
             }
 
@@ -155,7 +156,7 @@ namespace ExtractCLUT.Games
                     for (int l = 0; l < 6; l++)
                     {
                         var tile = tiles[blockArray[j, l]];
-                        var image = GenerateClutImage(palette, tile, 16, 16);
+                        var image = ImageFormatHelper.GenerateClutImage(palette, tile, 16, 16);
                         for (int m = 0; m < 16; m++)
                         {
                             for (int n = 0; n < 16; n++)

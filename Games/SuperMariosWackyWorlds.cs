@@ -85,7 +85,7 @@ namespace ExtractCLUT.Games
 
 // foreach (var (tile, index) in tiles.WithIndex())
 // {
-//     var image = GenerateClutImage(palette, tile, 16, 16);
+//     var image = ImageFormatHelper.GenerateClutImage(palette, tile, 16, 16);
 //     image.Save($@"C:\Dev\Projects\Gaming\CD-i\MARIO\Output\Swamp\tiles\Swamp3\Swamp3_{index}.png", ImageFormat.Png);
 // }
 

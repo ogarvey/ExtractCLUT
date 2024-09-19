@@ -53,15 +53,30 @@ namespace ExtractCLUT.Helpers
       else
         return Color.FromArgb(255, v, p, q);
     }
-    public static List<Color> ConvertBytesToRGB(byte[] bytes)
+    public static List<Color> ConvertBytesToRGB(byte[] bytes, int intensity = 1)
     {
       List<Color> colors = new List<Color>();
 
       for (int i = 0; i < bytes.Length - 2; i += 3)
       {
-        byte red = bytes[i];
-        byte green = bytes[i + 1];
-        byte blue = bytes[i + 2];
+        byte red = (byte)(bytes[i] * intensity);
+        byte green = (byte)(bytes[i + 1] * intensity);
+        byte blue = (byte)(bytes[i + 2] * intensity);
+
+        Color color = Color.FromArgb(red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+    public static List<Color> ConvertBytesToARGB(byte[] bytes, int intensity = 1)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte red = (byte)(bytes[i] * intensity);
+        byte green = (byte)(bytes[i + 1] * intensity);
+        byte blue = (byte)(bytes[i + 2] * intensity);
 
         Color color = Color.FromArgb(red, green, blue);
         colors.Add(color);
@@ -147,7 +162,7 @@ namespace ExtractCLUT.Helpers
 
     public static Bitmap CreateLabelledPalette(List<Color> colors)
     {
-      int squareSize = 16;
+      int squareSize = 32;
       int cols = 16;
       int rows = colors.Count / cols;
 
@@ -180,17 +195,17 @@ namespace ExtractCLUT.Helpers
             }
 
             // Draw the text (index) on the square
-            string text = i.ToString();
-            SizeF textSize = graphics.MeasureString(text, font);
-            float x = (xIndex * squareSize) + (squareSize - textSize.Width) / 2;
-            float y = (yIndex * squareSize) + (squareSize - textSize.Height) / 2;
+            // string text = i.ToString();
+            // SizeF textSize = graphics.MeasureString(text, font);
+            // float x = (xIndex * squareSize) + (squareSize - textSize.Width) / 2;
+            // float y = (yIndex * squareSize) + (squareSize - textSize.Height) / 2;
 
-            graphics.DrawString(text, font, textBrush, x, y);
+            // graphics.DrawString(text, font, textBrush, x, y);
           }
         }
       }
 
-      return bitmap;
+      return bitmap.Scale4();
     }
 
     public static void WritePalette(string path, List<Color> colors)
@@ -211,7 +226,7 @@ namespace ExtractCLUT.Helpers
       }
       return colors;
     }
-    
+
     public static Color[] GenerateGrayscalePalette(int numColors)
     {
       Color[] palette = new Color[numColors];
@@ -292,6 +307,26 @@ namespace ExtractCLUT.Helpers
       }
 
       return clutBanks;
+    }
+
+    public static List<Color> Read16BitRgbPalette(ushort[] palette)
+    {
+      List<Color> colors = new List<Color>();
+      for (int i = 0; i < palette.Length; i++)
+      {
+        ushort color = palette[i];
+        byte b = (byte)((color & 0xF800) >> 11);
+        byte g = (byte)((color & 0x07E0) >> 5);
+        byte r = (byte)(color & 0x001F);
+
+        r = (byte)(r * 255 / 31);
+        g = (byte)(g * 255 / 63);
+        b = (byte)(b * 255 / 31);
+
+        Color rgbColor = Color.FromArgb(b, g, r);
+        colors.Add(rgbColor);
+      }
+      return colors;
     }
   }
 }

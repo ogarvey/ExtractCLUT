@@ -33,7 +33,7 @@ namespace ExtractCLUT.Games
             // 		if (spriteData[i] == 0x4e && spriteData[i + 1] == 0x75)
             // 		{
             // 				var output = CompiledSpriteHelper.DecodeCompiledSprite(spriteData, startIndex, 0x180);
-            // 				var image = GenerateClutImage(palette, output, 384, 240, true);
+            // 				var image = ImageFormatHelper.GenerateClutImage(palette, output, 384, 240, true);
             // 				CropImage(image, 64, 64, 0, 1).Save($@"{outputFolder}\{spriteIndex}.png", ImageFormat.Png);
             // 				spriteIndex++;
             // 				startIndex = i + 2;

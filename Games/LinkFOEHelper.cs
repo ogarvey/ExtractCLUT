@@ -30,7 +30,7 @@ namespace ExtractCLUT.Games
 // {
 //     var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 416);
 //     //File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\LINK - The Faces of Evil\Exploration\ldata\Spriting\{index}.bin", decodedBlob);
-//     var image = GenerateClutImage(defaultPalette, decodedBlob, 416, 92, true);
+//     var image = ImageFormatHelper.GenerateClutImage(defaultPalette, decodedBlob, 416, 92, true);
 //     // if the entire image is FULLY transparent, skip it, if not save it
 //     if (!IsImageFullyTransparent(image))
 //     {

@@ -59,14 +59,14 @@ namespace ExtractCLUT.Games
 //         {
 //             var output = CompiledSpriteHelper.DecodeCompiledSprite(blob, startIndex, 0x180);
 //             //File.WriteAllBytes($@"{outputFolder}\{spriteIndex}.bin", output);
-//             var image = GenerateClutImage(palette1, output, 384, 240, true);
+//             var image = ImageFormatHelper.GenerateClutImage(palette1, output, 384, 240, true);
 //             if (IsImageFullyTransparent(image))
 //             {
 //                 startIndex = j + 2;
 //                 continue;
 //             }
 //             CropImage(image, width, height, 0, 1).Save($@"{spriteOutput}\{spriteOffsetList[i]}_{spriteIndex}.png", ImageFormat.Png);
-//             // image = GenerateClutImage(palette2, output, 384, 240, true);
+//             // image = ImageFormatHelper.GenerateClutImage(palette2, output, 384, 240, true);
 //             // CropImage(image,192,120,0,1).Save($@"{outputFolder}\{spriteIndex}_2.png", ImageFormat.Png);
 //             spriteIndex++;
 //             startIndex = j + 2;
@@ -86,9 +86,9 @@ namespace ExtractCLUT.Games
 // //   var end = i == clutOffsetList.Count - 1 ? data.Length : (int)clutOffsetList[i + 1];
 // //   var blob = data.Skip((int)start).Take((int)(end - start)).ToArray();
 
-// //   var image = GenerateClutImage(palette1, blob, width, height, true);
+// //   var image = ImageFormatHelper.GenerateClutImage(palette1, blob, width, height, true);
 // //   image.Save($@"{clutOutput}\{clutOffsetList[i]}_{imageIndex}.png", ImageFormat.Png);
-// //   image = GenerateClutImage(palette2, blob, width, height, true);
+// //   image = ImageFormatHelper.GenerateClutImage(palette2, blob, width, height, true);
 // //   image.Save($@"{clutOutput}\{clutOffsetList[i]}_{imageIndex}_2.png", ImageFormat.Png);
 
 // //   imageIndex++;

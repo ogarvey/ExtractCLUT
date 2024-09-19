@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using ExtractCLUT.Helpers;
 using OGLibCDi.Models;
 using static ExtractCLUT.Helpers.ColorHelper;
 using static ExtractCLUT.Helpers.ImageFormatHelper;
@@ -49,7 +50,7 @@ namespace ExtractCLUT.Games
                 var imageCount = imageData.Length / imageSize;
                 for (int j = 0; j < imageCount; j++)
                 {
-                    var image = GenerateClutImage(paletteList[0], imageData.Skip(j * imageSize).Take(imageSize).ToArray(), 384, 280, true);
+                    var image = ImageFormatHelper.GenerateClutImage(paletteList[0], imageData.Skip(j * imageSize).Take(imageSize).ToArray(), 384, 280, true);
                     image.Save(Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(file)}_{i}_{j}.png"), ImageFormat.Png);
                     // images.Add(image);
                     allImages.Add(image);
@@ -87,7 +88,7 @@ namespace ExtractCLUT.Games
 // for (int i = 0; i < tileData.Length; i += 256)
 // {
 //     var tile = tileData.Skip(i).Take(256).ToArray();
-//     var image = GenerateClutImage(palette, tile, 16, 16, true);
+//     var image = ImageFormatHelper.GenerateClutImage(palette, tile, 16, 16, true);
 //     image.Save(Path.Combine(tileOutputFolder, $"{i / 256}.png"), ImageFormat.Png);
 // }
 

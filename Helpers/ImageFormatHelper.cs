@@ -17,6 +17,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
 using static ExtractCLUT.Games.LaserLordsHelper;
 using System.Collections.Concurrent;
+using ImageMagick;
 
 namespace ExtractCLUT.Helpers
 {
@@ -498,7 +499,133 @@ namespace ExtractCLUT.Helpers
       if (value > 255) { return 255; }
       return value;
     }
+    public static Bitmap ConvertA1B5G5R5ToBitmap(byte[] imageData, int width, int height)
+    {
+      // Create a bitmap to hold the decoded image
+      Bitmap bitmap = new Bitmap(width, height);
 
+      int pixelIndex = 0;
+
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          // Combine two bytes into a single 16-bit value
+          ushort color16bit = BitConverter.ToUInt16(imageData, pixelIndex);
+
+          // Extract A, B, G, R components
+          byte alpha = (byte)((color16bit & 0x8000) >> 15); // 1 bit for alpha
+          byte blue = (byte)((color16bit & 0x7C00) >> 10);   // 5 bits for blue
+          byte green = (byte)((color16bit & 0x03E0) >> 5);  // 5 bits for green
+          byte red = (byte)(color16bit & 0x001F);          // 5 bits for red
+
+          // Scale the 5-bit color values to 8-bit
+          red = (byte)((red << 3) | (red >> 2));
+          green = (byte)((green << 3) | (green >> 2));
+          blue = (byte)((blue << 3) | (blue >> 2));
+          alpha = (byte)(alpha * 255); // Scale alpha from 0-1 to 0-255
+
+          // Create a Color object
+          Color color = Color.FromArgb(alpha, red, green, blue);
+
+          // Set the color in the bitmap
+          bitmap.SetPixel(x, y, color);
+
+          pixelIndex += 2; // Move to the next pair of bytes
+        }
+      }
+
+      return bitmap;
+    }
+
+    public static Bitmap Decode4BitImage(byte[] imageData, List<Color> palette, int width, int height)
+    {
+      // Create a bitmap to hold the decoded image
+      Bitmap bitmap = new Bitmap(width, height);
+
+      int pixelIndex = 0;
+
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < width; x += 2)
+        {
+          // Get the byte containing two 4-bit pixel indices
+          byte byteValue = imageData[pixelIndex / 2];
+
+          // Extract the two pixel indices
+          byte pixel1Index = (byte)((byteValue >> 4) & 0x0F); // Bits 7-4
+          byte pixel2Index = (byte)(byteValue & 0x0F);        // Bits 3-0
+
+          // Get the colors from the palette
+          Color color1 = palette[pixel2Index];
+          Color color2 = palette[pixel1Index];
+
+          // Set the colors in the bitmap
+          bitmap.SetPixel(x, y, color1);
+          if (x + 1 < width) // Ensure we don't go out of bounds
+          {
+            bitmap.SetPixel(x + 1, y, color2);
+          }
+
+          pixelIndex += 2; // Move to the next byte
+        }
+      }
+
+      return bitmap;
+    }
+
+    public static Bitmap Decode8BitImage(byte[] imageData, List<Color> palette, int width, int height)
+    {
+      // Create a bitmap to hold the decoded image
+      Bitmap bitmap = new Bitmap(width, height);
+
+      int pixelIndex = 0;
+
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          // Get the byte containing one 8-bit pixel index
+          byte byteValue = imageData[pixelIndex];      // Bits 3-0
+
+          // Get the colors from the palette
+          Color color1 = palette[byteValue];
+
+          // Set the colors in the bitmap
+          bitmap.SetPixel(x, y, color1);
+          pixelIndex++; // Move to the next byte
+        }
+      }
+
+      return bitmap;
+    }
+    public static List<Color> ConvertA1B5G5R5ToColors(byte[] byteArray)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < byteArray.Length; i += 2)
+      {
+        // Combine two bytes into a single 16-bit value
+        ushort color16bit = BitConverter.ToUInt16(byteArray, i);
+
+        // Extract A, R, G, B components
+        byte alpha = (byte)((color16bit & 0x8000) >> 15); // 1 bit for alpha
+        byte blue = (byte)((color16bit & 0x7C00) >> 10);   // 5 bits for red
+        byte green = (byte)((color16bit & 0x03E0) >> 5);  // 5 bits for green
+        byte red = (byte)(color16bit & 0x001F);          // 5 bits for blue
+
+        // Scale the 5-bit color values to 8-bit
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+        alpha = (byte)(alpha * 255); // Scale alpha from 0-1 to 0-255
+
+        // Create a Color object and add to the list
+        colors.Add(Color.FromArgb(alpha, red, green, blue));
+      }
+
+      return colors;
+    }
     public static Image CropImage(Image img, int width, int height, int originX = 0, int originY = 0)
     {
       Rectangle cropRect = new Rectangle(originX, originY, width, height);
@@ -547,7 +674,44 @@ namespace ExtractCLUT.Helpers
       }
       return true;
     }
+    
+    public static Bitmap Decode4Bpp(byte[] imageData, List<Color> palette, int width, int height)
+    {
+      Bitmap bitmap = new(width, height, PixelFormat.Format32bppArgb);
 
+      try
+      {
+
+        int pixelIndex = 0;
+        for (int y = 0; y < height; y++)
+        {
+          for (int x = 0; x < width; x += 2) // Process two pixels per byte
+          {
+            byte data = imageData[pixelIndex++];
+
+            // Extract two 4-bit pixels from the byte
+            int index1 = (data >> 4) & 0x0F; // First pixel (higher 4 bits)
+            int index2 = data & 0x0F;        // Second pixel (lower 4 bits)
+            var color = index1 == 0 ? Color.Transparent : palette[index1];
+            // Map to RGB and set the pixel in the Bitmap
+            bitmap.SetPixel(x, y,color);
+            if (x + 1 < width) // Ensure we don't go out of bounds
+            {
+              color = index2 == 0 ? Color.Transparent : palette[index2];
+              bitmap.SetPixel(x + 1, y, color);
+            }
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        return bitmap;
+      }
+      //bitmap.Save(@"C:\dev\test.png");
+      // Save the bitmap as a PNG
+      return bitmap;
+
+    }
     public static (int maxWidth, int maxHeight) FindMaxDimensions(string folderPath)
     {
       ConcurrentBag<int> maxWidths = new ConcurrentBag<int>();
@@ -814,6 +978,52 @@ namespace ExtractCLUT.Helpers
       return clutImage;
     }
 
+
+    public static Bitmap DecodeRgb16(byte[] imageData, int width, int height)
+    {
+      Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+      BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
+
+      int bytesPerPixel = 3;
+      int stride = bitmapData.Stride;
+      IntPtr ptr = bitmapData.Scan0;
+      byte[] rgbValues = new byte[stride * height];
+
+      try
+      {
+
+        for (int y = 0; y < height; y++)
+        {
+          for (int x = 0; x < width; x++)
+          {
+            int index = (y * width + x) * 2;
+            // reverse the data first
+            ushort pixel = BitConverter.ToUInt16(imageData.Skip(index).Take(2).Reverse().ToArray(), 0);
+
+            byte r = (byte)((pixel & 0xF800) >> 8);
+            byte g = (byte)((pixel & 0x07E0) >> 3);
+            byte b = (byte)((pixel & 0x001F) << 3);
+
+            int rgbIndex = y * stride + x * bytesPerPixel;
+            rgbValues[rgbIndex] = b;
+            rgbValues[rgbIndex + 1] = g;
+            rgbValues[rgbIndex + 2] = r;
+          }
+        }
+
+        Marshal.Copy(rgbValues, 0, ptr, rgbValues.Length);
+        bitmap.UnlockBits(bitmapData);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error decoding RGB16 image: {ex.Message}");
+        return bitmap;
+      }
+
+      return bitmap;
+    }
+
+
     public static byte[] GenerateClutBytes(List<Color> palette, byte[] clut7Bytes, int Width, int Height)
     {
       var clutImage = new byte[Width * Height * 4];
@@ -858,6 +1068,9 @@ namespace ExtractCLUT.Helpers
             var color = paletteIndex < palette.Count ?
             (useTransparency && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex) || paletteIndex == 0)) ?
             Color.Transparent : palette[paletteIndex] : palette[paletteIndex % palette.Count];
+            if (paletteIndex > 0 && paletteIndex % palette.Count == 0) {
+              color = Color.Transparent;
+            }
             clutImage.SetPixel(x, y, color);
           }
         }
@@ -917,6 +1130,15 @@ namespace ExtractCLUT.Helpers
       var rleImage = Rle7(rl7Bytes, width);
       var rleBitmap = CreateImage(rleImage, palette, width, height, useTransparency);
       return rleBitmap;
+    }
+    
+    public static void ConvertPcxToPng(string pcxFilePath, string pngFilePath)
+    {
+      // Load the PCX image
+      using (var image = new MagickImage(pcxFilePath))
+      {
+        image.Write(pngFilePath);
+      }
     }
 
 
@@ -1166,7 +1388,347 @@ namespace ExtractCLUT.Helpers
       return -1;
     }
 
-    public static void ConvertILBMToPNG(string ilbmFilePath, string outputPngPath)
+    public static Bitmap RenderCamSprite(byte[] spriteData, List<Color> palette)
+    {
+      // Skip the first two bytes (unknown purpose)
+      int spriteHeight = spriteData[2];
+      int spriteWidth = spriteData[3];
+      int dataIndex = 4;
+
+      // Calculate the number of offsets (which should match the height)
+      int offsetCount = spriteHeight;
+      short[] offsets = new short[offsetCount];
+
+      for (int i = 0; i < offsetCount; i++)
+      {
+        offsets[i] = BitConverter.ToInt16(spriteData, dataIndex);
+        dataIndex += 2;
+      }
+
+      spriteData = spriteData.Skip(dataIndex).ToArray();
+      dataIndex = 0;
+      // Determine the width by calculating the maximum possible width
+      int maxWidth = 0;
+
+      for (int y = 0; y < spriteHeight; y++)
+      {
+        int offset = offsets[y];
+        if (offset == -1) continue;
+        int lineDataIndex = offset;
+        var currentX = 0;
+        var newLine = true;
+
+        while (lineDataIndex < spriteData.Length)
+        {
+          // Read the 4-byte line header
+          byte transparentCount = spriteData[lineDataIndex++];
+          if (transparentCount == 0xFF) break;
+          byte pixelCount = spriteData[lineDataIndex++];
+          if (pixelCount == 0xFF) break;
+
+          int lineWidth = newLine ? transparentCount + pixelCount : currentX + transparentCount + pixelCount;
+          maxWidth = Math.Max(maxWidth, lineWidth);
+          currentX = lineWidth;
+          newLine = false;
+          // Skip the actual pixel data bytes
+          lineDataIndex += pixelCount;
+
+          // Move to the next non-zero byte
+          while (lineDataIndex < spriteData.Length && spriteData[lineDataIndex] == 0)
+          {
+            lineDataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (lineDataIndex >= spriteData.Length || spriteData[lineDataIndex] == 0xFF)
+          {
+            lineDataIndex++;
+            newLine = true;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      // Create the Bitmap with the determined width and height
+      Bitmap image = new Bitmap(maxWidth, spriteHeight);
+
+      // Render the sprite line by line
+      for (int y = 0; y < spriteHeight; y++)
+      {
+        short offset = offsets[y];
+        if (offset == -1) continue;
+        dataIndex = offset;
+        var newLine = true;
+        var currentX = 0;
+        while (dataIndex < spriteData.Length)
+        {
+          byte transparentCount = spriteData[dataIndex++];
+          if (transparentCount == 0xFF) break;
+          byte pixelCount = spriteData[dataIndex++];
+          if (pixelCount == 0xFF) break;
+
+          int x = newLine ? transparentCount : currentX + transparentCount;
+          newLine = false;
+
+          for (int i = 0; i < pixelCount && dataIndex < spriteData.Length; i++)
+          {
+            byte paletteIndex = spriteData[dataIndex++];
+            if (paletteIndex < palette.Count)
+            {
+              image.SetPixel(x, y, palette[paletteIndex]);
+            }
+            else
+            {
+              image.SetPixel(x, y, Color.Transparent); // Invalid palette index, set to transparent
+            }
+            x++;
+          }
+          currentX = x;
+          // Move to the next non-zero byte
+          while (dataIndex < spriteData.Length && spriteData[dataIndex] == 0)
+          {
+            dataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (dataIndex >= spriteData.Length || spriteData[dataIndex] == 0xFF)
+          {
+            dataIndex++;
+            newLine = true;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      return image;
+    }
+
+    public static Bitmap RenderBrutalSprite(byte[] spriteData, List<Color> palette)
+    {
+      // Skip the first two bytes (unknown purpose)
+      int dataIndex = 2;
+
+      // Read the height from the next two bytes
+      int spriteHeight = BitConverter.ToUInt16(spriteData, dataIndex);
+      dataIndex += 2;
+
+      // Calculate the number of offsets (which should match the height)
+      int offsetCount = spriteHeight;
+      int[] offsets = new int[offsetCount];
+
+      for (int i = 0; i < offsetCount; i++)
+      {
+        offsets[i] = BitConverter.ToInt32(spriteData, dataIndex);
+        dataIndex += 4;
+      }
+
+      spriteData = spriteData.Skip(dataIndex).ToArray();
+
+      // Determine the width by calculating the maximum possible width
+      int maxWidth = 0;
+
+      for (int y = 0; y < spriteHeight; y++)
+      {
+        int offset = offsets[y];
+        if (offset == -1) continue;
+        int lineDataIndex = offset;
+
+        while (lineDataIndex < spriteData.Length)
+        {
+          // Read the 4-byte line header
+          int pixelCount = BitConverter.ToInt16(spriteData, lineDataIndex);
+          if (pixelCount == 0xFFFF) break;
+          int transparentCount = BitConverter.ToUInt16(spriteData, lineDataIndex + 2);
+          lineDataIndex += 4;
+
+          int lineWidth = transparentCount + pixelCount;
+          maxWidth = Math.Max(maxWidth, lineWidth);
+
+          // Skip the actual pixel data bytes
+          lineDataIndex += pixelCount;
+
+          // Move to the next non-zero byte
+          while (lineDataIndex < spriteData.Length && spriteData[lineDataIndex] == 0)
+          {
+            lineDataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (lineDataIndex >= spriteData.Length || spriteData[lineDataIndex] == 0xFF)
+          {
+            lineDataIndex++;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      // Create the Bitmap with the determined width and height
+      Bitmap image = new Bitmap(maxWidth, spriteHeight);
+
+      // Render the sprite line by line
+      for (int y = 0; y < spriteHeight; y++)
+      {
+        int offset = offsets[y];
+        if (offset == -1) continue;
+        dataIndex = offset;
+
+        while (dataIndex < spriteData.Length)
+        {
+          // Read the 4-byte line header
+          int pixelCount = BitConverter.ToUInt16(spriteData, dataIndex);
+          if (pixelCount == 0xFFFF) break;
+          int transparentCount = BitConverter.ToUInt16(spriteData, dataIndex + 2);
+          dataIndex += 4;
+
+          // Set the starting x position, taking into account the transparent pixels
+          int x = transparentCount;
+
+          // Place the pixels based on the palette indices
+          for (int i = 0; i < pixelCount && dataIndex < spriteData.Length; i++)
+          {
+            byte paletteIndex = spriteData[dataIndex++];
+            if (paletteIndex < palette.Count)
+            {
+              image.SetPixel(x, y, palette[paletteIndex]);
+            }
+            else
+            {
+              image.SetPixel(x, y, Color.Transparent); // Invalid palette index, set to transparent
+            }
+            x++;
+          }
+
+          // Move to the next non-zero byte
+          while (dataIndex < spriteData.Length && spriteData[dataIndex] == 0)
+          {
+            dataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (dataIndex >= spriteData.Length || spriteData[dataIndex] == 0xFF)
+          {
+            dataIndex++;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      return image;
+    }
+
+    public static Bitmap RenderDclSprite(byte[] spriteData, List<Color> palette)
+    {
+      // Skip the first two bytes (unknown purpose)
+      int dataIndex = 4;
+
+      // Read the height from the next two bytes
+      int spriteHeight = BitConverter.ToUInt16(spriteData, dataIndex);
+
+      dataIndex = 0x20;
+
+      // Calculate the number of offsets (which should match the height)
+      int offsetCount = 0;
+      int[] offsets = new int[200];
+
+      while (dataIndex < 0x340)
+      {
+        offsets[offsetCount++] = BitConverter.ToInt32(spriteData, dataIndex);
+        dataIndex += 4;
+      }
+
+      spriteData = spriteData.Skip(0x340).ToArray();
+
+      // Determine the width by calculating the maximum possible width
+      int maxWidth = 0;
+      for (int y = 0; y < 200; y++)
+      {
+        int offset = offsets[y];
+        if (offset == -1) continue;
+        int lineDataIndex = offset;
+
+        while (lineDataIndex < spriteData.Length)
+        {
+          // Read the 4-byte line header
+          int pixelCount = BitConverter.ToInt16(spriteData, lineDataIndex);
+          if (pixelCount == 0xFFFF) break;
+          int transparentCount = BitConverter.ToUInt16(spriteData, lineDataIndex + 2);
+          lineDataIndex += 4;
+
+          int lineWidth = transparentCount + pixelCount;
+          maxWidth = Math.Max(maxWidth, lineWidth);
+
+          // Skip the actual pixel data bytes
+          lineDataIndex += pixelCount;
+
+          // Move to the next non-zero byte
+          while (lineDataIndex < spriteData.Length && spriteData[lineDataIndex] == 0)
+          {
+            lineDataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (lineDataIndex >= spriteData.Length || spriteData[lineDataIndex] == 0xFF)
+          {
+            lineDataIndex++;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      // Create the Bitmap with the determined width and height
+      Bitmap image = new Bitmap(maxWidth, 200);
+      // Render the sprite line by line
+      for (int y = 0; y < 200; y++)
+      {
+        int offset = offsets[y];
+        if (offset == -1) continue;
+        dataIndex = offset;
+
+        while (dataIndex < spriteData.Length)
+        {
+          // Read the 4-byte line header
+          int pixelCount = BitConverter.ToUInt16(spriteData, dataIndex);
+          if (pixelCount == 0xFFFF) break;
+          int transparentCount = BitConverter.ToUInt16(spriteData, dataIndex + 2);
+          dataIndex += 4;
+
+          // Set the starting x position, taking into account the transparent pixels
+          int x = transparentCount;
+
+
+          // Place the pixels based on the palette indices
+          for (int i = 0; i < pixelCount && dataIndex < spriteData.Length; i++)
+          {
+            byte paletteIndex = spriteData[dataIndex++];
+            if (paletteIndex < palette.Count)
+            {
+              image.SetPixel(x, y, palette[paletteIndex]);
+            }
+            else
+            {
+              image.SetPixel(x, y, Color.Transparent); // Invalid palette index, set to transparent
+            }
+            x++;
+          }
+
+          // Move to the next non-zero byte
+          while (dataIndex < spriteData.Length && spriteData[dataIndex] == 0)
+          {
+            dataIndex++;
+          }
+
+          // If we encounter 0xFF, it means the line is finished
+          if (dataIndex >= spriteData.Length || spriteData[dataIndex] == 0xFF)
+          {
+            dataIndex++;
+            break; // Move on to the next line
+          }
+        }
+      }
+
+      return image;
+    }
+    public static void ConvertILBMToPNG(string ilbmFilePath, string outputPngPath, bool useTranparency = false)
     {
       using (FileStream fileStream = new FileStream(ilbmFilePath, FileMode.Open, FileAccess.Read))
       using (BinaryReader reader = new BinaryReader(fileStream))
@@ -1174,14 +1736,17 @@ namespace ExtractCLUT.Helpers
         // Validate IFF FORM header
         string formType = new string(reader.ReadChars(4));
         if (formType != "FORM")
-          throw new InvalidDataException("Not a valid IFF FORM.");
+        {
+          Console.WriteLine("Not a valid IFF file.");
+          return;
+        }
 
         // Read the size of the FORM
-        uint formSize = (uint)ReadBigEndianUInt32(reader);
+        uint formSize = reader.ReadBigEndianUInt32();
 
         // Read the type of FORM, should be ILBM
         string ilbmType = new string(reader.ReadChars(4));
-        if (ilbmType != "ILBM")
+        if (ilbmType != "ILBM" && ilbmType != "PBM ")
           throw new InvalidDataException("Not a valid ILBM file.");
 
         // Variables to hold ILBM chunks
@@ -1193,7 +1758,7 @@ namespace ExtractCLUT.Helpers
         while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
           string chunkId = new string(reader.ReadChars(4));
-          uint chunkSize = (uint)ReadBigEndianUInt32(reader);
+          uint chunkSize = reader.ReadBigEndianUInt32();
           long nextChunkPosition = reader.BaseStream.Position + chunkSize;
 
           switch (chunkId)
@@ -1223,7 +1788,7 @@ namespace ExtractCLUT.Helpers
           throw new InvalidDataException("Incomplete ILBM file.");
 
         // Decode bitplanes
-        Bitmap bitmap = DecodeILBM(bodyData, bitmapHeader, colorMap);
+        Bitmap bitmap = DecodeILBM(bodyData, bitmapHeader, colorMap, useTranparency);
 
         // Save as PNG
         bitmap.Save(outputPngPath, ImageFormat.Png);
@@ -1236,8 +1801,8 @@ namespace ExtractCLUT.Helpers
       {
         Width = (ushort)ReadBigEndianUInt16(reader),
         Height = (ushort)ReadBigEndianUInt16(reader),
-        X = (short)ReadBigEndianInt16(reader),
-        Y = (short)ReadBigEndianInt16(reader),
+        X = reader.ReadBigEndianInt16(),
+        Y = reader.ReadBigEndianInt16(),
         Planes = reader.ReadByte(),
         Masking = reader.ReadByte(),
         Compression = reader.ReadByte(),
@@ -1245,8 +1810,8 @@ namespace ExtractCLUT.Helpers
         TransparentColor = (ushort)ReadBigEndianUInt16(reader),
         XAspect = reader.ReadByte(),
         YAspect = reader.ReadByte(),
-        PageWidth = (short)ReadBigEndianInt16(reader),
-        PageHeight = (short)ReadBigEndianInt16(reader)
+        PageWidth = reader.ReadBigEndianInt16(),
+        PageHeight = reader.ReadBigEndianInt16()
       };
       return header;
     }
@@ -1265,7 +1830,7 @@ namespace ExtractCLUT.Helpers
       return new ColorMap { Colors = colors };
     }
 
-    private static Bitmap DecodeILBM(byte[] bodyData, BitmapHeader header, ColorMap colorMap)
+    private static Bitmap DecodeILBM(byte[] bodyData, BitmapHeader header, ColorMap colorMap, bool useTransparency = false)
     {
       int width = header.Width;
       int height = header.Height;
@@ -1306,7 +1871,7 @@ namespace ExtractCLUT.Helpers
       ColorPalette palette = bitmap.Palette;
       for (int i = 0; i < colorMap.Colors.Length; i++)
       {
-        palette.Entries[i] = colorMap.Colors[i];
+        palette.Entries[i] = (i == 0 && useTransparency) ? Color.Transparent :  colorMap.Colors[i];
       }
       bitmap.Palette = palette;
 
