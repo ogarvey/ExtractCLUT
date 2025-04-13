@@ -18,12 +18,124 @@ using SixLabors.ImageSharp.Processing;
 using static ExtractCLUT.Games.LaserLordsHelper;
 using System.Collections.Concurrent;
 using ImageMagick;
+using ExtractCLUT.Games.PSX;
+using System.Text;
 
 namespace ExtractCLUT.Helpers
 {
   public static class ImageFormatHelper
   {
 
+    public static void ConvertNutexbToDds(string inputFilePath, string outputDirectory)
+    {
+      using (BinaryReader reader = new BinaryReader(File.Open(inputFilePath, FileMode.Open)))
+      {
+        reader.BaseStream.Seek(-0x08, SeekOrigin.End);
+        string magic = Encoding.ASCII.GetString(reader.ReadBytes(4).Reverse().ToArray());
+        if (magic != "TEX ")
+        {
+          Console.WriteLine("Invalid file format.");
+          return;
+        }
+
+        reader.BaseStream.Seek(-0x0C, SeekOrigin.End);
+        int size = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x10, SeekOrigin.End);
+        int faceCount = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x18, SeekOrigin.End);
+        int mipCount = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x20, SeekOrigin.End);
+        ushort textureFormat = reader.ReadUInt16();
+
+        reader.BaseStream.Seek(-0x24, SeekOrigin.End);
+        int depth = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x28, SeekOrigin.End);
+        int height = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x2C, SeekOrigin.End);
+        int width = reader.ReadInt32();
+
+        reader.BaseStream.Seek(-0x6C, SeekOrigin.End);
+        string textureName = ReadString(reader);
+
+        int sizeSplit = size / faceCount;
+        long offsetStart = reader.BaseStream.Length - size;
+
+        byte[] ddsHeader = GetDdsHeader(textureFormat, width, height);
+        if (ddsHeader.Length == 0)
+        {
+          Console.WriteLine($"Unsupported texture format: 0x{textureFormat:X4}");
+          return;
+        }
+
+        for (int i = 0; i < faceCount; i++)
+        {
+          string outputFilePath = Path.Combine(outputDirectory, $"{textureName}_{i}.dds");
+          using (BinaryWriter writer = new BinaryWriter(File.Open(outputFilePath, FileMode.Create)))
+          {
+            writer.Write(ddsHeader);
+            reader.BaseStream.Seek(offsetStart, SeekOrigin.Begin);
+            byte[] textureData = reader.ReadBytes(sizeSplit);
+            writer.Write(textureData);
+          }
+          offsetStart += sizeSplit;
+        }
+
+        Console.WriteLine("Conversion completed successfully.");
+      }
+    }
+
+    private static string ReadString(BinaryReader reader)
+    {
+      StringBuilder sb = new StringBuilder();
+      while (reader.PeekChar() > 0)
+      {
+        sb.Append(reader.ReadChar());
+      }
+      return sb.ToString();
+    }
+
+    private static byte[] GetDdsHeader(ushort format, int width, int height)
+    {
+      byte[] ddsHeader = new byte[128];
+      Encoding.ASCII.GetBytes("DDS ").CopyTo(ddsHeader, 0);
+      BitConverter.GetBytes(124).CopyTo(ddsHeader, 4);
+      BitConverter.GetBytes(0x1007).CopyTo(ddsHeader, 8);
+      BitConverter.GetBytes(height).CopyTo(ddsHeader, 12);
+      BitConverter.GetBytes(width).CopyTo(ddsHeader, 16);
+
+      switch (format)
+      {
+        case 0x0100: // R8_UNORM
+          BitConverter.GetBytes(8).CopyTo(ddsHeader, 20);
+          Encoding.ASCII.GetBytes("DXT1").CopyTo(ddsHeader, 84);
+          break;
+        case 0x0400: // RGBA32
+        case 0x0405:
+          BitConverter.GetBytes(32).CopyTo(ddsHeader, 20);
+          Encoding.ASCII.GetBytes("RGBA").CopyTo(ddsHeader, 84);
+          break;
+        case 0x0480: // BC1 (DXT1)
+        case 0x0485:
+          BitConverter.GetBytes(4).CopyTo(ddsHeader, 20);
+          Encoding.ASCII.GetBytes("DXT1").CopyTo(ddsHeader, 84);
+          break;
+        case 0x04A0: // BC3 (DXT5)
+        case 0x04A5:
+          BitConverter.GetBytes(8).CopyTo(ddsHeader, 20);
+          Encoding.ASCII.GetBytes("DXT5").CopyTo(ddsHeader, 84);
+          break;
+        default:
+          return Array.Empty<byte>();
+      }
+
+      return ddsHeader;
+    }
+    
     public static void UpdateImageAtCoords(byte[] largerImage, int largerWidth, int largerHeight, byte[] smallerImage, int smallerWidth, int smallerHeight, int x, int y)
     {
       if (x + smallerWidth > largerWidth || y + smallerHeight > largerHeight)
@@ -122,102 +234,6 @@ namespace ExtractCLUT.Helpers
       return finalImage;
     }
 
-    public static List<ImageLine> DecodeImage(byte[] data, byte lineMarker, int width)
-    {
-      List<ImageLine> imageLines = new List<ImageLine>();
-      int i = 0;
-
-      while (i < data.Length - 1)
-      {
-
-        ImageLine line = new ImageLine();
-        if (data[i] == 0x00 && data[i + 1] != lineMarker)
-        {
-          line.LeftOffset = data[i + 1];
-          i += 2;
-        }
-        else if (data[i] == 0x00 && data[i + 1] == lineMarker)
-        {
-          line.LeftOffset = 0;
-          line.Pixels = new List<byte>();
-          for (int j = 0; j < width; j++)
-          {
-            line.Pixels.Add(0x00);
-            if (line.LeftOffset + line.Pixels.Count == width)
-            {
-              break;
-            }
-          }
-        }
-        else
-        {
-          line.LeftOffset = 0;
-        }
-        line.Pixels = new List<byte>();
-
-        while (i < data.Length - 1)
-        {
-          if (line.LeftOffset + line.Pixels.Count == width)
-          {
-            imageLines.Add(line);
-            break;
-          }
-          if (data[i] == 0x00)
-          {
-            if (line.LeftOffset + line.Pixels.Count == width)
-            {
-              imageLines.Add(line);
-              break;
-            }
-            if (i + 2 < data.Length && data[i + 2] == 0x00)
-            {
-              line.RemainingPixels = data[i + 1];
-              i += 2;
-              if (line.LeftOffset + line.Pixels.Count == width)
-              {
-                imageLines.Add(line);
-                break;
-              }
-              break;
-            }
-            else
-            {
-              int numberOfNullBytes = data[i + 1];
-              for (int j = 0; j < numberOfNullBytes; j++)
-              {
-                line.Pixels.Add(0x00);
-                if (line.LeftOffset + line.Pixels.Count == width)
-                {
-                  break;
-                }
-              }
-              i += 2;
-            }
-          }
-          else
-          {
-            line.Pixels.Add(data[i]);
-            i++;
-            if (line.LeftOffset + line.Pixels.Count == width)
-            {
-              imageLines.Add(line);
-              break;
-            }
-          }
-
-          if (i >= data.Length - 1 || ((line.LeftOffset + line.Pixels.Count) == width))
-          {
-            imageLines.Add(line);
-            break;
-          }
-        }
-
-        imageLines.Add(line);
-
-      }
-
-      return imageLines;
-    }
     public static void CreateMultiBgGifFromImageList(List<Image> images, string outputPath, int delay = 10, int repeat = 0, List<Image>? backgroundFrames = null, List<int>? frameStarts = null)
     {
       Image<Rgba32>? background = null;
@@ -501,43 +517,173 @@ namespace ExtractCLUT.Helpers
     }
     public static Bitmap ConvertA1B5G5R5ToBitmap(byte[] imageData, int width, int height)
     {
-      // Create a bitmap to hold the decoded image
-      Bitmap bitmap = new Bitmap(width, height);
+      Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
 
-      int pixelIndex = 0;
-
-      for (int y = 0; y < height; y++)
+      try
       {
-        for (int x = 0; x < width; x++)
+        int byteIndex = 0;
+
+        for (int y = 0; y < height; y++)
         {
-          // Combine two bytes into a single 16-bit value
-          ushort color16bit = BitConverter.ToUInt16(imageData, pixelIndex);
+          for (int x = 0; x < width; x++)
+          {
+            if (byteIndex + 1 >= imageData.Length)
+              return bitmap; // Not enough data, return what we've drawn so far
 
-          // Extract A, B, G, R components
-          byte alpha = (byte)((color16bit & 0x8000) >> 15); // 1 bit for alpha
-          byte blue = (byte)((color16bit & 0x7C00) >> 10);   // 5 bits for blue
-          byte green = (byte)((color16bit & 0x03E0) >> 5);  // 5 bits for green
-          byte red = (byte)(color16bit & 0x001F);          // 5 bits for red
+            ushort color = BitConverter.ToUInt16(imageData.Skip(byteIndex).Take(2).ToArray());
 
-          // Scale the 5-bit color values to 8-bit
-          red = (byte)((red << 3) | (red >> 2));
-          green = (byte)((green << 3) | (green >> 2));
-          blue = (byte)((blue << 3) | (blue >> 2));
-          alpha = (byte)(alpha * 255); // Scale alpha from 0-1 to 0-255
+            // Extract ARGB components from A1B5G5R5
+            byte a = (byte)((color >> 15) & 0x1);  // 1 bit for Alpha
+            byte b = (byte)((color >> 10) & 0x1F); // 5 bits for Blue
+            byte g = (byte)((color >> 5) & 0x1F);  // 5 bits for Green
+            byte r = (byte)(color & 0x1F);         // 5 bits for Red
 
-          // Create a Color object
-          Color color = Color.FromArgb(alpha, red, green, blue);
+            // Scale 5-bit and 6-bit components to 8-bit
+            r = (byte)((r << 3) | (r >> 2)); // Scale 5 bits to 8 bits
+            g = (byte)((g << 3) | (g >> 2)); // Scale 5 bits to 8 bits
+            b = (byte)((b << 3) | (b >> 2)); // Scale 5 bits to 8 bits
 
-          // Set the color in the bitmap
-          bitmap.SetPixel(x, y, color);
+            bitmap.SetPixel(x, y, Color.FromArgb(255, r, g, b));
 
-          pixelIndex += 2; // Move to the next pair of bytes
+            byteIndex += 2; // Move to the next 2 bytes for the next pixel
+          }
         }
+      }
+      catch (Exception)
+      {
+        return bitmap;
       }
 
       return bitmap;
     }
 
+    public static Image ExtractTIMImage(byte[] timBytes)
+    {
+      var type = BitConverter.ToUInt32(timBytes.Skip(4).Take(4).ToArray(), 0);
+
+      var timType = (TIMType)type;
+
+      switch (timType)
+      {
+        case TIMType.TIM_24bpp:
+          {
+            var dataSize = BitConverter.ToInt32(timBytes.Skip(8).Take(4).ToArray(), 0) - 12;
+            var width = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0) / 1.5;
+            var height = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip(20).Take(dataSize).ToArray();
+            var image = ConvertBGR888(imageData, (int)width, (int)height);
+            return image;
+          }
+        case TIMType.TIM_16bpp:
+          {
+            var width = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0);
+            var height = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip(20).Take(width * height * 2).ToArray();
+            var image = ConvertA1B5G5R5ToBitmap(imageData, width, height);
+            return image;
+          }
+        case TIMType.TIM_8bpp:
+          {
+            var clutSize = BitConverter.ToUInt32(timBytes.Skip(8).Take(4).ToArray(), 0);
+            var palSize = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0);
+            var palCount = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var palList = new List<List<Color>>();
+            for (int i = 0; i < palCount; i++)
+            {
+              var palData = timBytes.Skip(0x14 + (i * palSize * 2)).Take(palSize * 2).ToArray();
+              var pal = ColorHelper.ReadABgr15Palette(palData);
+              palList.Add(pal);
+            }
+            var width = BitConverter.ToUInt16(timBytes.Skip((int)(16 + clutSize)).Take(2).ToArray(), 0);
+            var height = BitConverter.ToUInt16(timBytes.Skip((int)(18 + clutSize)).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip((int)(20 + clutSize)).Take(width * 2 * height).ToArray();
+            var image = GenerateClutImage(palList[0], imageData, width * 2, height, true);
+            return image;
+          }
+        case TIMType.TIM_4bpp:
+          {
+            var clutSize = BitConverter.ToUInt32(timBytes.Skip(8).Take(4).ToArray(), 0);
+            var palSize = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0);
+            var palCount = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var palList = new List<List<Color>>();
+            for (int i = 0; i < palCount; i++)
+            {
+              var palData = timBytes.Skip(0x14 + (i * palSize * 2)).Take(palSize * 2).ToArray();
+              var pal = ColorHelper.ReadABgr15Palette(palData);
+              palList.Add(pal);
+            }
+            var width = BitConverter.ToUInt16(timBytes.Skip((int)(16 + clutSize)).Take(2).ToArray(), 0);
+            var height = BitConverter.ToUInt16(timBytes.Skip((int)(18 + clutSize)).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip((int)(20 + clutSize)).Take(width * 4 * height).ToArray();
+            var image = GenerateClut4Image(palList[0], imageData, width * 4, height);
+            return image;
+          }
+        default:
+          {
+            Console.WriteLine("Unhandled TIM type");
+            return new Bitmap(1, 1);
+          }
+      }
+    }
+
+    public static void ExtractTIMImageFromFile(string timFile)
+    {
+      var timBytes = File.ReadAllBytes(timFile);
+
+      var type = BitConverter.ToUInt32(timBytes.Skip(4).Take(4).ToArray(), 0);
+
+      var timType = (TIMType)type;
+
+      switch (timType)
+      {
+        case TIMType.TIM_24bpp:
+          {
+            var dataSize = BitConverter.ToInt32(timBytes.Skip(8).Take(4).ToArray(), 0) - 12;
+            var width = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0) / 1.5;
+            var height = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip(20).Take(dataSize).ToArray();
+            var image = ImageFormatHelper.ConvertBGR888(imageData, (int)width, (int)height);
+            image.Save(Path.Combine(Path.GetDirectoryName(timFile), $"24Bpp__{Path.GetFileNameWithoutExtension(timFile)}.png"), ImageFormat.Png);
+            break;
+          }
+        case TIMType.TIM_16bpp:
+          {
+            var width = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0);
+            var height = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip(20).Take(width * height * 2).ToArray();
+            var image = ImageFormatHelper.ConvertA1B5G5R5ToBitmap(imageData, width, height);
+            image.Save(Path.Combine(Path.GetDirectoryName(timFile), $"16Bpp_{Path.GetFileNameWithoutExtension(timFile)}.png"), ImageFormat.Png);
+            break;
+          }
+        case TIMType.TIM_8bpp:
+          {
+            var clutSize = BitConverter.ToUInt32(timBytes.Skip(8).Take(4).ToArray(), 0);
+            var palSize = BitConverter.ToUInt16(timBytes.Skip(16).Take(2).ToArray(), 0);
+            var palCount = BitConverter.ToUInt16(timBytes.Skip(18).Take(2).ToArray(), 0);
+            var palList = new List<List<Color>>();
+            for (int i = 0; i < palCount; i++)
+            {
+              var palData = timBytes.Skip(0x14 + (i * palSize * 2)).Take(palSize * 2).ToArray();
+              var pal = ColorHelper.ReadABgr15Palette(palData);
+              palList.Add(pal);
+            }
+            var width = BitConverter.ToUInt16(timBytes.Skip((int)(16 + clutSize)).Take(2).ToArray(), 0);
+            var height = BitConverter.ToUInt16(timBytes.Skip((int)(18 + clutSize)).Take(2).ToArray(), 0);
+            var imageData = timBytes.Skip((int)(20 + clutSize)).Take(width * 2 * height).ToArray();
+            for (int i = 0; i < palCount; i++)
+            {
+              var image = ImageFormatHelper.GenerateClutImage(palList[i], imageData, width * 2, height, true);
+              image.Save(Path.Combine(Path.GetDirectoryName(timFile), $"8Bpp_{Path.GetFileNameWithoutExtension(timFile)}_{i}.png"), ImageFormat.Png);
+            }
+            break;
+          }
+        default:
+          {
+            Console.WriteLine("Unhandled TIM type");
+            break;
+          }
+      }
+    }
     public static Bitmap Decode4BitImage(byte[] imageData, List<Color> palette, int width, int height)
     {
       // Create a bitmap to hold the decoded image
@@ -675,7 +821,7 @@ namespace ExtractCLUT.Helpers
       return true;
     }
     
-    public static Bitmap Decode4Bpp(byte[] imageData, List<Color> palette, int width, int height)
+    public static Bitmap Decode4Bpp(byte[] imageData, List<Color> palette, int width, int height, bool useTransparency = false)
     {
       Bitmap bitmap = new(width, height, PixelFormat.Format32bppArgb);
 
@@ -692,12 +838,12 @@ namespace ExtractCLUT.Helpers
             // Extract two 4-bit pixels from the byte
             int index1 = (data >> 4) & 0x0F; // First pixel (higher 4 bits)
             int index2 = data & 0x0F;        // Second pixel (lower 4 bits)
-            var color = index1 == 0 ? Color.Transparent : palette[index1];
+            var color = (useTransparency && index1 == 0) ? Color.Transparent : palette[index1];
             // Map to RGB and set the pixel in the Bitmap
             bitmap.SetPixel(x, y,color);
             if (x + 1 < width) // Ensure we don't go out of bounds
             {
-              color = index2 == 0 ? Color.Transparent : palette[index2];
+              color =(useTransparency && index2 == 0) ? Color.Transparent : palette[index2];
               bitmap.SetPixel(x + 1, y, color);
             }
           }
@@ -764,10 +910,11 @@ namespace ExtractCLUT.Helpers
       return BitConverter.ToInt32(bigEndianBytes, 0);
     }
 
-    public static Bitmap CropTransparentEdges(this Bitmap source)
+    public static Image CropTransparentEdges(this Image source)
     {
-      int width = source.Width;
-      int height = source.Height;
+      var bmpSource = new Bitmap(source);
+      int width = bmpSource.Width;
+      int height = bmpSource.Height;
       int minX = width;
       int minY = height;
       int maxX = 0;
@@ -783,7 +930,7 @@ namespace ExtractCLUT.Helpers
       {
         for (int x = 0; x < width; x++)
         {
-          if (!isTransparent(source.GetPixel(x, y)))
+          if (!isTransparent(bmpSource.GetPixel(x, y)))
           {
             if (x < minX) minX = x;
             if (x > maxX) maxX = x;
@@ -801,7 +948,7 @@ namespace ExtractCLUT.Helpers
 
       // Crop the image to the bounding box
       Rectangle cropArea = new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
-      return source.Clone(cropArea, source.PixelFormat);
+      return bmpSource.Clone(cropArea, bmpSource.PixelFormat);
     }
 
     public static Bitmap ExpandImage(Bitmap image, int expandWidth, int expandHeight, ExpansionOrigin origin)
@@ -928,7 +1075,45 @@ namespace ExtractCLUT.Helpers
         }
       }
     }
+    public static Bitmap DecodeRgba(byte[] imageData, int width, int height)
+    {
+      Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+      BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
 
+      int bytesPerPixel = 4;
+      int stride = bitmapData.Stride;
+      IntPtr ptr = bitmapData.Scan0;
+      byte[] rgbValues = new byte[stride * height];
+
+      try {
+        for (int y = 0; y < height; y++)
+        {
+          for (int x = 0; x < width; x++)
+          {
+            int index = (y * width + x) * 4;
+            byte a = imageData[index];
+            byte r = imageData[index + 1];
+            byte g = imageData[index + 2];
+            byte b = imageData[index + 3];
+
+            int rgbIndex = y * stride + x * bytesPerPixel;
+            rgbValues[rgbIndex] = b;
+            rgbValues[rgbIndex + 1] = g;
+            rgbValues[rgbIndex + 2] = r;
+            rgbValues[rgbIndex + 3] = 255;
+          }
+        }
+      } catch
+      {
+        Marshal.Copy(rgbValues, 0, ptr, rgbValues.Length);
+        bitmap.UnlockBits(bitmapData);
+        return bitmap;
+      }
+      Marshal.Copy(rgbValues, 0, ptr, rgbValues.Length);
+      bitmap.UnlockBits(bitmapData);
+      return bitmap;
+    }
+    
     public static void CropImageFolderRandom(string folderPath, string extension, int width, int height)
     {
       string[] imageFiles = Directory.GetFiles(folderPath, extension); // Change the extension as required
@@ -1052,7 +1237,229 @@ namespace ExtractCLUT.Helpers
 
       return clutImage;
     }
-    public static Bitmap GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height, bool useTransparency = false, int transparencyIndex = 0, bool lowerIndexes = true)
+
+    public static Image<Rgba32> ConvertRGB565(byte[] rgb565Bytes, int width, int height)
+    {
+      // Ensure the byte array size matches the expected size for RGB565 format
+      if (rgb565Bytes.Length != width * height * 2)
+      {
+        throw new ArgumentException("Invalid byte array size for the specified width and height.");
+      }
+
+      // Create an Image<Rgba32> with the specified width and height
+      var image = new Image<Rgba32>(width, height);
+
+      // Decode RGB565 bytes to Rgba32 pixels
+      int byteIndex = 0;
+      for (int y = 0; y < height; y++)
+      {
+        for (int x = 0; x < width; x++)
+        {
+          // Read 2 bytes (16 bits) for RGB565
+          ushort rgb565 = (ushort)(rgb565Bytes[byteIndex] | (rgb565Bytes[byteIndex + 1] << 8));
+          byteIndex += 2;
+
+          // Extract RGB components from RGB565
+          byte r = (byte)((rgb565 >> 11) & 0x1F); // 5 bits for Red
+          byte g = (byte)((rgb565 >> 5) & 0x3F);  // 6 bits for Green
+          byte b = (byte)(rgb565 & 0x1F);         // 5 bits for Blue
+
+          // Scale 5-bit and 6-bit components to 8-bit
+          r = (byte)((r << 3) | (r >> 2)); // Scale 5 bits to 8 bits
+          g = (byte)((g << 2) | (g >> 4)); // Scale 6 bits to 8 bits
+          b = (byte)((b << 3) | (b >> 2)); // Scale 5 bits to 8 bits
+
+          // Set the pixel in the image
+          image[x, y] = rgb565 != 0xF81f ? new Rgba32(r, g, b) : Rgba32.ParseHex("#00000000");
+        }
+      }
+
+      return image;
+    }
+
+    public static Image<Rgba32> GenerateClutImage(
+    List<Rgba32> palette,
+    byte[] clut7Bytes,
+    int width,
+    int height,
+    bool useTransparency = false,
+    int transparencyIndex = 0,
+    bool lowerIndexes = true)
+    {
+      // Create a new ImageSharp image
+      var clutImage = new Image<Rgba32>(width, height);
+
+      try
+      {
+        // Loop through each pixel
+        for (int y = 0; y < height; y++)
+        {
+          for (int x = 0; x < width; x++)
+          {
+            var i = y * width + x;
+            var paletteIndex = clut7Bytes[i];
+
+            // Determine the color from the palette
+            Rgba32 color = paletteIndex < palette.Count
+                ? (useTransparency &&
+                   ((lowerIndexes && paletteIndex <= transparencyIndex) ||
+                    (!lowerIndexes && paletteIndex >= transparencyIndex)))
+                    ? Rgba32.ParseHex("#00000000")
+                    : palette[paletteIndex]
+                : palette[paletteIndex % palette.Count];
+
+            if ((paletteIndex > 0 && paletteIndex % palette.Count == 0) || (useTransparency && paletteIndex >= transparencyIndex) )
+            {
+              color = Rgba32.ParseHex("#00000000");
+            }
+
+            // Set the pixel color
+            clutImage[x, y] = color;
+          }
+        }
+      }
+      catch (Exception)
+      {
+        // Return the current state of the image in case of an exception
+        return clutImage;
+      }
+
+      return clutImage;
+    }
+    public static Bitmap ConvertBGR888(byte[] bgr888Bytes, int width, int height)
+    {
+      if (bgr888Bytes.Length != (width * height) * 3)
+      {
+        throw new ArgumentException("Invalid byte array size for the specified width and height.");
+      }
+
+      Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+
+      // we need to take the bgr bytes and ,make them rgb
+      byte[] rgb888Bytes = new byte[bgr888Bytes.Length];
+      for (int i = 0; i < bgr888Bytes.Length; i += 3)
+      {
+        rgb888Bytes[i] = bgr888Bytes[i + 2];
+        rgb888Bytes[i + 1] = bgr888Bytes[i + 1];
+        rgb888Bytes[i + 2] = bgr888Bytes[i];
+      }
+
+      BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
+
+      try
+      {
+        // Get the stride of the bitmap data
+        int stride = bitmapData.Stride;
+
+        // Get the address of the first line
+        IntPtr ptr = bitmapData.Scan0;
+
+        // Copy the RGB888 bytes to the bitmap data
+        Marshal.Copy(rgb888Bytes, 0, ptr, rgb888Bytes.Length);
+
+        // Unlock the bitmap data
+        bitmap.UnlockBits(bitmapData);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error converting RGB888 to Bitmap: {ex.Message}");
+        return bitmap;
+      }
+
+      return bitmap;
+    }
+    
+    public static Bitmap ConvertRGB888(byte[] rgb888Bytes, int width, int height, bool enableTransparency = false)
+    {
+      // Ensure the byte array size matches the expected size for RGB888 format
+      if (rgb888Bytes.Length != (width * height) * 3)
+      {
+        throw new ArgumentException("Invalid byte array size for the specified width and height.");
+      }
+
+      // Create a new Bitmap with the specified width and height
+      Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+
+      // Lock the bitmap data for writing
+      BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
+
+      try
+      {
+        // Get the stride of the bitmap data
+        int stride = bitmapData.Stride;
+
+        // Get the address of the first line
+        IntPtr ptr = bitmapData.Scan0;
+
+        // Copy the RGB888 bytes to the bitmap data
+        if (enableTransparency)
+        {
+          var rgbaArr = new byte[(rgb888Bytes.Length / 3) * 4];
+          for (int i = 0,j=0; i < rgb888Bytes.Length; i +=3, j+=4)
+          {
+            rgbaArr[j] = rgb888Bytes[i ]; // R
+            rgbaArr[j + 1] = rgb888Bytes[i + 1]; // G
+            rgbaArr[j + 2] = rgb888Bytes[i+2]; // B
+            rgbaArr[j + 3] = 255; // Set alpha to 255 (opaque)
+          }
+          Marshal.Copy(rgbaArr, 0, ptr, rgbaArr.Length);
+        } else {
+          // Convert RGB888 to ARGB8888 (32bpp) format
+          var rgbaArr = new byte[(rgb888Bytes.Length / 3) * 4];
+          for (int i = 0,j=0; i < rgb888Bytes.Length; i +=3, j+=4)
+          {
+            rgbaArr[j] = rgb888Bytes[i]; // R
+            rgbaArr[j + 1] = rgb888Bytes[i + 1]; // G
+            rgbaArr[j + 2] = rgb888Bytes[i+2]; // B
+            rgbaArr[j + 3] = 255; // Set alpha to 255 (opaque)
+          }
+          Marshal.Copy(rgbaArr, 0, ptr, rgbaArr.Length);
+        }
+        // Unlock the bitmap data
+        bitmap.UnlockBits(bitmapData);
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error converting RGB888 to Bitmap: {ex.Message}");
+        return bitmap;
+      }
+
+      return bitmap;
+    }
+
+
+    public static Image CreateScreenImage(List<byte[]> _tiles, short[] _mapData, int widthInTiles, int heightInTiles, int tileWidth, int tileHeight, List<Color> _colors, bool useTransparency = false, int transparencyIndex = 0)
+    {
+      var mapTiles = new List<byte[]>();
+      var tileSize = tileWidth * tileHeight;
+      var tempScreenBitmap = new Bitmap(widthInTiles * tileWidth, heightInTiles * tileHeight);
+      for (int i = 0; i < _mapData.Length; i++)
+      {
+        int index = _mapData[i];
+        byte[] tile = new byte[tileSize];
+        Array.Copy(index == -1 ? tile : _tiles[index], tile, tileSize);
+        mapTiles.Add(tile);
+      }
+
+      for (int y = 0; y < heightInTiles * tileHeight; y++)
+      {
+        for (int x = 0; x < widthInTiles * tileWidth; x++)
+        {
+          int tileX = x / tileWidth;
+          int tileY = y / tileHeight;
+          int tileIndex = tileX + (tileY * widthInTiles);
+          int tilePixelX = x % tileWidth;
+          int tilePixelY = y % tileHeight;
+          int tilePixelIndex = tilePixelX + (tilePixelY * tileWidth);
+          int colorIndex = mapTiles[tileIndex][tilePixelIndex];
+
+          Color color = (useTransparency && colorIndex == transparencyIndex) ? Color.Transparent : _colors[colorIndex % _colors.Count];
+          tempScreenBitmap.SetPixel(x, y, color);
+        }
+      }
+      return tempScreenBitmap;
+    }
+    public static Image GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height, bool useTransparency = false, int transparencyIndex = 0, bool lowerIndexes = true)
     {
       var clutImage = new Bitmap(Width, Height);
 
@@ -1066,7 +1473,7 @@ namespace ExtractCLUT.Helpers
             var i = y * Width + x;
             var paletteIndex = clut7Bytes[i];
             var color = paletteIndex < palette.Count ?
-            (useTransparency && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex) || paletteIndex == 0)) ?
+            (useTransparency && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex))) ?
             Color.Transparent : palette[paletteIndex] : palette[paletteIndex % palette.Count];
             if (paletteIndex > 0 && paletteIndex % palette.Count == 0) {
               color = Color.Transparent;
@@ -1075,7 +1482,7 @@ namespace ExtractCLUT.Helpers
           }
         }
       }
-      catch (System.Exception)
+      catch (Exception)
       {
         return clutImage;
       }
@@ -1088,18 +1495,24 @@ namespace ExtractCLUT.Helpers
       var clutImage = new Bitmap(Width, Height);
       try
       {
+        int byteIndex = 0;
         for (int y = 0; y < Height; y++)
         {
           for (int x = 0; x < Width; x += 2)
           {
-            var i = y * Width + x;
-            var paletteIndex = clut7Bytes[i];
+            if (byteIndex >= clut7Bytes.Length)
+              break;
+
+            var paletteIndex = clut7Bytes[byteIndex++];
             var paletteIndex1 = paletteIndex >> 4;
             var paletteIndex2 = paletteIndex & 0x0F;
-            var color = paletteIndex1 < palette.Count ? palette[paletteIndex1] : Color.Transparent;
-            var color2 = paletteIndex2 < palette.Count ? palette[paletteIndex2] : Color.Transparent;
-            clutImage.SetPixel(x, y, color);
-            clutImage.SetPixel(x + 1, y, color);
+            var color = (paletteIndex1 < palette.Count  ) ? palette[paletteIndex1] : Color.Transparent;
+            var color2 = (paletteIndex2 < palette.Count ) ? palette[paletteIndex2] : Color.Transparent;
+            clutImage.SetPixel(x, y, color2);
+            if (x + 1 < Width)
+            {
+              clutImage.SetPixel(x + 1, y, color);
+            }
           }
         }
       }
@@ -1131,13 +1544,18 @@ namespace ExtractCLUT.Helpers
       var rleBitmap = CreateImage(rleImage, palette, width, height, useTransparency);
       return rleBitmap;
     }
-    
-    public static void ConvertPcxToPng(string pcxFilePath, string pngFilePath)
+
+    public static Bitmap ConvertPCX(byte[] bytes)
     {
-      // Load the PCX image
-      using (var image = new MagickImage(pcxFilePath))
+      using (var image = new MagickImage(bytes))
       {
-        image.Write(pngFilePath);
+        // Convert the image to a PNG format which Bitmap supports
+        using (var ms = new MemoryStream())
+        {
+          image.Write(ms, MagickFormat.Png);
+          ms.Position = 0; // Reset stream position to the beginning
+          return new Bitmap(ms);
+        }
       }
     }
 
@@ -1728,6 +2146,7 @@ namespace ExtractCLUT.Helpers
 
       return image;
     }
+
     public static void ConvertILBMToPNG(string ilbmFilePath, string outputPngPath, bool useTranparency = false)
     {
       using (FileStream fileStream = new FileStream(ilbmFilePath, FileMode.Open, FileAccess.Read))
@@ -1786,10 +2205,15 @@ namespace ExtractCLUT.Helpers
 
         if (bitmapHeader == null || colorMap == null || bodyData == null)
           throw new InvalidDataException("Incomplete ILBM file.");
-
+        Bitmap bitmap;
         // Decode bitplanes
-        Bitmap bitmap = DecodeILBM(bodyData, bitmapHeader, colorMap, useTranparency);
-
+        if (ilbmType == "ILBM")
+        {
+          bitmap = DecodeILBM(bodyData, bitmapHeader, colorMap, useTranparency);
+        } else {
+          // Replace with DecodePBM
+          bitmap = DecodePBM(bodyData, bitmapHeader, colorMap, useTranparency); 
+        }
         // Save as PNG
         bitmap.Save(outputPngPath, ImageFormat.Png);
       }
@@ -1799,15 +2223,15 @@ namespace ExtractCLUT.Helpers
     {
       BitmapHeader header = new BitmapHeader
       {
-        Width = (ushort)ReadBigEndianUInt16(reader),
-        Height = (ushort)ReadBigEndianUInt16(reader),
+        Width = reader.ReadBigEndianUInt16(),
+        Height = reader.ReadBigEndianUInt16(),
         X = reader.ReadBigEndianInt16(),
         Y = reader.ReadBigEndianInt16(),
         Planes = reader.ReadByte(),
         Masking = reader.ReadByte(),
         Compression = reader.ReadByte(),
         Pad1 = reader.ReadByte(),
-        TransparentColor = (ushort)ReadBigEndianUInt16(reader),
+        TransparentColor = reader.ReadBigEndianUInt16(),
         XAspect = reader.ReadByte(),
         YAspect = reader.ReadByte(),
         PageWidth = reader.ReadBigEndianInt16(),
@@ -1830,13 +2254,40 @@ namespace ExtractCLUT.Helpers
       return new ColorMap { Colors = colors };
     }
 
+    private static Bitmap DecodePBM(byte[] bodyData, BitmapHeader header, ColorMap colorMap, bool useTranparency = false)
+    {
+      var size = header.Width * header.Height;
+      byte[] pixelData = new byte[size];
+      if (header.Compression == 1)
+      {
+        pixelData = DecompressByteRun1(bodyData, size);
+      } else {
+        pixelData = bodyData;
+      }
+      Bitmap bitmap = new Bitmap(header.Width, header.Height, PixelFormat.Format8bppIndexed);
+      int transparencyIndex = header.TransparentColor;
+      BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, header.Width, header.Height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
+
+      Marshal.Copy(pixelData, 0, bitmapData.Scan0, pixelData.Length);
+      bitmap.UnlockBits(bitmapData);
+
+      ColorPalette palette = bitmap.Palette;
+      for (int i = 0; i < colorMap.Colors.Length; i++)
+      {
+        palette.Entries[i] = (i == transparencyIndex && useTranparency) ? Color.Transparent : colorMap.Colors[i];
+      }
+      bitmap.Palette = palette;
+
+      // Apply the color palette
+      return bitmap;
+    }
     private static Bitmap DecodeILBM(byte[] bodyData, BitmapHeader header, ColorMap colorMap, bool useTransparency = false)
     {
       int width = header.Width;
       int height = header.Height;
       int planes = header.Planes;
       Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
-
+      int transparencyIndex = header.TransparentColor;
       BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, bitmap.PixelFormat);
       int bytesPerRow = (width + 7) / 8;
 
@@ -1871,12 +2322,13 @@ namespace ExtractCLUT.Helpers
       ColorPalette palette = bitmap.Palette;
       for (int i = 0; i < colorMap.Colors.Length; i++)
       {
-        palette.Entries[i] = (i == 0 && useTransparency) ? Color.Transparent :  colorMap.Colors[i];
+        palette.Entries[i] = (i == transparencyIndex && useTransparency) ? Color.Transparent :  colorMap.Colors[i];
       }
       bitmap.Palette = palette;
 
       return bitmap;
     }
+
     private static byte[] DecompressByteRun1(byte[] compressedData, int expectedSize)
     {
       List<byte> decompressedData = new List<byte>(expectedSize);
@@ -1890,13 +2342,19 @@ namespace ExtractCLUT.Helpers
           // Copy the next n+1 bytes literally
           for (int j = 0; j <= n; j++)
           {
-            decompressedData.Add(compressedData[i++]);
+            decompressedData.Add(compressedData[i]);
+            i++;
+            if (i >= compressedData.Length)
+              break;
           }
         }
         else if (n != -128)
         {
+          if (i >= compressedData.Length)
+            break;
           // Repeat the next byte -n+1 times
-          byte b = compressedData[i++];
+          byte b = compressedData[i];
+          i++;
           for (int j = 0; j < -n + 1; j++)
           {
             decompressedData.Add(b);

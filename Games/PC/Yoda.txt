@@ -1,0 +1,303 @@
+
+var tileDataFile = @"C:\Users\OGCit\Downloads\yoda_20220125\YODA\Yoda\yodeskOutput\TILE_0x00014780.bin";
+var paletteDataFile = @"C:\Users\OGCit\Downloads\yoda_20220125\YODA\Yoda\Yodesk.exe";
+
+var tileData = File.ReadAllBytes(tileDataFile);
+var paletteData = File.ReadAllBytes(paletteDataFile).Skip(0x550F0).Take(0x400).ToArray();
+
+var palette = ColorHelper.ConvertBytesToARGB(paletteData);
+
+var outputDir = Path.Combine(Path.GetDirectoryName(tileDataFile), "output");
+Directory.CreateDirectory(outputDir);
+
+var width = 32;
+var height = 32;
+var imageIndex = 0;
+for (int i = 0; i < tileData.Length; i += 0x404)
+{
+  var flagData = BitConverter.ToUInt32(tileData.Skip(i).Take(4).ToArray(), 0);
+  var tile = tileData.Skip(i+4).Take(0x400).ToArray();
+  var image = ImageFormatHelper.GenerateClutImage(palette, tile, width, height, true);
+  var name = GetTileLabel(flagData);
+  try {
+    image.Save(Path.Combine(outputDir, $"{imageIndex++}_{name}.png"), ImageFormat.Png);
+  } catch {
+    Console.WriteLine($"Error saving {name}_{imageIndex++}.png");
+  }
+}
+
+static string GetTileLabel(uint value)
+{
+  // Cast the uint to our Flags enum
+  TileFlags flags = (TileFlags)value;
+
+  // Handle the simplest case: no flags set
+  if (flags == TileFlags.None)
+  {
+    return "Empty Tile (Value: 0)";
+  }
+
+  StringBuilder labelBuilder = new StringBuilder();
+  List<string> details = new List<string>();
+  string? mainType = null;
+
+  // --- 1. Determine the Main Tile Type ---
+  // Assuming only one main type bit (0-8) should ideally be set per tile.
+  // This code prioritizes based on the order checked. Adjust if multiple types are possible.
+  //if (flags.HasFlag(TileFlags.GameObject)) mainType = "Game Object";
+  //else 
+  if (flags.HasFlag(TileFlags.NonCollidingBehind)) mainType = "Non-colliding (Behind Player)";
+  if (flags.HasFlag(TileFlags.CollidingMiddle)) mainType = "Colliding (Middle Layer)";
+  if (flags.HasFlag(TileFlags.PushPullBlock)) mainType = "Push or Pull Block";
+  if (flags.HasFlag(TileFlags.NonCollidingAbove)) mainType = "Non-colliding (Above Player)";
+  if (flags.HasFlag(TileFlags.MiniMap)) mainType = "Mini Map Tile";
+  if (flags.HasFlag(TileFlags.Weapon)) mainType = "Weapon";
+  if (flags.HasFlag(TileFlags.Item)) mainType = "Item";
+  if (flags.HasFlag(TileFlags.Character)) mainType = "Character";
+
+  // --- 2. Check for Specific Flags based on the determined Type ---
+
+  if (flags.HasFlag(TileFlags.Weapon))
+  {
+    if (flags.HasFlag(TileFlags.Flag16)) details.Add("Light Blaster");
+    if (flags.HasFlag(TileFlags.Flag17)) details.Add("Heavy Blaster or Thermal Detonator");
+    if (flags.HasFlag(TileFlags.Flag18)) details.Add("Lightsaber");
+    if (flags.HasFlag(TileFlags.Flag19)) details.Add("The Force");
+  }
+  else if (flags.HasFlag(TileFlags.Item))
+  {
+    if (flags.HasFlag(TileFlags.Flag16)) details.Add("Keycard");
+    if (flags.HasFlag(TileFlags.Flag17)) details.Add("Puzzle Item");
+    if (flags.HasFlag(TileFlags.Flag18)) details.Add("Puzzle Item (Rare)");
+    if (flags.HasFlag(TileFlags.Flag19)) details.Add("Puzzle Item (Key Item)");
+    if (flags.HasFlag(TileFlags.Flag20)) details.Add("Locator");
+    // Note: Bit 21 (Flag21) is skipped according to your description for Items
+    if (flags.HasFlag(TileFlags.Flag22)) details.Add("Health Pack");
+  }
+  else if (flags.HasFlag(TileFlags.Character))
+  {
+    if (flags.HasFlag(TileFlags.Flag16)) details.Add("Player");
+    if (flags.HasFlag(TileFlags.Flag17)) details.Add("Enemy");
+    if (flags.HasFlag(TileFlags.Flag18)) details.Add("Friendly");
+  }
+  else if (flags.HasFlag(TileFlags.MiniMap))
+  {
+    // Check mini-map specific flags (Bits 17-30)
+    if (flags.HasFlag(TileFlags.Flag17)) details.Add("Home");
+    if (flags.HasFlag(TileFlags.Flag18)) details.Add("Puzzle, Unsolved");
+    if (flags.HasFlag(TileFlags.Flag19)) details.Add("Puzzle Solved");
+    if (flags.HasFlag(TileFlags.Flag20)) details.Add("Gateway, Unsolved");
+    if (flags.HasFlag(TileFlags.Flag21)) details.Add("Gateway, Solved");
+    if (flags.HasFlag(TileFlags.Flag22)) details.Add("Up Wall, Locked");
+    if (flags.HasFlag(TileFlags.Flag23)) details.Add("Down Wall, Locked");
+    if (flags.HasFlag(TileFlags.Flag24)) details.Add("Left Wall, Locked");
+    if (flags.HasFlag(TileFlags.Flag25)) details.Add("Right Wall, Locked");
+    if (flags.HasFlag(TileFlags.Flag26)) details.Add("Up Wall, Unlocked");
+    if (flags.HasFlag(TileFlags.Flag27)) details.Add("Down Wall, Unlocked");
+    if (flags.HasFlag(TileFlags.Flag28)) details.Add("Left Wall, Unlocked");
+    if (flags.HasFlag(TileFlags.Flag29)) details.Add("Right Wall, Unlocked");
+    if (flags.HasFlag(TileFlags.Flag30)) details.Add("Objective");
+  }
+  // --- 3. Handle "Other Tiles" (Door) ---
+  // Check for Flag16 specifically if NO main type was identified *OR*
+  // if the identified type doesn't already use Flag16 (Weapon, Item, Character).
+  // This assumes a "Door" isn't *also* a Weapon/Item/Character.
+  else if (flags.HasFlag(TileFlags.Flag16)) // If not Weapon/Item/Character/MiniMap etc.
+  {
+    // If no other main type was found, this is primarily a Door
+    if (mainType == null)
+    {
+      mainType = "Door";
+    }
+    // If another non-conflicting type was found (e.g., CollidingMiddle), add Door as a detail.
+    // This part might need adjustment based on your game's specific logic
+    // (e.g., is a colliding tile *also* a door, or is Door its own primary type?)
+    else
+    {
+      details.Add("Is Door");
+    }
+  }
+
+  // --- 4. Construct the final label ---
+  if (mainType != null)
+  {
+    labelBuilder.Append(mainType);
+    if (details.Count > 0)
+    {
+      labelBuilder.Append(" (");
+      labelBuilder.Append(string.Join(", ", details));
+      labelBuilder.Append(")");
+    }
+  }
+  else if (details.Count > 0)
+  {
+    // This case might occur if flags like Flag17+ are set without a corresponding main type bit (0-8).
+    labelBuilder.Append("Unknown Type with flags: ");
+    labelBuilder.Append(string.Join(", ", details));
+  }
+  else
+  {
+    // No main type and no details found, but the value was non-zero.
+    // This indicates flags were set that aren't covered by the logic above.
+    labelBuilder.Append($"Unrecognized Tile Flags (Value: {value}, Binary: {Convert.ToString(value, 2).PadLeft(32, '0')})");
+  }
+
+  return labelBuilder.ToString();
+}
+
+[Flags]
+public enum TileFlags : uint
+{
+  None = 0,
+
+  // --- TILE TYPES (Bits 0-8) ---
+  GameObject = 1u << 0, // bit0
+  NonCollidingBehind = 1u << 1, // bit1
+  CollidingMiddle = 1u << 2, // bit2
+  PushPullBlock = 1u << 3, // bit3
+  NonCollidingAbove = 1u << 4, // bit4
+  MiniMap = 1u << 5, // bit5
+  Weapon = 1u << 6, // bit6
+  Item = 1u << 7, // bit7
+  Character = 1u << 8, // bit8
+
+  // --- GENERIC/SPECIFIC FLAGS (Bits 16+) ---
+  // Note: Names are generic here; interpretation depends on the Tile Type
+  Flag16 = 1u << 16,
+  Flag17 = 1u << 17,
+  Flag18 = 1u << 18,
+  Flag19 = 1u << 19,
+  Flag20 = 1u << 20,
+  Flag21 = 1u << 21, // Defined even if not used by items in description
+  Flag22 = 1u << 22,
+  Flag23 = 1u << 23,
+  Flag24 = 1u << 24,
+  Flag25 = 1u << 25,
+  Flag26 = 1u << 26,
+  Flag27 = 1u << 27,
+  Flag28 = 1u << 28,
+  Flag29 = 1u << 29,
+  Flag30 = 1u << 30,
+  // Flag31 = 1u << 31 // Bit 31 is available if needed
+}
+
+
+var tileDataFile = @"C:\Users\OGCit\Downloads\yoda_20220125\YODA\Yoda\yodeskOutput\TILE_0x00014780.bin";
+var paletteDataFile = @"C:\Users\OGCit\Downloads\yoda_20220125\YODA\Yoda\Yodesk.exe";
+
+var tileData = File.ReadAllBytes(tileDataFile);
+var paletteData = File.ReadAllBytes(paletteDataFile).Skip(0x550F0).Take(0x400).ToArray();
+
+var palette = ColorHelper.ConvertBytesToARGB(paletteData);
+
+var outputDir = Path.Combine(Path.GetDirectoryName(tileDataFile), "output");
+Directory.CreateDirectory(outputDir);
+var tiles = new List<byte[]>();
+var width = 32;
+var height = 32;
+var imageIndex = 0;
+for (int i = 0; i < tileData.Length; i += 0x404)
+{
+	var flagData = BitConverter.ToUInt32(tileData.Skip(i).Take(4).ToArray(), 0);
+	var tile = tileData.Skip(i + 4).Take(0x400).ToArray();
+	tiles.Add(tile);
+}
+var izonDir = @"C:\Users\OGCit\Downloads\yoda_20220125\YODA\Yoda\yodeskOutput\iZon";
+var izonFiles = Directory.GetFiles(izonDir, "*.bin");
+
+var izonOutputDir = Path.Combine(outputDir, "izon_images");
+
+foreach (var iZon in izonFiles)
+{
+	using var br = new BinaryReader(File.OpenRead(iZon));
+	br.ReadBytes(10);
+	var tileMapWidth = br.ReadUInt16();
+	var tileMapHeight = br.ReadUInt16();
+	var flag = br.ReadByte();
+	br.ReadBytes(5);
+	var planet = br.ReadByte();
+	var planetName = planet switch
+	{
+		1 => "Tatooine",
+		2 => "Hoth",
+		3 => "Endor",
+		5 => "Dagobah",
+		_ => "Unknown"
+	};
+	var planetOutputDir = Path.Combine(izonOutputDir, planetName); 
+	var separatesOutputDir = Path.Combine(planetOutputDir, "separates");
+	Directory.CreateDirectory(separatesOutputDir);
+	var combinedOutputDir = Path.Combine(planetOutputDir, "combined");
+	Directory.CreateDirectory(combinedOutputDir);
+	br.ReadByte();
+	var tileMapData = br.ReadBytes(tileMapWidth * tileMapHeight * 6);
+	var bgTileMap = new List<short>();
+	var midTileMap = new List<short>();
+	var fgTileMap = new List<short>();
+	for (int i = 0; i < tileMapData.Length; i += 6)
+	{
+		var bgIndex = BitConverter.ToInt16(tileMapData.Skip(i).Take(2).ToArray(), 0);
+		var midIndex = BitConverter.ToInt16(tileMapData.Skip(i + 2).Take(2).ToArray(), 0);
+		var fgIndex = BitConverter.ToInt16(tileMapData.Skip(i + 4).Take(2).ToArray(), 0);
+		bgTileMap.Add(bgIndex);
+		midTileMap.Add(midIndex);
+		fgTileMap.Add(fgIndex);
+	}
+	var bgImage = ImageFormatHelper.CreateScreenImage(tiles, bgTileMap.ToArray(), tileMapWidth, tileMapHeight, width, height, palette, true);
+	var midImage = ImageFormatHelper.CreateScreenImage(tiles, midTileMap.ToArray(), tileMapWidth, tileMapHeight, width, height, palette, true);
+	var fgImage = ImageFormatHelper.CreateScreenImage(tiles, fgTileMap.ToArray(), tileMapWidth, tileMapHeight, width, height, palette, true);
+	//bgImage.Save(Path.Combine(separatesOutputDir, $"{Path.GetFileNameWithoutExtension(iZon)}_bg.png"), ImageFormat.Png);
+	//midImage.Save(Path.Combine(separatesOutputDir, $"{Path.GetFileNameWithoutExtension(iZon)}_mid.png"), ImageFormat.Png);
+	//fgImage.Save(Path.Combine(separatesOutputDir, $"{Path.GetFileNameWithoutExtension(iZon)}_fg.png"), ImageFormat.Png);
+	var combinedImage = OverlayImages(bgImage, midImage, fgImage);
+	combinedImage.Save(Path.Combine(combinedOutputDir, $"{Path.GetFileNameWithoutExtension(iZon)}.png"), ImageFormat.Png);
+}
+static Bitmap OverlayImages(Image background, Image middle, Image foreground)
+{
+	if (background == null)
+	{
+		throw new ArgumentNullException(nameof(background), "Background image cannot be null.");
+	}
+
+	// Create a new bitmap with the dimensions of the background image.
+	// Use a pixel format that supports transparency (Alpha channel) for proper blending.
+	Bitmap finalImage = new Bitmap(background.Width, background.Height, PixelFormat.Format32bppArgb);
+
+	// Get a Graphics object from the final image to draw on it.
+	using (Graphics g = Graphics.FromImage(finalImage))
+	{
+		// Optional: Set higher quality rendering settings for potentially better output.
+		g.CompositingMode = CompositingMode.SourceOver; // Ensures alpha blending. This is usually the default.
+		g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+		g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+		g.SmoothingMode = SmoothingMode.HighQuality;
+
+		// 1. Draw the background image.
+		// It's drawn at position (0,0) with its original size, filling the canvas.
+		g.DrawImage(background, 0, 0, background.Width, background.Height);
+
+		// 2. Draw the middle image (if provided) on top of the background.
+		if (middle != null)
+		{
+			// Draws the middle image starting at the top-left corner (0,0).
+			// It uses the middle image's original dimensions.
+			// If 'middle' is smaller than 'background', the background shows around it.
+			// If 'middle' is larger, it will be clipped by the 'finalImage' bounds.
+			// Adjust the x, y coordinates (0, 0) if you want to position it differently.
+			g.DrawImage(middle, 0, 0, middle.Width, middle.Height);
+		}
+
+		// 3. Draw the foreground image (if provided) on top of everything else.
+		if (foreground != null)
+		{
+			// Draws the foreground image starting at the top-left corner (0,0).
+			// Uses the foreground image's original dimensions, similar to the middle image.
+			// Adjust the x, y coordinates (0, 0) if needed.
+			g.DrawImage(foreground, 0, 0, foreground.Width, foreground.Height);
+		}
+	} // Graphics object 'g' is disposed automatically here by the 'using' block.
+
+	// Return the newly created bitmap.
+	// IMPORTANT: The caller must dispose of this 'finalImage' when done with it.
+	return finalImage;
+}

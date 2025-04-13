@@ -156,7 +156,7 @@ namespace ExtractCLUT.Games
                     for (int l = 0; l < 6; l++)
                     {
                         var tile = tiles[blockArray[j, l]];
-                        var image = ImageFormatHelper.GenerateClutImage(palette, tile, 16, 16);
+                        var image = new Bitmap(GenerateClutImage(palette, tile, 16, 16));
                         for (int m = 0; m < 16; m++)
                         {
                             for (int n = 0; n < 16; n++)

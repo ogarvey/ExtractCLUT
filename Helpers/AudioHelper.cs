@@ -161,8 +161,13 @@ namespace ExtractCLUT.Helpers
 			{
 				byte[] chunk = new byte[2304];
 				Array.Copy(inputData, i, chunk, 0, 2304);
-				var isLevelA = bps == 8 && frequency == 37800;
-				DecodeAudioSector(chunk, left, right, isLevelA, !isMono);
+				var isLevelA = bps == 8;
+				try {
+
+					DecodeAudioSector(chunk, left, right, isLevelA, !isMono);
+				} catch {
+					continue;
+				}
 			}
 
 			using (var outStream = File.Create(outputFile))

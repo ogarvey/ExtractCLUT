@@ -80,7 +80,7 @@ namespace ExtractCLUT.Games
               if (mainPalette != null || (file.Contains("intro") && (marioPalette != null || luigiPalette != null)))
               {
                 var palette = file.Contains("intro") ? marioPalette : mainPalette;
-                var image = ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 384, 240, true);
+                var image = new Bitmap(ImageFormatHelper.GenerateClutImage(palette, decodedBlob, 384, 240, true));
                 Rectangle cropRect = new Rectangle(0, 0, 32, 32);
 
                 // Crop the image
@@ -140,7 +140,7 @@ namespace ExtractCLUT.Games
                 if (file.Contains("intro") && luigiPalette != null)
                 {
                   cropRect = new Rectangle(0, 0, 32, 32);
-                  image = ImageFormatHelper.GenerateClutImage(luigiPalette, decodedBlob, 384, 240, true);
+                  image = new Bitmap(ImageFormatHelper.GenerateClutImage(luigiPalette, decodedBlob, 384, 240, true));
                   using (Bitmap croppedImage = image.Clone(cropRect, image.PixelFormat))
                   {
                     // if every pixel of image is black, skip saving
@@ -225,13 +225,14 @@ namespace ExtractCLUT.Games
         {
           var bytes = sector.GetSectorData().Take(0x180).ToArray();
           var palette = ColorHelper.ConvertBytesToRGB(bytes);
+          File.WriteAllBytes(Path.Combine(paletteOutputDir, $"{sector.SectorIndex}.bin"), bytes);
           palettes.Add(new Tuple<int, List<Color>>(sector.SectorIndex, palette));
           offsets.Add(sector.SectorIndex);
         }
 
         palettes = palettes.OrderByDescending(p => p.Item1).ToList();
 
-        // extract DYUV data
+        //extract DYUV data
         var dyuvOutputDir = Path.Combine(fileOutputDir, "dyuv");
         Directory.CreateDirectory(dyuvOutputDir);
         var dyuvSectors = cdiFile.VideoSectors.Where(ds => ds.Coding.VideoString == "DYUV").OrderBy(ds => ds.SectorIndex).ToList();
@@ -251,7 +252,7 @@ namespace ExtractCLUT.Games
           }
         }
 
-        // extract rl7 data
+        //extract rl7 data
         var rl7OutputDir = Path.Combine(fileOutputDir, "rl7");
         Directory.CreateDirectory(rl7OutputDir);
         var rl7Sectors = cdiFile.VideoSectors.Where(ds => ds.Coding.VideoString == "RL7").OrderBy(ds => ds.SectorIndex).ToList();
@@ -293,7 +294,7 @@ namespace ExtractCLUT.Games
 
         var clut7Data = new List<byte[]>();
 
-        nextPaletteOffset = palettes[^2].Item1;
+        //nextPaletteOffset = palettes[^2].Item1;
 
         foreach (var (sector, index) in clut7Sectors.WithIndex())
         {
@@ -302,6 +303,7 @@ namespace ExtractCLUT.Games
           {
             var palette = palettes.FirstOrDefault(x => x.Item1 < sector.SectorIndex - 1).Item2;
             var clut7Bytes = clut7Data.SelectMany(x => x).ToArray();
+            File.WriteAllBytes(Path.Combine(clut7OutputDir, $"{sector.SectorIndex}.bin"), clut7Bytes);
             var imageIndex = 0;
 
             var image = ImageFormatHelper.GenerateClutImage(palette, clut7Bytes, 384, 280, false);
@@ -309,7 +311,7 @@ namespace ExtractCLUT.Games
             image.Save(outputName, ImageFormat.Png);
 
             clut7Data.Clear();
-            nextPaletteOffset = palettes.OrderBy(x => x.Item1).FirstOrDefault(x => x.Item1 > sector.SectorIndex)?.Item1 ?? palettes[^1].Item1;
+            //nextPaletteOffset = palettes.OrderBy(x => x.Item1).FirstOrDefault(x => x.Item1 > sector.SectorIndex)?.Item1 ?? palettes[^1].Item1;
           }
         }
 

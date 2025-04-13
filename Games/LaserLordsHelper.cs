@@ -10,6 +10,8 @@ using ExtractCLUT.Models;
 using Color = System.Drawing.Color;
 using Image = System.Drawing.Image;
 using static ExtractCLUT.Helpers.ImageFormatHelper;
+using OGLibCDi.Models;
+using System.Drawing.Imaging;
 
 namespace ExtractCLUT.Games
 {
@@ -39,152 +41,51 @@ namespace ExtractCLUT.Games
       throw new NotImplementedException();
     }
 
-    public class ImageLine
+    public static (byte[] imageData, int height) DecodeImage(byte[] data)
     {
-      public int LeftOffset { get; set; }
-      public List<byte> Pixels { get; set; }
-      public int RemainingPixels { get; set; }
-    }
-
-    public static List<ImageLine> DecodeImage(byte[] data)
-    {
-      List<ImageLine> imageLines = new List<ImageLine>();
+      List<byte[]> imageLines = new List<byte[]>();
+      var imageLine = new byte[0x38];
+      var imageLineIndex = 0;
       int i = 0;
 
       while (i < data.Length - 1)
       {
-
-        ImageLine line = new ImageLine();
-        if (data[i] == 0x00 && data[i + 1] != 0x38)
+        if (data[i] == 0x00 && data[i + 1] == 0x38)
         {
-          line.LeftOffset = data[i + 1];
+          // blank line
+          imageLines.Add(new byte[0x38]);
           i += 2;
+          imageLineIndex = 0;
         }
-        else if (data[i] == 0x00 && data[i + 1] == 0x38)
+        else if (data[i] == 0x00)
         {
-          line.LeftOffset = 0;
-          line.Pixels = Enumerable.Repeat((byte)0x00, 56).ToList();
+          // repeat 0x00 for data[i+1] bytes
+          for (int j = 0; j < data[i + 1]; j++)
+          {
+            imageLine[imageLineIndex] = 0x00;
+            imageLineIndex++;
+          }
+          i += 2;   
         }
         else
         {
-          line.LeftOffset = 0;
+          // use value of data[i] & 0x0F
+          imageLine[imageLineIndex] = (byte)(data[i] & 0x0F);
+          imageLineIndex++;
+          i++;
         }
-        line.Pixels = new List<byte>();
-
-        while (i < data.Length - 1)
+        if (imageLineIndex == 0x38)
         {
-          if (line.LeftOffset + line.Pixels.Count == 56)
-          {
-            imageLines.Add(line);
-            break;
-          }
-          if (data[i] == 0x00)
-          {
-            if (line.LeftOffset + line.Pixels.Count == 56)
-            {
-              imageLines.Add(line);
-              break;
-            }
-            if (i + 2 < data.Length && data[i + 2] == 0x00)
-            {
-              line.RemainingPixels = data[i + 1];
-              i += 2;
-              if (line.LeftOffset + line.Pixels.Count == 56)
-              {
-                imageLines.Add(line);
-                break;
-              }
-              break;
-            }
-            else
-            {
-              int numberOfNullBytes = data[i + 1];
-              for (int j = 0; j < numberOfNullBytes; j++)
-              {
-                line.Pixels.Add(0x00);
-                if (line.LeftOffset + line.Pixels.Count == 56)
-                {
-                  break;
-                }
-              }
-              i += 2;
-            }
-          }
-          else
-          {
-            line.Pixels.Add(data[i]);
-            i++;
-            if (line.LeftOffset + line.Pixels.Count == 56)
-            {
-              imageLines.Add(line);
-              break;
-            }
-          }
-
-          if (i >= data.Length - 1 || ((line.LeftOffset + line.Pixels.Count) == 56))
-          {
-            imageLines.Add(line);
-            if (i >= data.Length - 1) return imageLines;
-            break;
-          }
+          imageLines.Add(imageLine);
+          imageLine = new byte[0x38];
+          imageLineIndex = 0;
         }
-
-        imageLines.Add(line);
-
       }
-      // if (imageLines.Count > 48) imageLines.RemoveRange(48, imageLines.Count - 48);
-      return imageLines;
+      return (imageData: imageLines.SelectMany(x => x).ToArray(), height: imageLines.Count);
     }
 
-    public static Bitmap CreateBitmapFromImageLines(List<ImageLine> imageLines, List<Color> colorPalette, bool isplayer = false)
-    {
-      try
-      {
-        var height = imageLines.Count;
-        int width = imageLines.Max(x => x.LeftOffset + x.Pixels.Count + x.RemainingPixels);
-        Bitmap bitmap = new Bitmap(width, height);
-        int currentLine = 0;
 
-        using (Graphics g = Graphics.FromImage(bitmap))
-        {
-          g.Clear(Color.Transparent);
-        }
-
-        foreach (ImageLine line in imageLines)
-        {
-          int x = line.LeftOffset;
-
-          for (int i = 0; i < line.Pixels.Count; i++)
-          {
-            byte currentByte = line.Pixels[i];
-
-            // transparent where bytes are null bytes
-            if (currentByte == 0x00)
-            {
-              bitmap.SetPixel(x, currentLine, Color.Transparent);
-            }
-            else if (!isplayer && ((currentByte & 0xF0) == 0xD0) || isplayer && (currentByte & 0xF0) == 0xC0)
-            {
-              byte colorIndex = (byte)(currentByte & 0x0F);
-              Color color = colorPalette[colorIndex];
-              bitmap.SetPixel(x, currentLine, color);
-            }
-
-            x++;
-          }
-
-          currentLine++;
-        }
-
-        return bitmap;
-      }
-      catch (Exception)
-      {
-
-        return null;
-      }
-    }
-    public static Tuple<Image, byte[]> CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors)
+    public static Tuple<Image, byte[]> CreateScreenImage(List<byte[]> _tiles, byte[] _mapData, List<Color> _colors, bool useTransparency = false)
     {
       var mapTiles = new List<byte[]>();
       var flatArray = new byte[320 * 160];
@@ -207,42 +108,86 @@ namespace ExtractCLUT.Games
           int tilePixelY = y % 8;
           int tilePixelIndex = tilePixelX + (tilePixelY * 8);
           int colorIndex = mapTiles[tileIndex][tilePixelIndex];
-          flatArray[x + (y * 320)] = (byte)colorIndex;
-          Color color = _colors[colorIndex % 128];
+          flatArray[x + (y * 320)] = (byte)(colorIndex % 128);
+          Color color = (useTransparency && colorIndex < 96) ? Color.Transparent : _colors[colorIndex % 128];
           tempScreenBitmap.SetPixel(x, y, color);
         }
       }
       return new Tuple<Image, byte[]>(tempScreenBitmap, flatArray);
     }
 
-    public static List<byte[]> ReadScreenTiles(byte[] data)
+
+    static void ParseNPCSpriteData(byte[] spriteData, string npcSpriteOutput, int recordIndex)
+    {
+      var palData = spriteData.Skip(0x20).Take(0x40).ToArray();
+      var palette = ReadPalette(palData);
+
+      var offsets = new List<int>();
+      var offsetData = spriteData.Skip(0x60).Take(0x0E).ToArray();
+
+      for (int i = 0; i < offsetData.Length; i += 2)
+      {
+        var offset = BitConverter.ToUInt16(offsetData.Skip(i).Take(2).Reverse().ToArray(), 0);
+        offsets.Add(offset);
+      }
+
+      spriteData = spriteData.Skip(0x6E).Take(offsets[^1]).ToArray();
+      offsets.RemoveAt(offsets.Count - 1);
+      for (int i = 0; i < offsets.Count; i++)
+      {
+        var start = offsets[i];
+        var end = i == offsets.Count - 1 ? spriteData.Length : offsets[i + 1];
+        var chunk = spriteData.Skip(start).Take(end - start).ToArray();
+        var decoded = DecodeImage(chunk);
+        var image = GenerateClutImage(palette, decoded.imageData, 56, decoded.height, true);
+        image.Save(Path.Combine(npcSpriteOutput, $"{recordIndex}_{i}.png"), ImageFormat.Png);
+      }
+    }
+
+    static void ParsePlayerSpriteData(byte[] spriteData, string outputDir)
+    {
+      var palData = spriteData.Take(0x40).ToArray();
+      var palette = ColorHelper.ReadPalette(palData);
+
+      var offsetData = spriteData.Skip(0x40).Take(0x9E).ToArray();
+      var offsets = new List<int>();
+
+      for (int i = 0; i < offsetData.Length; i += 2)
+      {
+        var offset = BitConverter.ToUInt16(offsetData.Skip(i).Take(2).Reverse().ToArray(), 0);
+        offsets.Add(offset);
+      }
+
+      spriteData = spriteData.Skip(0x100).Take(offsets[^1]).ToArray();
+      offsets.RemoveAt(offsets.Count - 1);
+
+      var chunkData = new List<byte[]>();
+      for (int i = 0; i < offsets.Count; i++)
+      {
+        var start = offsets[i];
+        var end = i == offsets.Count - 1 ? spriteData.Length : offsets[i + 1];
+        var chunk = spriteData.Skip(start).Take(end - start).ToArray();
+        chunkData.Add(chunk);
+      }
+
+      var imageCount = 0;
+
+      foreach (var chunk in chunkData)
+      {
+        var decoded = LaserLordsHelper.DecodeImage(chunk);
+        var image = ImageFormatHelper.GenerateClutImage(palette, decoded.imageData, 56, decoded.height, true);
+        image.Save(Path.Combine(outputDir, $"{imageCount++}.png"), ImageFormat.Png);
+      }
+    }
+
+    public static List<byte[]> ReadTiles(byte[] data)
     {
       const int ChunkSize = 64;
-      const int NumChunks = 32;
+      int NumChunks = data.Length / ChunkSize;
       List<byte[]> byteArrayList = new List<byte[]>();
 
       int offset = 0;
-      while (offset < 0x10000)
-      {
-        for (int i = 0; i < NumChunks; i++)
-        {
-          byte[] chunk = new byte[ChunkSize];
-          Array.Copy(data, offset + i * ChunkSize, chunk, 0, ChunkSize);
-          byteArrayList.Add(chunk);
-        }
-        offset += ChunkSize * NumChunks;
-      }
-      return byteArrayList;
-    }
-
-    public static List<byte[]> ReadSpriteTiles(byte[] data)
-    {
-      const int ChunkSize = 64;
-      const int NumChunks = 32;
-      List<byte[]> byteArrayList = new List<byte[]>();
-
-      int offset = 0x1e800;
-      while (offset < 0x27000)
+      while (offset < data.Length - 63)
       {
         for (int i = 0; i < NumChunks; i++)
         {
@@ -267,12 +212,33 @@ namespace ExtractCLUT.Games
       }
       return screenBytes;
     }
-    public static byte[] GetScreenBytes(string binFile)
+    public static byte[] GetScreenBytes(byte[] bytes)
     {
-      var bytes = File.ReadAllBytes(binFile);
       var screenBytes = bytes.Take(0x1600).ToArray();
       return screenBytes;
     }
+
+    public static string GetScreenBytesAsCsv(byte[] bytes, bool isForeground = false)
+    {
+      var addedValue = isForeground ? 1025 : 1;
+      var screenBytes = bytes.Take(0x640).ToArray();
+      // resulting string should be 40 columns by 20 rows
+      // each value is a 2-byte value
+      var csv = string.Empty;
+      for (int i = 0; i < screenBytes.Length; i += 2)
+      {
+        var value = BitConverter.ToUInt16(screenBytes.Skip(i).Take(2).Reverse().ToArray());
+        csv += $"{value+addedValue},";
+        if ((i + 2) % 80 == 0)
+        {
+          csv += "\n";
+        }
+      }
+      // trim the last comma
+      csv = csv.TrimEnd(',');
+      return csv;
+    }
+
     public static void ExtractSlidesBin(string slidesBinFile, string outputFolder)
     {
       var chunks = ReadSlideBytes(slidesBinFile);
@@ -429,6 +395,174 @@ namespace ExtractCLUT.Games
       return result;
     }
 
+    public static void ExtractPlanet(string planetFile, string mainOutput)
+    {
+      var spriteOutput = Path.Combine(mainOutput, "Sprites");
+      var playerSpriteOutput = Path.Combine(spriteOutput, "Player");
+      var npcSpriteOutput = Path.Combine(spriteOutput, "NPC");
+      var dyuvOutput = Path.Combine(mainOutput, "DYUV");
+      var binaryOutput = Path.Combine(mainOutput, "Binary");
+      var audioOutput = Path.Combine(mainOutput, "Audio");
+      var screenTileOutput = Path.Combine(mainOutput, "Tiles_Screen");
+      var transparentScreenTileOutput = Path.Combine(mainOutput, "Tiles_Screen_TP");
+      var screenImagesOutput = Path.Combine(mainOutput, "Images_Screen");
+      var transparentScreenImagesOutput = Path.Combine(mainOutput, "Images_Screen_TP");
+      var screenCsvOutput = Path.Combine(mainOutput, "CSV_Screen");
+      var inventoryTileOutput = Path.Combine(mainOutput, "Tiles_Inventory");
+
+      Directory.CreateDirectory(mainOutput);
+      Directory.CreateDirectory(dyuvOutput);
+      Directory.CreateDirectory(binaryOutput);
+      Directory.CreateDirectory(audioOutput);
+      Directory.CreateDirectory(playerSpriteOutput);
+      Directory.CreateDirectory(npcSpriteOutput);
+      Directory.CreateDirectory(screenTileOutput);
+      Directory.CreateDirectory(screenImagesOutput);
+      Directory.CreateDirectory(inventoryTileOutput);
+      Directory.CreateDirectory(transparentScreenTileOutput);
+      Directory.CreateDirectory(transparentScreenImagesOutput);
+      Directory.CreateDirectory(screenCsvOutput);
+
+      var planetCdiFile = new CdiFile(planetFile);
+
+      var planetSectors = planetCdiFile.Sectors;
+
+      var sectorList = new List<CdiSector>();
+      var recordIndex = 0;
+
+      var screenTiles = new List<byte[]>(); // chunk 5, channel 1, contains the screen tiles
+      var screenTileImages = new List<Image>(); // chunk 5, channel 1, contains the screen tiles
+      var screenPalette = new List<Color>(); // chunk 5, channel 2, contains the screen palette
+      var inventoryTiles = new List<byte[]>(); // chunk 5, channel 4, contains the inventory tiles
+      var inventoryTileImages = new List<Image>(); // chunk 5, channel 4, contains the inventory tiles
+      var inventoryPalette = new List<Color>(); // chunk 5, channel 4, contains the inventory palette
+
+      foreach (var sector in planetSectors)
+      {
+        sectorList.Add(sector);
+        if (sector.SubMode.IsEOR)
+        {
+          switch (recordIndex)
+          {
+            case 0:
+              {
+                var dyuvData = sectorList.SelectMany(s => s.GetSectorData()).ToArray();
+                var dyuvImage = ImageFormatHelper.DecodeDYUVImage(dyuvData, 384, 240, 16);
+                dyuvImage.Save(Path.Combine(dyuvOutput, "Planet Orbit.png"), ImageFormat.Png);
+                break;
+              }
+            case 1:
+              {
+                // font data - for now write to binary file
+                var fontData = sectorList.SelectMany(s => s.GetSectorData()).ToArray();
+                File.WriteAllBytes(Path.Combine(binaryOutput, "Font.bin"), fontData);
+                break;
+              }
+            case 2:
+              {
+                // unknown data - for now write to binary file
+                var unknownData = sectorList.SelectMany(s => s.GetSectorData()).ToArray();
+                File.WriteAllBytes(Path.Combine(binaryOutput, "Unknown.bin"), unknownData);
+                break;
+              }
+            case 3:
+              {
+                // Words Data - for now write to binary file
+                var wordsData = sectorList.SelectMany(s => s.GetSectorData()).ToArray();
+                File.WriteAllBytes(Path.Combine(binaryOutput, "Words.bin"), wordsData);
+                break;
+              }
+            case 4:
+              {
+                // FX Audio Data
+                var fxData = sectorList.SelectMany(s => s.GetSectorData()).ToArray();
+                var s = sectorList[0];
+                var outputFileName = Path.Combine(audioOutput, "FX.wav");
+                AudioHelper.OutputAudio(fxData, outputFileName, (uint)s.Coding.SamplingFrequencyValue, (byte)s.Coding.BitsPerSample, s.Coding.IsMono);
+                break;
+              }
+            case 5:
+              {
+                // Mixture of Data here, will need to separate into a file per sector.channel
+                // channel2 is the CLUT banks - 2 banks
+                var channel2Data = sectorList.Where(s => s.Channel == 2).SelectMany(s => s.GetSectorData()).ToArray();
+                screenPalette = ReadClutBankPalettes(channel2Data, 2);
+
+                // channel1 is the screen tiles
+                var channel1Data = sectorList.Where(s => s.Channel == 1).SelectMany(s => s.GetSectorData()).ToArray();
+                screenTiles = ReadTiles(channel1Data);
+                foreach (var (sTile, stIndex) in screenTiles.WithIndex())
+                {
+                  var image = CreateTileImage(sTile, screenPalette);
+                  image.Save(Path.Combine(screenTileOutput, $"{stIndex}.png"), ImageFormat.Png);
+                  // File.WriteAllBytes(Path.Combine(screenTileOutput, $"{stIndex}.bin"), sTile);
+                  image = CreateTileImage(sTile, screenPalette, false, true);
+                  image.Save(Path.Combine(transparentScreenTileOutput, $"{stIndex}.png"), ImageFormat.Png);
+                  // var tempPalette = new List<Color>(screenPalette);
+                  // for (int i = 0; i < 3; i++)
+                  // {
+                  //   RotateSubset(tempPalette, 85, 88, 1);
+                  // }
+                }
+
+                // channel3 is the player sprite data
+                var channel3Data = sectorList.Where(s => s.Channel == 3).SelectMany(s => s.GetSectorData()).ToArray();
+                ParsePlayerSpriteData(channel3Data, playerSpriteOutput);
+
+                // channel4 is the inventory sprite data and palette
+                var channel4Data = sectorList.Where(s => s.Channel == 4).SelectMany(s => s.GetSectorData()).ToArray();
+                var paletteData = channel4Data.Take(0x80).ToArray();
+                var tileData = channel4Data.Skip(0x80).ToArray();
+                inventoryTiles = ReadTiles(tileData);
+                inventoryPalette = ReadPalette(paletteData);
+                foreach (var (iTile, itIndex) in inventoryTiles.WithIndex())
+                {
+                  var image = CreateTileImage(iTile, inventoryPalette);
+                  image.Save(Path.Combine(inventoryTileOutput, $"{itIndex}.png"), ImageFormat.Png);
+                  // File.WriteAllBytes(Path.Combine(inventoryTileOutput, $"{itIndex}.bin"), iTile);
+                }
+                // channel5 is the inventory labels and descriptions
+                var channel5Data = sectorList.Where(s => s.Channel == 5).SelectMany(s => s.GetSectorData()).ToArray();
+                
+                // channel6 is an unknown offset list
+                var channel6Data = sectorList.Where(s => s.Channel == 6).SelectMany(s => s.GetSectorData()).ToArray();
+                // File.WriteAllBytes(Path.Combine(binaryOutput, "Channel6.bin"), channel6Data);
+                //
+                break;
+              }
+            default:
+              {
+                // Mixture of Data here, will need to separate into a file per sector.channel
+                // channel1 is the screen map
+                var channel1Data = sectorList.Where(s => s.Channel == 1).SelectMany(s => s.GetSectorData()).ToArray();
+                var screenMapBytes = channel1Data.Take(0x1600).ToArray();
+                //var screenMapCsv = GetScreenBytesAsCsv(screenMapBytes);
+                //File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}.csv"), screenMapCsv);
+                //screenMapCsv = GetScreenBytesAsCsv(screenMapBytes, true);
+                // File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}_FG.csv"), screenMapCsv);
+                var screenMapImage = CreateScreenImage(screenTiles, screenMapBytes, screenPalette);
+                screenMapImage.Item1.Save(Path.Combine(screenImagesOutput, $"{recordIndex - 5}.png"), ImageFormat.Png);
+                // File.WriteAllBytes(Path.Combine(screenImagesOutput, $"{recordIndex - 5}.bin"), screenMapImage.Item2);
+                screenMapImage = CreateScreenImage(screenTiles, screenMapBytes, screenPalette, true);
+                screenMapImage.Item1.Save(Path.Combine(transparentScreenImagesOutput, $"{recordIndex - 5}.png"), ImageFormat.Png);
+                // channel2 is the NPC sprite data
+                var channel2Data = sectorList.Where(s => s.Channel == 2).SelectMany(s => s.GetSectorData()).ToArray();
+                if (channel2Data?.Length > 0) ParseNPCSpriteData(channel2Data, npcSpriteOutput, recordIndex);
+                // channel3 is the NPC text
+                var channel3Data = sectorList.Where(s => s.Channel == 3).SelectMany(s => s.GetSectorData()).ToArray();
+                File.WriteAllBytes(Path.Combine(binaryOutput, $"Channel3_{recordIndex - 5}.bin"), channel3Data);
+                // channel7 DYUV Dialogue bg
+                var channel7Data = sectorList.Where(s => s.Channel == 7).SelectMany(s => s.GetSectorData()).ToArray();
+                var dyuvImage = ImageFormatHelper.DecodeDYUVImage(channel7Data, 384, 240, 16);
+                dyuvImage.Save(Path.Combine(dyuvOutput, $"Dialogue_{recordIndex - 5}.png"), ImageFormat.Png);
+                break;
+              }
+          }
+          recordIndex++;
+          sectorList.Clear();
+        }
+      }
+    }
 
     private static List<DyuvFrame> ProcessChunk(DyuvFrameContainer cont, byte[] chunkBuffer)
     {
@@ -462,20 +596,19 @@ namespace ExtractCLUT.Games
       return chunkDataList;
     }
 
-    public static void ExtractCockpitAnimation()
+    public static void ExtractCockpitAnimation(string spaceRtf, string spaceDataFilesOutPath)
     {
-      var spaceDataFilesPath = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\data";
-      var spaceDataFilesOutPath = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\records\space\data\output";
+      var spaceCdiFile = new CdiFile(spaceRtf);
 
-      var imageBinFile = "space_2352_108192_d_2.bin";
-      var paletteBinFile = "space_0_2352_d_1.bin";
+      var palSector = spaceCdiFile.Sectors[0];
+      var paletteBytes = palSector.GetSectorData();
+      // cockpit sectors are the next 45 sectors
+      var cockpitSectors = spaceCdiFile.Sectors.Skip(1).Take(45).ToList();
 
-      var cockpitScreenImageBytes = File.ReadAllBytes(Path.Combine(spaceDataFilesPath, imageBinFile)).Take(0x10e00).ToArray();
-      var cockpitControlImageBytes = File.ReadAllBytes(Path.Combine(spaceDataFilesPath, imageBinFile)).Skip(0x10e00).ToArray();
-      var paletteBytes = File.ReadAllBytes(Path.Combine(spaceDataFilesPath, paletteBinFile));
-
+      var cockpitScreenImageBytes = cockpitSectors.SelectMany(s => s.GetSectorData()).Take(0x10e00).ToArray();
+      var cockpitControlImageBytes = cockpitSectors.SelectMany(s => s.GetSectorData()).Skip(0x10e00).ToArray(); ;
       var palette = ConvertBytesToRGB(paletteBytes.Take(0x300).ToArray());
-
+      palette[192] = Color.Transparent;
       var cockpitScreenImageList = new List<Image>();
       var cockpitControlsImageList = new List<Image>();
       var paletteImageList = new List<Image>();
@@ -488,7 +621,7 @@ namespace ExtractCLUT.Games
         for (int x = 0; x < 384; x++)
         {
           var index = y * 384 + x;
-          var color = palette[cockpitScreenImageBytes[index]];
+          var color =  palette[cockpitScreenImageBytes[index]];
           cockpitScreenImage.SetPixel(x, y, color);
         }
       }
@@ -540,8 +673,13 @@ namespace ExtractCLUT.Games
             cockpitControlsImage.SetPixel(x, y, color);
           }
         }
-        cockpitScreenImage.Save(Path.Combine(spaceDataFilesOutPath + "\\separates\\", $"cockpitScreenImage_{i + 1}.png"));
-        cockpitControlsImage.Save(Path.Combine(spaceDataFilesOutPath + "\\separates\\", $"cockpitControlsImage_{i + 1}.png"));
+        var separatesFolder = Path.Combine(spaceDataFilesOutPath, "separates");
+        if (!Directory.Exists(separatesFolder))
+        {
+          Directory.CreateDirectory(separatesFolder);
+        }
+        cockpitScreenImage.Save(Path.Combine(separatesFolder, $"cockpitScreenImage_{i + 1}.png"));
+        cockpitControlsImage.Save(Path.Combine(separatesFolder, $"cockpitControlsImage_{i + 1}.png"));
         cockpitControlsImageList.Add(cockpitControlsImage);
       }
 
@@ -549,16 +687,8 @@ namespace ExtractCLUT.Games
       CreateGifFromImageList(cockpitControlsImageList, Path.Combine(spaceDataFilesOutPath, "cockpitControlsImageList.gif"), 50, 0);
     }
 
-    public static Image CreateTileImage(byte[] tile, List<Color> palette, bool idOverlay = false)
+    public static Image CreateTileImage(byte[] tile, List<Color> palette, bool idOverlay = false, bool transparency = false)
     {
-      if (palette.Count < 256)
-      {
-        var remaining = 256 - palette.Count;
-        for (int i = 0; i < remaining; i++)
-        {
-          palette.Add(Color.FromArgb(255, 0, 0, 0));
-        }
-      }
       // Create an 8*8 bitmap from the tile bytes
       // Each byte is an index into the palette
       var tileImage = new Bitmap(8, 8);
@@ -567,7 +697,8 @@ namespace ExtractCLUT.Games
         for (int x = 0; x < 8; x++)
         {
           var index = y * 8 + x;
-          var color = palette[tile[index]];
+          var colIndex = tile[index] % 128;
+          var color = (transparency && colIndex < 96)? Color.Transparent : palette[colIndex];
           tileImage.SetPixel(x, y, color);
         }
       }
@@ -696,10 +827,8 @@ namespace ExtractCLUT.Games
       return Color.Cyan;
     }
 
-    public static void ExtractInventory()
+    public static void ExtractInventory(byte[] llInventory)
     {
-      var llInventory = File.ReadAllBytes(@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\argos.rtf_1_4_172.bin");
-
       var palBytes = llInventory.Take(0x80).ToArray();
       var palette = ReadPalette(palBytes);
 
@@ -877,94 +1006,6 @@ namespace ExtractCLUT.Games
 //     image = BitmapHelper.TintImage(image, colour);
 //   }
 //   image.Save(Path.Combine(tileOutputPath, $"hive_{index}.png"), ImageFormat.Png);
-//   // images.Add(image);
-//   // RotateSubset(palette, 80, 83, 1);
-//   // RotateSubset(palette, 84, 85, 1);
-//   // RotateSubset(palette, 86, 88, 1);
-//   // RotateSubset(palette, 90, 92, 1);
-//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
-//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024}.png"), ImageFormat.Png);
-//   // images.Add(image);
-//   // RotateSubset(palette, 80, 83, 1);
-//   // RotateSubset(palette, 84, 85, 1);
-//   // RotateSubset(palette, 86, 88, 1);
-//   // RotateSubset(palette, 90, 92, 1);
-//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
-//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024 * 2}.png"), ImageFormat.Png);
-//   // images.Add(image);
-//   // RotateSubset(palette, 80, 83, 1);
-//   // RotateSubset(palette, 84, 85, 1);
-//   // RotateSubset(palette, 86, 88, 1);
-//   // RotateSubset(palette, 90, 92, 1);
-//   // image = LaserLordsHelper.CreateTileImage(tile, palette);
-//   // image.Save(Path.Combine(tileOutputPath, $"hive_{index + 1024 * 3}.png"), ImageFormat.Png);
-//   // images.Add(image);
-
-//   // // create gif from these images, then clear the list for the next batch
-//   // var tileGifOutputDir = Path.Combine(tileOutputPath, "gifs");
-//   // Directory.CreateDirectory(tileGifOutputDir);
-//   // CreateGifFromImageList(images, Path.Combine(tileGifOutputDir, $"hive_{index}.gif"));
-//   // images.Clear();
+//  
 // }
 
-
-// var ravannaRtf = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\tekton.rtf";
-
-// var outputFolder = @"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Analysis\SprOutput2\tekton
-// ";
-
-// Directory.CreateDirectory(outputFolder);
-
-// var ravannaCdi = new CdiFile(ravannaRtf);
-
-// var dataSectors = ravannaCdi.DataSectors.Where(s => s.Channel == 2).OrderBy(s => s.SectorIndex).Skip(1).ToList();
-
-// var tempSectorList = new List<CdiSector>();
-
-// foreach (var (sector, index) in dataSectors.WithIndex())
-// {
-//   tempSectorList.Add(sector);
-//   if (sector.SubMode.IsEOR)
-//   {
-//     var ravannaSpriteData = tempSectorList.SelectMany(s => s.GetSectorData()).ToArray();
-
-//     var ravannaPalette = ReadPalette(ravannaSpriteData.Skip(0x20).Take(0x40).ToArray());
-
-//     var offsetData = ravannaSpriteData.Skip(0x60).Take(0xe).ToArray();
-
-//     var offsets = new List<int>();
-
-//     for (int i = 0; i < offsetData.Length; i += 2)
-//     {
-//       var offset = BitConverter.ToUInt16(offsetData.Skip(i).Take(2).Reverse().ToArray(), 0);
-//       offsets.Add(offset);
-//     }
-
-//     var data = ravannaSpriteData.Skip(0x6e).ToArray();
-
-//     var blobs = new List<byte[]>();
-
-//     for (int i = 0; i < offsets.Count; i++)
-//     {
-//       var start = offsets[i];
-//       var end = i == offsets.Count - 1 ? offsets[i] : offsets[i + 1];
-//       var blob = data.Skip(start).Take(end - start).ToArray();
-//       blobs.Add(blob);
-//     }
-
-
-//     foreach (var (blob, bIndex) in blobs.WithIndex())
-//     {
-//       if (blob.Length == 0) continue;
-//       var decodedBlob = DecodeImage(blob);
-//       var image = CreateBitmapFromImageLines(decodedBlob, ravannaPalette, false);
-//       var outputName = Path.Combine(outputFolder, $"{sector.SectorIndex}_{bIndex}.png");
-//       if (image != null && OperatingSystem.IsWindowsVersionAtLeast(6, 1))
-//       {
-//         image.Save(outputName, ImageFormat.Png);
-//       }
-//     }
-//     dataSectors = dataSectors.Skip(tempSectorList.Count).ToList();
-//     tempSectorList.Clear();
-//   }
-// }

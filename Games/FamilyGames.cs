@@ -30,7 +30,7 @@ namespace ExtractCLUT.Games
             //     sectorCounts.Add(countSector[i]);
             // }
 
-            var allImages = new List<Bitmap>();
+            var allImages = new List<Image>();
             for (int i = 0; i < sectorCounts.Count; i++)
             {
                 var rleData = clut7Sectors.Take(sectorCounts[i]).SelectMany(s => s.GetSectorData()).ToArray();

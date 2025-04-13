@@ -54,7 +54,7 @@ namespace ExtractCLUT.Games
 				}
 
         palette = ColorHelper.ConvertBytesToRGB(paletteBytes);
-        var image = ImageFormatHelper.GenerateClutImage(palette.ToList(), bytes, 112, 158);
+        var image = new Bitmap(ImageFormatHelper.GenerateClutImage(palette.ToList(), bytes, 112, 158));
         images.Add(image);
       }
       return images;
@@ -70,7 +70,7 @@ namespace ExtractCLUT.Games
       paletteBytes = rtfBytes.Skip(_paletteOffsets[tableId - 1]).Take(0x180).ToArray();
       palette = ColorHelper.ConvertBytesToRGB(paletteBytes);
 
-      return ImageFormatHelper.GenerateClutImage(palette.ToList(), bytes, 384, actualHeight);
+      return new Bitmap(ImageFormatHelper.GenerateClutImage(palette.ToList(), bytes, 384, actualHeight));
 
     }
   }

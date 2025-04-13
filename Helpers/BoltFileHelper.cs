@@ -93,12 +93,12 @@ namespace ExtractCLUT.Helpers
         public static void ExtractBoltFile(string outputPath, BoltOffset data)
         {
             var result = new List<byte>();
+            var resultDos = new List<byte>();
 
             if (!data.IsCompressed)
             {
                 SetCurrentPosition(data.Offset);
-                var byteValue = _boltFileData[_cursorPosition];
-                result.AddRange(Enumerable.Repeat(byteValue, (int)data.UncompressedSize));
+                result.AddRange(_boltFileData!.Skip((int)_cursorPosition).Take((int)data.UncompressedSize));
             }
             else
             {

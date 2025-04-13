@@ -28,6 +28,89 @@ namespace ExtractCLUT.Helpers
       return colors;
     }
 
+    public static List<Color> ReadBgr15Palette(byte[] bytes)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 1; i += 2)
+      {
+        ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).Reverse().ToArray(), 0);
+        byte red = (byte)((color >> 10) & 0x1F);
+        byte green = (byte)((color >> 5) & 0x1F);
+        byte blue = (byte)(color & 0x1F);
+
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+
+        Color rgbColor = Color.FromArgb(blue, green, red);
+        colors.Add(rgbColor);
+      }
+
+      return colors;
+    }
+    public static ushort RgbToA1B5G5R5(int r, int g, int b)
+    {
+      // Validate RGB values
+      if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255)
+      {
+        throw new ArgumentException("RGB color values must be integers between 0 and 255.");
+      }
+
+      // Convert RGB to 5-bit values
+      ushort r5 = (ushort)(r >> 3);
+      ushort g5 = (ushort)(g >> 3);
+      ushort b5 = (ushort)(b >> 3);
+
+      // Construct the A1B5G5R5 color value
+      ushort a1b5g5r5 = (ushort)(0x8000 | (b5 << 10) | (g5 << 5) | r5); // 0x8000 sets the alpha bit to 1 (opaque)
+
+      return a1b5g5r5;
+    }
+    public static List<Color> ReadABgr15Palette(byte[] bytes, bool translucent = false)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 1; i += 2)
+      {
+        ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).ToArray(), 0);
+        bool alpha = ((color >> 15) & 0x1) > 0;  // 1 bit for Alpha
+        byte red = (byte)((color >> 10) & 0x1F);
+        byte green = (byte)((color >> 5) & 0x1F);
+        byte blue = (byte)(color & 0x1F);
+
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+        Color rgbColor;
+        if (alpha)
+        {
+          if (red == 0 && green == 0 && blue == 0)
+          {
+            rgbColor = Color.Black;
+          }
+          else
+          {
+            rgbColor = Color.FromArgb(translucent ? 128 : 255, blue, green, red);
+          }
+        } 
+        else
+        {
+          if (red == 0 && green == 0 && blue == 0)
+          {
+            rgbColor = Color.Transparent;
+          }
+          else
+          {
+            rgbColor = Color.FromArgb(255, blue, green, red);
+          }
+        }
+
+        colors.Add(rgbColor);
+      }
+
+      return colors;
+    }
     // Convert HSV color to RGB color
     static Color ColorFromHSV(float hue, float saturation, float value)
     {
@@ -59,9 +142,9 @@ namespace ExtractCLUT.Helpers
 
       for (int i = 0; i < bytes.Length - 2; i += 3)
       {
-        byte red = (byte)(bytes[i] * intensity);
-        byte green = (byte)(bytes[i + 1] * intensity);
-        byte blue = (byte)(bytes[i + 2] * intensity);
+        byte red = (byte)VgaTranslate(bytes[i]);
+        byte green = (byte)VgaTranslate(bytes[i + 1]);
+        byte blue = (byte)VgaTranslate(bytes[i + 2]);
 
         Color color = Color.FromArgb(red, green, blue);
         colors.Add(color);
@@ -72,13 +155,13 @@ namespace ExtractCLUT.Helpers
     {
       List<Color> colors = new List<Color>();
 
-      for (int i = 0; i < bytes.Length - 3; i += 4)
+      for (int i = 0; i < bytes.Length - 2; i += 4)
       {
-        byte red = (byte)(bytes[i] * intensity);
-        byte green = (byte)(bytes[i + 1] * intensity);
-        byte blue = (byte)(bytes[i + 2] * intensity);
+        byte red = (byte)(bytes[i] );
+        byte green = (byte)(bytes[i + 1] );
+        byte blue = (byte)(bytes[i + 2] );
 
-        Color color = Color.FromArgb(red, green, blue);
+        Color color = Color.FromArgb(blue, green, red);
         colors.Add(color);
       }
       return colors;
@@ -96,7 +179,7 @@ namespace ExtractCLUT.Helpers
       };
       List<byte[]> clutBanks = new List<byte[]>();
 
-      for (int bs = (int)startBank; bs <= 3; bs++)
+      for (int bs = startBank ?? 0; bs <= 3; bs++)
       {
         for (int i = 0; i <= data.Length - ClutHeaderSize; i++)
         {
@@ -109,6 +192,10 @@ namespace ExtractCLUT.Helpers
       }
 
       return -1;
+    }
+    private static byte VgaTranslate(byte value)
+    {
+      return (byte)(value * 255 / 63);
     }
 
     public static void RotateSubset(List<Color> colors, int startIndex, int endIndex, int permutations)
@@ -162,9 +249,13 @@ namespace ExtractCLUT.Helpers
 
     public static Bitmap CreateLabelledPalette(List<Color> colors)
     {
-      int squareSize = 32;
-      int cols = 16;
-      int rows = colors.Count / cols;
+      int squareSize = colors.Count / 2;
+      int cols = Math.Min(colors.Count/2, 32);
+      int rows = (int)Math.Ceiling(colors.Count / (double)cols);
+      int fontSize = squareSize / 4;
+
+      // Ensure at least one row even if colors list is empty
+      rows = Math.Max(rows, 1);
 
       // Calculate the width and height of the bitmap
       int width = squareSize * cols;
@@ -180,7 +271,7 @@ namespace ExtractCLUT.Helpers
         graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
 
         // Define the font and brush for the text
-        using (Font font = new Font("Arial", 8, FontStyle.Bold))
+        using (Font font = new Font("Arial", fontSize, FontStyle.Bold))
         using (Brush textBrush = new SolidBrush(Color.White))
         {
           for (int i = 0; i < colors.Count; i++)
@@ -194,13 +285,13 @@ namespace ExtractCLUT.Helpers
               graphics.FillRectangle(brush, xIndex * squareSize, yIndex * squareSize, squareSize, squareSize);
             }
 
-            // Draw the text (index) on the square
-            // string text = i.ToString();
-            // SizeF textSize = graphics.MeasureString(text, font);
-            // float x = (xIndex * squareSize) + (squareSize - textSize.Width) / 2;
-            // float y = (yIndex * squareSize) + (squareSize - textSize.Height) / 2;
+            //Draw the text (index) on the square
+            string text = i.ToString();
+            SizeF textSize = graphics.MeasureString(text, font);
+            float x = (xIndex * squareSize) + (squareSize - textSize.Width) / 2;
+            float y = (yIndex * squareSize) + (squareSize - textSize.Height) / 2;
 
-            // graphics.DrawString(text, font, textBrush, x, y);
+            graphics.DrawString(text, font, textBrush, x, y);
           }
         }
       }

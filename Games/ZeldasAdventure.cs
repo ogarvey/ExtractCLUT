@@ -306,7 +306,7 @@ public static class Functions
         //decode CLUT of sprite
         // var image = ImageFormatHelper.GenerateClutImage(colorTable, imageData, width, height, true);
         // image.Save(fileName, ImageFormat.Png);
-        var image = ImageFormatHelper.GenerateClutImage(colorTable, sprite, 384, 240);
+        var image = new Bitmap(GenerateClutImage(colorTable, sprite, 384, 240));
         if (sizeList.Count > 0)
         {
             for (int sIndex = 0; sIndex < sizeList.Count; sIndex++)

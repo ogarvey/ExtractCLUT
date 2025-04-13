@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using ExtractCLUT;
@@ -268,36 +269,88 @@ namespace ExtractCLUT.Helpers
 
       return trimmedArray;
     }
-
-    private static void ParseFont(byte[] data)
+    public static byte[] DecompressLZSS(byte[] encodedData)
     {
+      const int N = 0x1000;  // History buffer size
+      List<byte> decodedData = new List<byte>();
+      byte[] histbuff = new byte[N];  // History buffer (sliding window)
+      int bufpos = 0;  // Position in the sliding window
+      int outstreampos = 0;
 
-      // var fontfile = @"C:\Dev\Projects\Gaming\CD-i\Disc Images\Extracted\ALICE IN WONDERLAND\Output\atnc24cl.ai1_0_0_0.bin";
-
-      // var bytes = File.ReadAllBytes(fontfile).Skip(0x44).Take(0x24).ToArray();
-
-      var fontFileData = new CdiFontFile(data);
-
-      Console.WriteLine($"Found file data: {fontFileData}");
-      var Width = 280 * 8;
-      var Height = 15;
-      var clutImage = new Bitmap(Width, Height, PixelFormat.Format1bppIndexed);
-      for (int y = 0; y < Height; y++)
+      using (MemoryStream inStream = new MemoryStream(encodedData))
+      using (BinaryReader reader = new BinaryReader(inStream))
       {
-        for (int x = 0; x < Width;)
+        while (reader.BaseStream.Position < reader.BaseStream.Length)
         {
-          var i = y * Width + x;
-          var paletteByte = data[i];
-          // for each bit in paletteByte
-          for (int j = 7; j >= 0; j--)
+          byte flagbyte = reader.ReadByte();
+
+          for (int i = 0; i < 8; i++)
           {
-            var bit = (paletteByte >> j) & 1;
-            var paletteIndex = bit;
-            var color = paletteIndex == 0 ? Color.Black : Color.White;
-            clutImage.SetPixel(x++, y, color);
+            if ((flagbyte & (1 << i)) == 0)
+            {
+              // Read offset-length pair
+              if (reader.BaseStream.Position + 2 > reader.BaseStream.Length)
+                break;  // End of stream check
+
+              ushort offsetlen = reader.ReadUInt16();
+              int length = (offsetlen & 0xF) + 3;
+              int offset = (bufpos - (offsetlen >> 4)) & (N - 1);
+
+              for (int j = 0; j < length; j++)
+              {
+                byte tempa = histbuff[(offset + j) & (N - 1)];
+                decodedData.Add(tempa);
+                histbuff[bufpos] = tempa;
+                bufpos = (bufpos + 1) & (N - 1);
+              }
+            }
+            else
+            {
+              // Read literal byte
+              if (reader.BaseStream.Position >= reader.BaseStream.Length)
+                break;
+
+              byte tempa = reader.ReadByte();
+              decodedData.Add(tempa);
+              histbuff[bufpos] = tempa;
+              bufpos = (bufpos + 1) & (N - 1);
+            }
           }
         }
       }
+
+      return decodedData.ToArray();
+    }
+    public static Bitmap ParseFont(byte[] data)
+    {
+      // var fontFileData = new CdiFontFile(data);
+
+      // Console.WriteLine($"Found file data: {fontFileData}");
+      var Width = 280 * 8;
+      var Height = 15;
+      var clutImage = new Bitmap(Width, Height, PixelFormat.Format1bppIndexed);
+      try {
+        for (int y = 0; y < Height; y++)
+        {
+          for (int x = 0; x < Width;)
+          {
+            var i = y * Width + x;
+            var paletteByte = data[i];
+            // for each bit in paletteByte
+            for (int j = 7; j >= 0; j--)
+            {
+              var bit = (paletteByte >> j) & 1;
+              var paletteIndex = bit;
+              var color = paletteIndex == 0 ? Color.Black : Color.White;
+              clutImage.SetPixel(x++, y, color);
+            }
+          }
+        }
+      } catch (Exception ex) {
+        Console.WriteLine($"Error: {ex.Message}");
+        return clutImage;
+      }
+      return clutImage;
     }
      public static List<byte[]> SplitBinaryFileintoSectors(string filePath, int sectorSize)
     {
@@ -380,7 +433,27 @@ namespace ExtractCLUT.Helpers
       return -1; // Sequence not found
     }
 
+    public static void ResizeImagesInFolder(string folderToResize, ExpansionOrigin origin)
+    {
 
+      var imagesToResize = Directory.GetFiles(folderToResize, "*.png");
+
+      //get max width and height
+      var maxDimensions = ImageFormatHelper.FindMaxDimensions(folderToResize);
+
+      var expandWidth = maxDimensions.maxWidth;
+      var expandHeight = maxDimensions.maxHeight;
+
+      var expandedOutputFolder = Path.Combine(Path.GetDirectoryName(imagesToResize[0]), "expanded");
+
+      Directory.CreateDirectory(expandedOutputFolder);
+
+      foreach (var image in imagesToResize)
+      {
+        ImageFormatHelper.ExpandImage(image, expandWidth, expandHeight, origin, false, expandedOutputFolder);
+      }
+    }
+    
     public static List<byte[]> ExtractSpriteByteSequences(string? filePath, byte[]? data, byte[] startSequence, byte[] endSequence)
     {
       // Read all bytes from the file
@@ -463,6 +536,67 @@ namespace ExtractCLUT.Helpers
 
       return offsets;
     }
+    public static async Task DeduplicateBinaryFilesAsync(string directory, int size, bool topLevelOnly = true)
+    {
+      if (!Directory.Exists(directory))
+      {
+        throw new DirectoryNotFoundException($"Directory '{directory}' not found.");
+      }
+
+      var fileHashes = new Dictionary<string, string>(); // Hash -> FilePath
+      var filesToDelete = new List<string>();
+
+      foreach (var filePath in Directory.EnumerateFiles(directory, "*.bin", topLevelOnly ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories)) // Only top level.
+      {
+        if (new FileInfo(filePath).Length != size) // check size first
+        {
+          Console.WriteLine($"Skipping file '{filePath}' - not {size} bytes.");
+          continue;
+        }
+
+        string fileHash = await CalculateFileHashAsync(filePath, size);
+
+        if (fileHashes.ContainsKey(fileHash))
+        {
+          filesToDelete.Add(filePath); // Mark for deletion
+          Console.WriteLine($"Duplicate found: '{filePath}' (matches '{fileHashes[fileHash]}')");
+        }
+        else
+        {
+          fileHashes.Add(fileHash, filePath);
+        }
+      }
+
+      // Delete duplicates (do this *after* enumeration to avoid issues with modifying the collection).
+      foreach (var fileToDelete in filesToDelete)
+      {
+        try
+        {
+          File.Delete(fileToDelete);
+          Console.WriteLine($"Deleted: '{fileToDelete}'");
+        }
+        catch (Exception ex)
+        {
+          Console.WriteLine($"Error deleting '{fileToDelete}': {ex.Message}");
+        }
+      }
+    }
+
+
+    private static async Task<string> CalculateFileHashAsync(string filePath, int size)
+    {
+      await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+      using var sha256 = SHA256.Create(); // Or MD5 if suitable.
+
+      // For 32-byte files, reading all at once is likely fastest.
+      var buffer = new byte[size];
+      await fileStream.ReadAsync(buffer, 0, size);
+      byte[] hashBytes = await sha256.ComputeHashAsync(new MemoryStream(buffer));
+
+
+      return Convert.ToBase64String(hashBytes); // Or Convert.ToHexString(hashBytes) for hex.
+    }
+    
     public static byte[] FindSequenceAndGetPriorBytes(string filePath, byte[] sequence, int bytesToGet)
     {
       byte[] fileBytes = File.ReadAllBytes(filePath);

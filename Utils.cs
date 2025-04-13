@@ -11,16 +11,6 @@ namespace ExtractCLUT
 {
   public static class Utils
   {
-    // utils.multiply = function(component, multiplier)
-    // {
-    //   if (!isFinite(multiplier) || multiplier === 0)
-    //   {
-    //     return 0;
-    //   }
-
-    //   return Math.round(component * multiplier);
-    // };
-
     public static int Multiply(int component, int multiplier)
     {
       if (double.IsInfinity(multiplier) || multiplier == 0)
@@ -43,11 +33,13 @@ namespace ExtractCLUT
 
       return Encoding.ASCII.GetString(byteList.ToArray());
     }
+
     public static int bytesToInt(this byte[] bytes)
     {
       return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
     }
-    public static ushort ReadBigEndianUInt16(BinaryReader reader)
+
+    public static ushort ReadBigEndianUInt16(this BinaryReader reader)
     {
       byte[] bytes = reader.ReadBytes(2);
       Array.Reverse(bytes);
@@ -74,7 +66,34 @@ namespace ExtractCLUT
       Array.Reverse(bytes);
       return BitConverter.ToInt32(bytes, 0);
     }
-    
+
+    public static byte[] ReadBigEndianBytes(this BinaryReader reader, int count)
+    {
+      byte[] bytes = reader.ReadBytes(count);
+      Array.Reverse(bytes);
+      return bytes;
+    }
+
+    public static byte GetBitsFromByte(byte b, int count, int offset = 0)
+    {
+      {
+        //information about how this works on file: bitwise_description.txt
+        return (byte)((b >> offset) & ((1 << count) - 1));
+      }
+    }
+
+
+    //Information about this method on file: bitwise_operators.html
+    public static bool CheckBitState(byte b, int bitnumber)
+    {
+      return (b & 1 << bitnumber) != 0;
+    }
+
+    public static bool CheckBitState(ushort b, int bitnumber)
+    {
+      return (b & 1 << bitnumber) != 0;
+    }
+
     public static bool MatchesSequence(BinaryReader reader, byte[] sequence)
     {
       for (int i = 0; i < sequence.Length; i++)
@@ -90,6 +109,7 @@ namespace ExtractCLUT
 
       return true;
     }
+
     public static IEnumerable<(T item, int index)> WithIndex<T>(this IEnumerable<T> source)
     {
       return source.Select((item, index) => (item, index));
@@ -122,6 +142,7 @@ namespace ExtractCLUT
 
       return paletteBytes;
     }
+
     public static void SplitCsvFiles(string directoryPath, string outputFile)
     {
       // Get all files in the directory
@@ -155,6 +176,7 @@ namespace ExtractCLUT
 
     public static Bitmap CreateImage(byte[] imageBin, List<Color> colors, int Width, int Height, bool useTransparency = false)
     {
+      var pal = colors.ToArray();
       // convert each byte of imageBin to an int and use that as an index into the colors array to create a 384 pixel wide image
       var image = new Bitmap(Width, Height);
       var graphics = Graphics.FromImage(image);
@@ -165,17 +187,17 @@ namespace ExtractCLUT
       var height = 1;
       if (useTransparency)
       {
-        colors[0] = Color.Transparent;
+        pal[0] = Color.Transparent;
       }
       foreach (var b in imageBin)
       {
-        if (b >= colors.Count)
+        if (b >= pal.Length)
         {
-          brush.Color = colors[b % colors.Count];
+          brush.Color = pal[b % colors.Count];
         }
         else
         {
-          brush.Color = colors[b];
+          brush.Color = pal[b];
         }
         graphics.FillRectangle(brush, x, y, width, height);
         x += width;
@@ -299,5 +321,18 @@ namespace ExtractCLUT
       reader.BaseStream.Seek(-1, SeekOrigin.Current);
       return nextByte;
     }
+
+    public static ushort PeekUInt16(this BinaryReader reader)
+    {
+      if (reader.BaseStream.Position + 2 > reader.BaseStream.Length)
+      {
+        return 0;
+      }
+
+      byte[] bytes = reader.ReadBytes(2);
+      reader.BaseStream.Seek(-2, SeekOrigin.Current);
+      return BitConverter.ToUInt16(bytes, 0);
+    }
+  
   }
 }
