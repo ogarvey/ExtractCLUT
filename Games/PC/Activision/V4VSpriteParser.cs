@@ -7,8 +7,200 @@ using System.Threading.Tasks;
 
 namespace ExtractCLUT.Games.PC.Activision
 {
-	public static class V4VSpriteParser
+	public static class PHEWHelper
 	{
+
+		public static Bitmap ParseLevelBackground(byte[] levelFileData, bool isPitfall = false)
+		{
+			var tileWidth = 8;
+			var tileHeight = 8;
+
+			ArgumentNullException.ThrowIfNull(levelFileData);
+
+			if (levelFileData.Length < 20) // Minimum size for header
+			{
+				throw new ArgumentException("Level file data is too short to contain a valid header.", nameof(levelFileData));
+			}
+
+			int dataCursor = 0;
+
+			// Read layer header data
+			// Assuming Little Endian format like most Windows systems
+			uint tileCCount = BitConverter.ToUInt16(levelFileData, dataCursor);
+			dataCursor += isPitfall ? 4 : 2;
+			uint tileRCount = BitConverter.ToUInt16(levelFileData, dataCursor);
+			dataCursor += isPitfall ? 4 : 6;
+			// Offsets are relative to the start of the segment (layerStart, which is 0 here)
+			uint tilePoolOffset = BitConverter.ToUInt32(levelFileData, dataCursor);
+			dataCursor += 4;
+			uint layerPaletteOffset = BitConverter.ToUInt32(levelFileData, dataCursor);
+			dataCursor += 4;
+			uint paletteColorCount = BitConverter.ToUInt32(levelFileData, dataCursor);
+			dataCursor += 4;
+			int tileRefsOffset = dataCursor; // Position where tile references start
+
+			// Basic offset validation
+			if (layerPaletteOffset >= levelFileData.Length || tilePoolOffset >= levelFileData.Length || tilePoolOffset >= layerPaletteOffset)
+			{
+				throw new ArgumentException("Invalid offsets detected in header.", nameof(levelFileData));
+			}
+
+			// --- Load Palette ---
+			// C# List uses 0-based indexing. We'll add transparent as the first color explicitly.
+			List<Color> palette = new List<Color>();
+			palette.Add(Color.FromArgb(0, 0, 0, 0)); // Index 0 is fully transparent
+
+			dataCursor = (int)layerPaletteOffset; // Move cursor to palette data
+
+			for (int p = 0; p < paletteColorCount; p++)
+			{
+				if (dataCursor + 3 > levelFileData.Length)
+					throw new ArgumentException("Reached end of file while reading palette.", nameof(levelFileData));
+
+				byte r = levelFileData[dataCursor];
+				byte g = levelFileData[dataCursor + 1];
+				byte b = levelFileData[dataCursor + 2];
+				palette.Add(Color.FromArgb(255, r, g, b)); // Add as fully opaque RGB color
+				dataCursor += 3;
+			}
+
+			// --- Load Tile Pool ---
+			dataCursor = (int)tilePoolOffset; // Move cursor to tile pool data
+			int tileSizeInBytes = tileWidth * tileHeight; // Each byte is a palette index
+			int tilePoolSizeBytes = (int)(layerPaletteOffset - tilePoolOffset);
+
+			if (tilePoolSizeBytes < 0 || tileSizeInBytes == 0)
+			{
+				throw new ArgumentException("Invalid tile pool size calculation based on offsets.", nameof(levelFileData));
+			}
+			if (tilePoolSizeBytes % tileSizeInBytes != 0)
+			{
+				// This might indicate an issue with the assumed tileWidth/tileHeight or the file format
+				Console.WriteLine($"Warning: Tile pool size ({tilePoolSizeBytes}) is not an exact multiple of calculated tile data size ({tileSizeInBytes}).");
+				// Allow continuing, but it might lead to errors later. A stricter check could throw here.
+			}
+
+			int tileCount = tilePoolSizeBytes / tileSizeInBytes;
+			List<Bitmap> tilePool = new List<Bitmap>(tileCount);
+
+			for (int t = 0; t < tileCount; t++)
+			{
+				// Create a bitmap for the tile with Alpha channel support
+				Bitmap tileBitmap = new Bitmap(tileWidth, tileHeight, PixelFormat.Format32bppArgb);
+
+				for (int r = 0; r < tileHeight; r++) // Tile row (y)
+				{
+					for (int c = 0; c < tileWidth; c++) // Tile column (x)
+					{
+						if (dataCursor >= levelFileData.Length)
+							throw new ArgumentException("Reached end of file while reading tile pool data.", nameof(levelFileData));
+
+						byte paletteIndex = levelFileData[dataCursor];
+
+						if (paletteIndex >= palette.Count)
+							throw new ArgumentException($"Invalid palette index {paletteIndex} encountered in tile data (Palette size: {palette.Count}).", nameof(levelFileData));
+
+						// Get color from palette (index 0 is transparent, others map directly)
+						Color pixelColor = palette[paletteIndex];
+						tileBitmap.SetPixel(c, r, pixelColor); // SetPixel uses (x, y) order
+
+						dataCursor++;
+					}
+				}
+				tilePool.Add(tileBitmap);
+			}
+
+			// --- Build Composite Image ---
+			int compositeWidth = (int)tileCCount * tileWidth;
+			int compositeHeight = (int)tileRCount * tileHeight;
+
+			if (compositeWidth <= 0 || compositeHeight <= 0)
+			{
+				throw new ArgumentException("Invalid composite image dimensions calculated.", nameof(levelFileData));
+			}
+
+			Bitmap compositeImage = new Bitmap(compositeWidth, compositeHeight, PixelFormat.Format32bppArgb);
+
+			// Use Graphics object to draw tiles onto the composite image
+			using (Graphics graphics = Graphics.FromImage(compositeImage))
+			{
+				// Optional: Set background to transparent or a default color if needed
+				graphics.Clear(Color.Transparent);
+
+				dataCursor = tileRefsOffset; // Move cursor to tile reference data
+
+				for (int r = 0; r < tileRCount; r++) // Tile grid row
+				{
+					for (int c = 0; c < tileCCount; c++) // Tile grid column
+					{
+						if (dataCursor + 2 > levelFileData.Length)
+							throw new ArgumentException("Reached end of file while reading tile references.", nameof(levelFileData));
+
+						// Get tile entry (16 bits)
+						ushort fullVal = BitConverter.ToUInt16(levelFileData, dataCursor);
+						dataCursor += 2;
+
+						// Extract index (lower 12 bits) - Assuming 0-based index in file
+						int index = fullVal & 0x0FFF; // Mask for lower 12 bits
+
+						if (index >= tilePool.Count)
+							throw new ArgumentException($"Invalid tile index {index} encountered in map data (Tile pool size: {tilePool.Count}).", nameof(levelFileData));
+
+
+						// Extract Flags (upper 4 bits)
+						// Bit 13 -> flagsBits & 1
+						// Bit 14 -> flagsBits & 2
+						// Bit 15 -> flagsBits & 4
+						// Bit 16 -> flagsBits & 8 (Sprite Priority - Ignored here)
+						int flagsBits = (fullVal >> 12) & 0x0F; // Shift down 12, mask lowest 4
+																										// bool fTilePriority = (flagsBits & 0b0001) != 0; // Ignored
+						bool fVertFlip = (flagsBits & 0b0010) != 0;
+						bool fHorzFlip = (flagsBits & 0b0100) != 0;
+						// bool fSpritePriority = (flagsBits & 0b1000) != 0; // Ignored
+
+						// Get referenced tile
+						Bitmap baseTile = tilePool[index];
+						Bitmap tileToDraw = baseTile; // Start with the original reference
+
+						// --- Modify tile if needed ---
+						// Clone the bitmap *only* if we need to flip it,
+						// otherwise RotateFlip modifies the original in the pool.
+						if (fVertFlip || fHorzFlip)
+						{
+							tileToDraw = (Bitmap)baseTile.Clone(); // Work on a copy
+
+							if (fVertFlip && fHorzFlip)
+								tileToDraw.RotateFlip(RotateFlipType.RotateNoneFlipXY);
+							else if (fVertFlip)
+								tileToDraw.RotateFlip(RotateFlipType.RotateNoneFlipY);
+							else if (fHorzFlip)
+								tileToDraw.RotateFlip(RotateFlipType.RotateNoneFlipX);
+						}
+
+						// Calculate position to draw the tile
+						int destX = c * tileWidth;
+						int destY = r * tileHeight;
+
+						// Stitch tile to picture
+						graphics.DrawImage(tileToDraw, destX, destY, tileWidth, tileHeight);
+
+						// If we cloned the tile, dispose the clone after drawing
+						if (tileToDraw != baseTile)
+						{
+							tileToDraw.Dispose();
+						}
+					}
+				}
+			} // Graphics object is disposed here
+
+			// --- Cleanup Note ---
+			// The bitmaps in tilePool are not explicitly disposed here.
+			// They will be garbage collected. If this function were called
+			// extremely frequently with large tile pools, managing their
+			// disposal might be necessary, but usually GC is sufficient.
+
+			return compositeImage; // Return the final assembled image
+		}
 
 		// Constants matching MATLAB hex2dec
 		private const byte ROW_END_MARKER = 0x7F; // 127
@@ -350,10 +542,10 @@ namespace ExtractCLUT.Games.PC.Activision
 			void LoadPalette(int paletteOffset, ushort paletteColorCount, bool isFormat1 = false)
 			{
 				palette.Clear();
-				palette.Add(Color.FromArgb(0, 0, 0, 0)); // Index 0 = Transparent
+				//palette.Add(Color.FromArgb(0, 0, 0, 0)); // Index 0 = Transparent
 				dataCursor = paletteOffset; // Use local cursor copy for safety if needed
 				int initialCursor = dataCursor;
-				for (int c = 1; c < paletteColorCount; c++)
+				for (int c = 0; c < paletteColorCount; c++)
 				{
 					if (initialCursor + (c * 3) + 3 > spriteFileData.Length) throw new ArgumentException($"Reached end of file while reading palette color {c}.", nameof(spriteFileData));
 					byte r = spriteFileData[initialCursor + (c * 3)];
@@ -560,7 +752,24 @@ namespace ExtractCLUT.Games.PC.Activision
 							for (int p = 0; p < header.Columns; p++)
 							{
 								byte? colorIndex = (p < parsedRowPixels.Count) ? parsedRowPixels[p] : null;
-								Color pixelColor = (colorIndex == null) ? palette[0] : palette[colorIndex.Value];
+								Color pixelColor; // Default to transparent
+
+								// --- CHANGE: Determine color based on RLE result ---
+								if (colorIndex == null)
+								{
+									// Null from RLE explicitly means transparent
+									pixelColor = Color.Transparent; // Use Color.Transparent struct directly
+								}
+								else
+								{
+									// Non-null index from RLE maps directly to the loaded palette
+									if (colorIndex.Value >= palette.Count)
+									{
+										throw new ArgumentException($"Invalid palette index {colorIndex.Value} derived from RLE for sprite {i}, pixel ({p},{r}) (Palette size: {palette.Count}).", nameof(spriteFileData));
+									}
+									// Index 0 now correctly maps to palette[0] (first color from file)
+									pixelColor = palette[colorIndex.Value];
+								}
 
 								// Calculate destination coordinates within the UNIFIED bitmap frame
 								// Destination = (Pixel's logical position) - (Global Frame's logical top-left corner)

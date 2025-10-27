@@ -1,4 +1,5 @@
 using ExtractCLUT.Helpers;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -42,7 +43,7 @@ namespace ExtractCLUT.Games.PC.MADS
                 var spriteFileData = sprite.GetEntryData(3);
                 var spriteHeaderList = new List<SpriteHeader>();
 
-                var palette = new List<Rgba32>();
+                var palette = new List<Color>();
                 var count = palReader.ReadUInt16();
                 for (int i = 0; i < count; i++)
                 {
@@ -86,7 +87,7 @@ namespace ExtractCLUT.Games.PC.MADS
                         continue;
                     }
                     //File.WriteAllBytes(Path.Combine(dir, $"sprite_{sIndex}.bin"), decodedSpriteData);
-                    var image = ImageFormatHelper.GenerateClutImage(palette, decodedSpriteData, sh.Width, sh.Height, true, 0xff, false);
+                    var image = ImageFormatHelper.GenerateIMClutImage(palette, decodedSpriteData, sh.Width, sh.Height, true, 0xff, false);
 
                     var imageOutputPath = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(spriteFile) + $"_{sIndex}.png");
                     var imgOutputStream = new FileStream(imageOutputPath, FileMode.Create);

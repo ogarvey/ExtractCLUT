@@ -10,11 +10,12 @@ namespace ExtractCLUT.Games.PC.SCI
 {
     public static class SCIUtils
     {
-        public static void ExtractV56Files(string srcPath)
+        public static void ExtractV56Files(string srcPath, List<Color>? overridePalette = null)
         {
             var v56Files = Directory.GetFiles(srcPath, "*.v56", SearchOption.AllDirectories);
             foreach (var v56File in v56Files)
             {
+                var outputDir = Path.Combine(srcPath, "out", "images_v56_offset", Path.GetFileNameWithoutExtension(v56File));
                 var data = File.ReadAllBytes(v56File);
                 if (data[0] == 0x80 && data[1] == 0x80) data = data.Skip(0x1a).ToArray();
                 var headerSize = BitConverter.ToUInt16(data.Take(2).ToArray(), 0) + 2;
@@ -169,15 +170,19 @@ namespace ExtractCLUT.Games.PC.SCI
                         }
                         if (palette.Count == 0)
                         {
-                            var outputFolder = Path.Combine(Path.GetDirectoryName(v56File), "out", "data");
-                            Directory.CreateDirectory(outputFolder);
-                            File.WriteAllBytes(Path.Combine(outputFolder, $"{Path.GetFileNameWithoutExtension(v56File)}_{i}_{j}__{cel.Width}_{cel.Height}_data.bin"), cel.RawBitmap);
-                            continue;
+                            palette = overridePalette ?? new List<Color>();
+                        }
+                        if (palette.Count == 0)
+                        {
+                            // generate greyscale palette
+                            for (int k = 0; k < 256; k++)
+                            {
+                                palette.Add(Color.FromArgb(k, k, k));
+                            }
                         }
                         var colCount = palette.Count;
-                        palette[cel.ClearKey > colCount ? colCount - 1 : cel.ClearKey] = Color.Transparent;
-                        var image = ImageFormatHelper.GenerateClutImage(palette, cel.RawBitmap, cel.Width, cel.Height);
-                        var outputDir = Path.Combine(srcPath, "out", "images_v56_offset", Path.GetFileNameWithoutExtension(v56File));
+                        //if (cel.ClearKey > 0) palette[cel.ClearKey > colCount ? colCount - 1 : cel.ClearKey-1] = Color.Transparent;
+                        var image = ImageFormatHelper.GenerateClutImage(palette, cel.RawBitmap, cel.Width, cel.Height, true, cel.ClearKey, false, true);
                         Directory.CreateDirectory(outputDir);
                         if (loop.MirrorFlag) image.RotateFlip(RotateFlipType.RotateNoneFlipX);
                         // take into account cel.X and cel.Y, these should offset the image from the top left corner
@@ -187,6 +192,8 @@ namespace ExtractCLUT.Games.PC.SCI
                     }
                     loops[i] = loop;
                 }
+
+                FileHelpers.AlignSpriteSequences(outputDir, Path.Combine(outputDir, "aligned"));
             }
 
 

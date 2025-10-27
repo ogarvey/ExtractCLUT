@@ -536,10 +536,10 @@ namespace ExtractCLUT.Games
                 // channel1 is the screen map
                 var channel1Data = sectorList.Where(s => s.Channel == 1).SelectMany(s => s.GetSectorData()).ToArray();
                 var screenMapBytes = channel1Data.Take(0x1600).ToArray();
-                //var screenMapCsv = GetScreenBytesAsCsv(screenMapBytes);
-                //File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}.csv"), screenMapCsv);
-                //screenMapCsv = GetScreenBytesAsCsv(screenMapBytes, true);
-                // File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}_FG.csv"), screenMapCsv);
+                var screenMapCsv = GetScreenBytesAsCsv(screenMapBytes);
+                File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}.csv"), screenMapCsv);
+                screenMapCsv = GetScreenBytesAsCsv(screenMapBytes, true);
+                File.WriteAllText(Path.Combine(screenCsvOutput, $"ScreenMap_{recordIndex - 5}_FG.csv"), screenMapCsv);
                 var screenMapImage = CreateScreenImage(screenTiles, screenMapBytes, screenPalette);
                 screenMapImage.Item1.Save(Path.Combine(screenImagesOutput, $"{recordIndex - 5}.png"), ImageFormat.Png);
                 // File.WriteAllBytes(Path.Combine(screenImagesOutput, $"{recordIndex - 5}.bin"), screenMapImage.Item2);
@@ -553,7 +553,7 @@ namespace ExtractCLUT.Games
                 File.WriteAllBytes(Path.Combine(binaryOutput, $"Channel3_{recordIndex - 5}.bin"), channel3Data);
                 // channel7 DYUV Dialogue bg
                 var channel7Data = sectorList.Where(s => s.Channel == 7).SelectMany(s => s.GetSectorData()).ToArray();
-                var dyuvImage = ImageFormatHelper.DecodeDYUVImage(channel7Data, 384, 240, 16);
+                var dyuvImage = DecodeDYUVImage(channel7Data, 384, 240, 16);
                 dyuvImage.Save(Path.Combine(dyuvOutput, $"Dialogue_{recordIndex - 5}.png"), ImageFormat.Png);
                 break;
               }
@@ -827,7 +827,7 @@ namespace ExtractCLUT.Games
       return Color.Cyan;
     }
 
-    public static void ExtractInventory(byte[] llInventory)
+    public static void ExtractInventory(byte[] llInventory, string outputFolder)
     {
       var palBytes = llInventory.Take(0x80).ToArray();
       var palette = ReadPalette(palBytes);
@@ -875,8 +875,12 @@ namespace ExtractCLUT.Games
                 }
               }
             }
-            var image = ImageFormatHelper.GenerateClutImage(palette, combinedQuads, 16, 16, true);
-            image.Save($@"C:\Dev\Projects\Gaming\CD-i\LLExtractRaw\Laser Lords\Exploration\Inventory\output\combined\{i}_{j}.png");
+            var image = GenerateClutImage(palette, combinedQuads, 16, 16, true);
+            if (!Directory.Exists($@"{outputFolder}\combined\"))
+            {
+              Directory.CreateDirectory($@"{outputFolder}\combined\");
+            }
+            image.Save($@"{outputFolder}\combined\{i}_{j}.png");
           }
         }
         else if (i > 320)

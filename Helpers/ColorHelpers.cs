@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using SixLabors.ImageSharp.PixelFormats;
 using Color = System.Drawing.Color;
 using SizeF = System.Drawing.SizeF;
 
@@ -93,7 +94,7 @@ namespace ExtractCLUT.Helpers
           {
             rgbColor = Color.FromArgb(translucent ? 128 : 255, blue, green, red);
           }
-        } 
+        }
         else
         {
           if (red == 0 && green == 0 && blue == 0)
@@ -136,37 +137,173 @@ namespace ExtractCLUT.Helpers
       else
         return Color.FromArgb(255, v, p, q);
     }
-    public static List<Color> ConvertBytesToRGB(byte[] bytes, int intensity = 1)
+    public static List<Color> ConvertBytesToRGB(byte[] bytes, bool translate = false)
     {
       List<Color> colors = new List<Color>();
 
       for (int i = 0; i < bytes.Length - 2; i += 3)
       {
-        byte red = (byte)VgaTranslate(bytes[i]);
-        byte green = (byte)VgaTranslate(bytes[i + 1]);
-        byte blue = (byte)VgaTranslate(bytes[i + 2]);
+        byte red = translate ? VgaTranslate(bytes[i]) : (bytes[i]);
+        byte green = translate ? VgaTranslate(bytes[i + 1]) : (bytes[i + 1]);
+        byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
 
         Color color = Color.FromArgb(red, green, blue);
         colors.Add(color);
       }
       return colors;
     }
-    public static List<Color> ConvertBytesToARGB(byte[] bytes, int intensity = 1)
+
+    public static List<SixLabors.ImageSharp.Color> ConvertBytesToRgbIS(byte[] bytes, bool translate = false)
     {
-      List<Color> colors = new List<Color>();
+      List<SixLabors.ImageSharp.Color> colors = new List<SixLabors.ImageSharp.Color>();
 
-      for (int i = 0; i < bytes.Length - 2; i += 4)
+      for (int i = 0; i < bytes.Length - 2; i += 3)
       {
-        byte red = (byte)(bytes[i] );
-        byte green = (byte)(bytes[i + 1] );
-        byte blue = (byte)(bytes[i + 2] );
+        byte red = translate ? VgaTranslate(bytes[i]) : (bytes[i]);
+        byte green = translate ? VgaTranslate(bytes[i + 1]) : (bytes[i + 1]);
+        byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
 
-        Color color = Color.FromArgb(blue, green, red);
+        Rgba32 color = new Rgba32(red, green, blue);
         colors.Add(color);
       }
       return colors;
     }
 
+    public static List<Color> ConvertBytesToRGBA(byte[] bytes)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte red = (byte)(bytes[i]);
+        byte green = (byte)(bytes[i + 1]);
+        byte blue = (byte)(bytes[i + 2]);
+        byte alpha = 255;
+
+        Color color = Color.FromArgb(alpha, red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+
+    public static List<Color> ConvertBytesToBGRA(byte[] bytes)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte blue = (byte)(bytes[i]);
+        byte green = (byte)(bytes[i + 1]);
+        byte red = (byte)(bytes[i + 2]);
+        byte alpha = 255;
+
+        Color color = Color.FromArgb(alpha, red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+
+    public static List<Color> ConvertBytesToRGB(byte[] bytes, byte transR, byte transG, byte transB, bool translate = false)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 2; i += 3)
+      {
+        byte red = translate ? VgaTranslate(bytes[i]) : (bytes[i]);
+        byte green = translate ? VgaTranslate(bytes[i + 1]) : (bytes[i + 1]);
+        byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
+        if (red == transR && green == transG && blue == transB)
+        {
+          Color color = Color.Transparent;
+          colors.Add(color);
+        }
+        else
+        {
+          Color color = Color.FromArgb(red, green, blue);
+          colors.Add(color);
+        }
+      }
+      return colors;
+    }
+
+
+    public static List<Color> ReadRgb15Palette(byte[] bytes)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 1; i += 2)
+      {
+        ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).Reverse().ToArray(), 0);
+        byte red = (byte)((color >> 10) & 0x1F);
+        byte green = (byte)((color >> 5) & 0x1F);
+        byte blue = (byte)(color & 0x1F);
+
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+
+        Color rgbColor = Color.FromArgb(red, green, blue);
+        colors.Add(rgbColor);
+      }
+
+      return colors;
+    }
+
+    public static List<Color> ConvertBytesToARGB(byte[] bytes, int intensity = 1)
+    {
+      List<Color> colors = new List<Color>();
+
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte red = (byte)(bytes[i]);
+        byte green = (byte)(bytes[i + 1]);
+        byte blue = (byte)(bytes[i + 2]);
+
+        Color color = Color.FromArgb(red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+
+    public static List<SixLabors.ImageSharp.Color> ConvertBytesToArgbIS(byte[] bytes, int intensity = 1)
+    {
+      List<SixLabors.ImageSharp.Color> colors = new List<SixLabors.ImageSharp.Color>();
+
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte red = (byte)(bytes[i]);
+        byte green = (byte)(bytes[i + 1]);
+        byte blue = (byte)(bytes[i + 2]);
+
+        Rgba32 color = new Rgba32(red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+
+    public static List<SixLabors.ImageSharp.Color> ReadABgr15PaletteIS(byte[] bytes)
+    {
+      List<SixLabors.ImageSharp.Color> colors = new List<SixLabors.ImageSharp.Color>();
+
+      for (int i = 0; i < bytes.Length - 1; i += 2)
+      {
+        ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).ToArray(), 0);
+        byte alpha = (byte)((color >> 15) & 0x1);  // 1 bit for Alpha
+        byte red = (byte)((color >> 10) & 0x1F);
+        byte green = (byte)((color >> 5) & 0x1F);
+        byte blue = (byte)(color & 0x1F);
+
+        alpha = (byte)(alpha == 0 ? 0 : 255);
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+
+        SixLabors.ImageSharp.Color rgbColor = new Rgba32(blue, green, red, 255);
+        colors.Add(rgbColor);
+      }
+
+      return colors;
+    }
     public static int FindClutColorTableOffset(byte[] data, int? startBank = null)
     {
       const int ClutHeaderSize = 4;
@@ -250,7 +387,7 @@ namespace ExtractCLUT.Helpers
     public static Bitmap CreateLabelledPalette(List<Color> colors)
     {
       int squareSize = colors.Count / 2;
-      int cols = Math.Min(colors.Count/2, 32);
+      int cols = Math.Min(colors.Count / 2, 32);
       int rows = (int)Math.Ceiling(colors.Count / (double)cols);
       int fontSize = squareSize / 4;
 
@@ -296,7 +433,7 @@ namespace ExtractCLUT.Helpers
         }
       }
 
-      return bitmap.Scale4();
+      return bitmap;
     }
 
     public static void WritePalette(string path, List<Color> colors)
@@ -306,13 +443,16 @@ namespace ExtractCLUT.Helpers
       bitmap.Save(path, ImageFormat.Png);
     }
 
-    public static List<Color> ReadPalette(byte[] data)
+    public static List<Color> ReadPalette(byte[] data, bool translate = false)
     {
       var length = (int)data.Length;
       List<Color> colors = new List<Color>();
       for (int i = 0; i < length; i += 4)
       {
-        var color = Color.FromArgb(255, data[i + 1], data[i + 2], data[i + 3]);
+        var r = translate ? VgaTranslate(data[i + 1]) : data[i + 1];
+        var g = translate ? VgaTranslate(data[i + 2]) : data[i + 2];
+        var b = translate ? VgaTranslate(data[i + 3]) : data[i + 3];
+        var color = Color.FromArgb(255, r, g, b);
         colors.Add(color);
       }
       return colors;

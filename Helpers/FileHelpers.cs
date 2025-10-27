@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -16,7 +17,7 @@ namespace ExtractCLUT.Helpers
     {
       if (input == null || input.Length == 0)
       {
-        return input;
+        return new byte[0];
       }
 
       List<byte> output = new List<byte>();
@@ -275,7 +276,6 @@ namespace ExtractCLUT.Helpers
       List<byte> decodedData = new List<byte>();
       byte[] histbuff = new byte[N];  // History buffer (sliding window)
       int bufpos = 0;  // Position in the sliding window
-      int outstreampos = 0;
 
       using (MemoryStream inStream = new MemoryStream(encodedData))
       using (BinaryReader reader = new BinaryReader(inStream))
@@ -433,6 +433,588 @@ namespace ExtractCLUT.Helpers
       return -1; // Sequence not found
     }
 
+    public static List<long> FindByteSequenceMemoryMapped(string filePath, byte[] pattern)
+    {
+      var offsets = new List<long>();
+      using var mmf = MemoryMappedFile.CreateFromFile(filePath, FileMode.Open, "search", 0);
+      using var accessor = mmf.CreateViewAccessor();
+
+      long fileSize = new FileInfo(filePath).Length;
+      int patternLength = pattern.Length;
+
+      // Boyer-Moore bad character table
+      var badCharTable = new int[256];
+      for (int i = 0; i < 256; i++)
+        badCharTable[i] = patternLength;
+      for (int i = 0; i < patternLength - 1; i++)
+        badCharTable[pattern[i]] = patternLength - 1 - i;
+
+      long pos = 0;
+      while (pos <= fileSize - patternLength)
+      {
+        int i = patternLength - 1;
+        while (i >= 0 && accessor.ReadByte(pos + i) == pattern[i])
+          i--;
+
+        if (i < 0)
+        {
+          offsets.Add(pos);
+          pos++;
+        }
+        else
+        {
+          byte currentByte = accessor.ReadByte(pos + i);
+          pos += Math.Max(1, badCharTable[currentByte] - (patternLength - 1 - i));
+        }
+      }
+
+      return offsets;
+    }
+
+    public static List<long> FindByteSequenceBuffered(string filePath, byte[] pattern)
+    {
+      var offsets = new List<long>();
+      const int bufferSize = 1024 * 1024; // 1MB buffer
+
+      // Build KMP failure function
+      var failure = new int[pattern.Length];
+      for (int i = 1, j = 0; i < pattern.Length; i++)
+      {
+        while (j > 0 && pattern[i] != pattern[j])
+          j = failure[j - 1];
+        if (pattern[i] == pattern[j])
+          j++;
+        failure[i] = j;
+      }
+
+      using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+      var buffer = new byte[bufferSize + pattern.Length - 1];
+      long fileOffset = 0;
+      int patternIndex = 0;
+      int bytesRead;
+
+      while ((bytesRead = fs.Read(buffer, 0, bufferSize)) > 0)
+      {
+        for (int i = 0; i < bytesRead; i++)
+        {
+          while (patternIndex > 0 && buffer[i] != pattern[patternIndex])
+            patternIndex = failure[patternIndex - 1];
+
+          if (buffer[i] == pattern[patternIndex])
+            patternIndex++;
+
+          if (patternIndex == pattern.Length)
+          {
+            offsets.Add(fileOffset + i - pattern.Length + 1);
+            patternIndex = failure[patternIndex - 1];
+          }
+        }
+
+        fileOffset += bytesRead;
+
+        // Handle pattern spanning buffer boundaries
+        if (bytesRead == bufferSize)
+        {
+          Array.Copy(buffer, bufferSize, buffer, 0, pattern.Length - 1);
+          fileOffset -= pattern.Length - 1;
+          fs.Seek(fileOffset, SeekOrigin.Begin);
+        }
+      }
+
+      return offsets;
+    }
+
+    public static List<long> FindByteSequenceSpan(string filePath, byte[] pattern)
+    {
+      var offsets = new List<long>();
+      var fileBytes = File.ReadAllBytes(filePath);
+      var span = fileBytes.AsSpan();
+
+      int index = 0;
+      while (index <= span.Length - pattern.Length)
+      {
+        int found = span.Slice(index).IndexOf(pattern);
+        if (found == -1)
+          break;
+
+        offsets.Add(index + found);
+        index += found + 1;
+      }
+
+      return offsets;
+    }
+
+    public static void CropSpritesToOptimalSize(string inputFolder, string outputFolder, int frameWidth = 320, int frameHeight = 200)
+    {
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      if (files.Length == 0)
+      {
+        Console.WriteLine("No PNG files found in input folder.");
+        return;
+      }
+
+      int minX = int.MaxValue, minY = int.MaxValue;
+      int maxX = int.MinValue, maxY = int.MinValue;
+
+      // First pass: calculate bounds
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int originX = int.Parse(match.Groups[2].Value);
+        int originY = int.Parse(match.Groups[3].Value);
+
+        using (var bmp = new Bitmap(file))
+        {
+          int spriteLeft = originX;
+          int spriteTop = originY;
+          int spriteRight = originX + bmp.Width;
+          int spriteBottom = originY + bmp.Height;
+
+          minX = Math.Min(minX, spriteLeft);
+          minY = Math.Min(minY, spriteTop);
+          maxX = Math.Max(maxX, spriteRight);
+          maxY = Math.Max(maxY, spriteBottom);
+        }
+      }
+
+      // Calculate crop dimensions
+      int totalWidth = maxX - minX;
+      int totalHeight = maxY - minY;
+      int cropWidth = Math.Min(totalWidth, frameWidth);
+      int cropHeight = Math.Min(totalHeight, frameHeight);
+
+      // Ensure minimum reasonable size
+      cropWidth = Math.Max(cropWidth, 32);
+      cropHeight = Math.Max(cropHeight, 32);
+
+      // Calculate centered crop area
+      int centerX = (minX + maxX) / 2;
+      int centerY = (minY + maxY) / 2;
+      int cropMinX = centerX - cropWidth / 2;
+      int cropMinY = centerY - cropHeight / 2;
+
+      Directory.CreateDirectory(outputFolder);
+
+      // Second pass: create cropped images
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int originX = int.Parse(match.Groups[2].Value);
+        int originY = int.Parse(match.Groups[3].Value);
+        int index = int.Parse(match.Groups[1].Value);
+
+        using (var sourceBmp = new Bitmap(file))
+        {
+          var croppedImage = new Bitmap(cropWidth, cropHeight);
+          using (var g = Graphics.FromImage(croppedImage))
+          {
+            g.Clear(Color.Transparent);
+
+            // Calculate position within the centered crop area
+            int drawX = originX - cropMinX;
+            int drawY = originY - cropMinY;
+
+            // Draw the sprite at its relative position within the centered crop bounds
+            g.DrawImage(sourceBmp, drawX, drawY);
+          }
+
+          string filename = Path.GetFileName(file);
+          string outputPath = Path.Combine(outputFolder, filename);
+          croppedImage.Save(outputPath);
+          croppedImage.Dispose();
+        }
+      }
+    }
+
+
+    public static void AlignAndCropSprites(string inputFolder, string outputFolder, int frameHeight, int sequenceSize = 4)
+    {
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      if (!files.Any())
+      {
+        Console.WriteLine("No PNG files found in input folder.");
+        return;
+      }
+
+      var allSprites = new List<(string path, int index, int originX, int originY, Bitmap bmp)>();
+
+      // Load all sprites and their info first
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int index = int.Parse(match.Groups[1].Value);
+        int originX = int.Parse(match.Groups[2].Value);
+        int originY = int.Parse(match.Groups[3].Value);
+        var bmp = new Bitmap(file);
+        allSprites.Add((file, index, originX, originY, bmp));
+      }
+
+      // Sort sprites by index to ensure correct sequencing
+      allSprites = allSprites.OrderBy(s => s.index).ToList();
+
+      Directory.CreateDirectory(outputFolder);
+
+      // Process sprites in batches based on sequenceSize
+      for (int i = 0; i < allSprites.Count; i += sequenceSize)
+      {
+        var sequenceSprites = allSprites.Skip(i).Take(sequenceSize).ToList();
+        if (!sequenceSprites.Any()) continue;
+
+        int minX = int.MaxValue, minY = int.MaxValue;
+        int maxX = int.MinValue, maxY = int.MinValue;
+
+        // First pass for the sequence: calculate combined bounding box
+        foreach (var (_, _, originX, originY, bmp) in sequenceSprites)
+        {
+          int drawX = originX;
+          int drawY = frameHeight - originY;
+
+          minX = Math.Min(minX, drawX);
+          minY = Math.Min(minY, drawY - bmp.Height);
+          maxX = Math.Max(maxX, drawX + bmp.Width);
+          maxY = Math.Max(maxY, drawY);
+        }
+
+        if (minX == int.MaxValue) continue;
+
+        int cropWidth = maxX - minX;
+        int cropHeight = maxY - minY;
+
+        // Second pass for the sequence: create aligned and cropped images
+        foreach (var (path, _, originX, originY, bmp) in sequenceSprites)
+        {
+          var croppedImage = new Bitmap(cropWidth, cropHeight);
+          using (var g = Graphics.FromImage(croppedImage))
+          {
+            g.Clear(Color.Transparent);
+
+            int conceptualDrawY = frameHeight - originY;
+            int conceptualDrawX = originX;
+
+            int finalDrawX = conceptualDrawX - minX;
+            int finalDrawY = conceptualDrawY - minY - bmp.Height;
+
+            g.DrawImage(bmp, finalDrawX, finalDrawY);
+          }
+
+          string filename = Path.GetFileName(path);
+          string outputPath = Path.Combine(outputFolder, filename);
+          croppedImage.Save(outputPath);
+          croppedImage.Dispose();
+        }
+      }
+
+      // Dispose of all loaded bitmaps
+      foreach (var sprite in allSprites)
+      {
+        sprite.bmp.Dispose();
+      }
+    }
+
+    public static void PositionSprites(string inputFolder, string outputFolder, int frameWidth, int frameHeight)
+    {
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      Directory.CreateDirectory(outputFolder);
+
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int originY = int.Parse(match.Groups[3].Value);
+        int originX = int.Parse(match.Groups[2].Value);
+        int index = int.Parse(match.Groups[1].Value);
+
+        using (Bitmap sourceBmp = new Bitmap(file))
+        {
+          Bitmap newImage = new Bitmap(frameWidth, frameHeight);
+          using (Graphics g = Graphics.FromImage(newImage))
+          {
+            g.Clear(Color.Transparent);
+
+            // Draw the image at the origin coordinates from top-left
+            g.DrawImage(sourceBmp, originX, originY);
+          }
+
+          string filename = Path.GetFileName(file);
+          string outputPath = Path.Combine(outputFolder, filename);
+          newImage.Save(outputPath);
+          newImage.Dispose();
+        }
+      }
+    }
+
+    public static void AlignSprites(string inputFolder, string outputFolder)
+    {
+
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      // var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      var images = new List<(string path, int originX, int originY, Bitmap bmp)>();
+
+      int left = int.MaxValue, top = int.MaxValue;
+      int right = int.MinValue, bottom = int.MinValue;
+
+      // Load all images and calculate frame size
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int originX = int.Parse(match.Groups[2].Value);
+        int originY = int.Parse(match.Groups[3].Value);
+        Bitmap bmp = new Bitmap(file);
+
+        int x0 = -originX;
+        int y0 = -originY;
+        int x1 = x0 + bmp.Width;
+        int y1 = y0 + bmp.Height;
+
+        left = Math.Min(left, x0);
+        top = Math.Min(top, y0);
+        right = Math.Max(right, x1);
+        bottom = Math.Max(bottom, y1);
+
+        images.Add((file, originX, originY, bmp));
+      }
+
+      int frameWidth = right - left;
+      int frameHeight = bottom - top;
+
+      int originFrameX = -left;
+      int originFrameY = -top;
+
+      // Console.WriteLine($"Calculated frame size: {frameWidth} x {frameHeight}");
+      // Console.WriteLine($"All origins aligned to point: ({originFrameX}, {originFrameY})");
+
+      Directory.CreateDirectory(outputFolder);
+
+      foreach (var (path, originX, originY, bmp) in images)
+      {
+        Bitmap newImage = new Bitmap(frameWidth, frameHeight);
+        using (Graphics g = Graphics.FromImage(newImage))
+        {
+          g.Clear(Color.Transparent);
+
+          int offsetX = originFrameX - originX;
+          int offsetY = originFrameY - originY;
+
+          g.DrawImage(bmp, offsetX, offsetY);
+        }
+
+        string filename = Path.GetFileName(path);
+        string outputPath = Path.Combine(outputFolder, filename);
+        newImage.Save(outputPath);
+      }
+    }
+
+    public static void AlignSpriteSequences(string inputFolder, string outputFolder)
+    {
+      //var regex = new Regex(@"(\d+)_(\d+)__(-?\d+)_(-?\d+)\.png");
+      var regex = new Regex(@"(\d+)_(\d+)_(-?\d+)_(-?\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      // Group files by sequence ID
+      var sequenceGroups = new Dictionary<int, List<(string path, int frameId, int originX, int originY, Bitmap bmp)>>();
+
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int sequenceId = int.Parse(match.Groups[1].Value);
+        int frameId = int.Parse(match.Groups[2].Value);
+        int originX = int.Parse(match.Groups[3].Value);
+        int originY = int.Parse(match.Groups[4].Value);
+        Bitmap bmp = new Bitmap(file);
+
+        if (!sequenceGroups.ContainsKey(sequenceId))
+        {
+          sequenceGroups[sequenceId] = new List<(string, int, int, int, Bitmap)>();
+        }
+
+        sequenceGroups[sequenceId].Add((file, frameId, originX, originY, bmp));
+      }
+
+      Directory.CreateDirectory(outputFolder);
+
+      // Process each sequence separately
+      foreach (var kvp in sequenceGroups)
+      {
+        int sequenceId = kvp.Key;
+        var images = kvp.Value;
+
+        // Determine output directory for this sequence
+        string sequenceOutputFolder;
+        if (sequenceGroups.Count > 1)
+        {
+          sequenceOutputFolder = Path.Combine(outputFolder, sequenceId.ToString());
+          Directory.CreateDirectory(sequenceOutputFolder);
+        }
+        else
+        {
+          sequenceOutputFolder = outputFolder;
+        }
+
+        int left = int.MaxValue, top = int.MaxValue;
+        int right = int.MinValue, bottom = int.MinValue;
+
+        // Calculate frame size for this sequence
+        foreach (var (path, frameId, originX, originY, bmp) in images)
+        {
+          int x0 = -originX;
+          int y0 = -originY;
+          int x1 = x0 + bmp.Width;
+          int y1 = y0 + bmp.Height;
+
+          left = Math.Min(left, x0);
+          top = Math.Min(top, y0);
+          right = Math.Max(right, x1);
+          bottom = Math.Max(bottom, y1);
+        }
+
+        int frameWidth = right - left;
+        int frameHeight = bottom - top;
+
+        int originFrameX = -left;
+        int originFrameY = -top;
+
+        Console.WriteLine($"Sequence {sequenceId}: frame size {frameWidth} x {frameHeight}, origin at ({originFrameX}, {originFrameY})");
+
+        // Process each frame in the sequence
+        foreach (var (path, frameId, originX, originY, bmp) in images)
+        {
+          Bitmap newImage = new Bitmap(frameWidth, frameHeight);
+          using (Graphics g = Graphics.FromImage(newImage))
+          {
+            g.Clear(Color.Transparent);
+
+            int offsetX = originFrameX - originX;
+            int offsetY = originFrameY - originY;
+
+            g.DrawImage(bmp, offsetX, offsetY);
+          }
+
+          string filename = Path.GetFileName(path);
+          string outputPath = Path.Combine(sequenceOutputFolder, filename);
+          newImage.Save(outputPath);
+
+          bmp.Dispose();
+          newImage.Dispose();
+        }
+      }
+    }
+
+    public static void AlignSpritesAlt(string inputFolder, string outputFolder)
+    {
+      //var regex = new Regex(@"(\d+)_(\d+)__(-?\d+)_(-?\d+)\.png");
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      // Group files by sequence ID
+      var sequenceGroups = new Dictionary<int, List<(string path, int frameId, int originX, int originY, Bitmap bmp)>>();
+
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success) continue;
+
+        int sequenceId = 0;
+        int frameId = int.Parse(match.Groups[1].Value);
+        int originX = int.Parse(match.Groups[2].Value);
+        int originY = int.Parse(match.Groups[3].Value);
+        Bitmap bmp = new Bitmap(file);
+
+        if (!sequenceGroups.ContainsKey(sequenceId))
+        {
+          sequenceGroups[sequenceId] = new List<(string, int, int, int, Bitmap)>();
+        }
+
+        sequenceGroups[sequenceId].Add((file, frameId, originX, originY, bmp));
+      }
+
+      Directory.CreateDirectory(outputFolder);
+
+      // Process each sequence separately
+      foreach (var kvp in sequenceGroups)
+      {
+        int sequenceId = kvp.Key;
+        var images = kvp.Value;
+
+        // Determine output directory for this sequence
+        string sequenceOutputFolder;
+        if (sequenceGroups.Count > 1)
+        {
+          sequenceOutputFolder = Path.Combine(outputFolder, sequenceId.ToString());
+          Directory.CreateDirectory(sequenceOutputFolder);
+        }
+        else
+        {
+          sequenceOutputFolder = outputFolder;
+        }
+
+        int left = int.MaxValue, top = int.MaxValue;
+        int right = int.MinValue, bottom = int.MinValue;
+
+        // Calculate frame size for this sequence
+        foreach (var (path, frameId, originX, originY, bmp) in images)
+        {
+          int x0 = -originX;
+          int y0 = -originY;
+          int x1 = x0 + bmp.Width;
+          int y1 = y0 + bmp.Height;
+
+          left = Math.Min(left, x0);
+          top = Math.Min(top, y0);
+          right = Math.Max(right, x1);
+          bottom = Math.Max(bottom, y1);
+        }
+
+        int frameWidth = right - left;
+        int frameHeight = bottom - top;
+
+        int originFrameX = -left;
+        int originFrameY = -top;
+
+        Console.WriteLine($"Sequence {sequenceId}: frame size {frameWidth} x {frameHeight}, origin at ({originFrameX}, {originFrameY})");
+
+        // Process each frame in the sequence
+        foreach (var (path, frameId, originX, originY, bmp) in images)
+        {
+          Bitmap newImage = new Bitmap(frameWidth, frameHeight);
+          using (Graphics g = Graphics.FromImage(newImage))
+          {
+            g.Clear(Color.Transparent);
+
+            int offsetX = originFrameX + originX;
+            int offsetY = originFrameY + originY;
+
+            g.DrawImage(bmp, offsetX, offsetY);
+          }
+
+          string filename = Path.GetFileName(path);
+          string outputPath = Path.Combine(sequenceOutputFolder, filename);
+          newImage.Save(outputPath);
+
+          bmp.Dispose();
+          newImage.Dispose();
+        }
+      }
+    }
+
     public static void ResizeImagesInFolder(string folderToResize, ExpansionOrigin origin)
     {
 
@@ -444,7 +1026,7 @@ namespace ExtractCLUT.Helpers
       var expandWidth = maxDimensions.maxWidth;
       var expandHeight = maxDimensions.maxHeight;
 
-      var expandedOutputFolder = Path.Combine(Path.GetDirectoryName(imagesToResize[0]), "expanded");
+      var expandedOutputFolder = Path.Combine(Path.GetDirectoryName(imagesToResize[0])!, "expanded");
 
       Directory.CreateDirectory(expandedOutputFolder);
 
@@ -453,11 +1035,216 @@ namespace ExtractCLUT.Helpers
         ImageFormatHelper.ExpandImage(image, expandWidth, expandHeight, origin, false, expandedOutputFolder);
       }
     }
-    
+
+    /// <summary>
+    /// Aligns sprites from a folder based on their embedded offset information in the filename.
+    /// Filename format: {index}_{xOffset}_{yOffset}.png
+    /// The offsets represent where each sprite should be positioned relative to a common origin point.
+    /// The origin point's location within each sprite is determined by the ExpansionOrigin parameter.
+    /// </summary>
+    /// <param name="inputFolder">Folder containing the sprite images with offset information in filenames</param>
+    /// <param name="outputFolder">Folder where aligned sprites will be saved</param>
+    /// <param name="origin">Where the origin point is located within each sprite (e.g., BottomCenter for character feet)</param>
+    public static void AlignSprite(string inputFolder, string outputFolder, ExpansionOrigin origin = ExpansionOrigin.TopLeft)
+    {
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var files = Directory.GetFiles(inputFolder, "*.png");
+
+      if (files.Length == 0)
+      {
+        Console.WriteLine("No PNG files found in input folder.");
+        return;
+      }
+
+      var spriteInfos = new List<(string path, int index, int xOffset, int yOffset, Bitmap bmp)>();
+
+      // Load all sprites and parse filename information
+      foreach (var file in files)
+      {
+        var match = regex.Match(Path.GetFileName(file));
+        if (!match.Success)
+        {
+          Console.WriteLine($"Skipping file with invalid naming format: {Path.GetFileName(file)}");
+          continue;
+        }
+
+        int index = int.Parse(match.Groups[1].Value);
+        int xOffset = int.Parse(match.Groups[2].Value);
+        int yOffset = int.Parse(match.Groups[3].Value);
+        var bmp = new Bitmap(file);
+
+        spriteInfos.Add((file, index, xOffset, yOffset, bmp));
+      }
+
+      if (spriteInfos.Count == 0)
+      {
+        Console.WriteLine("No valid sprite files found.");
+        return;
+      }
+
+      // Sort by index
+      spriteInfos = spriteInfos.OrderBy(s => s.index).ToList();
+
+      // Calculate bounding box
+      // For each sprite, calculate where the origin point is within that sprite using:
+      // originX = ((width / 2) + 1) - xOffset  (for BottomCenter, adjust for other origins)
+      // originY = ((height) + 1) - yOffset     (for BottomCenter)
+      // Then the top-left of the sprite in world space is at -originX, -originY
+      int minX = int.MaxValue, minY = int.MaxValue;
+      int maxX = int.MinValue, maxY = int.MinValue;
+
+      foreach (var (_, _, xOffset, yOffset, bmp) in spriteInfos)
+      {
+        // Calculate where the origin point is within this sprite
+        int originWithinSpriteX = 0, originWithinSpriteY = 0;
+        
+        switch (origin)
+        {
+          case ExpansionOrigin.TopLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.TopCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.TopRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.MiddleLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.MiddleCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.MiddleRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+        }
+        
+        // The top-left of this sprite in world space (relative to origin at 0,0)
+        int spriteLeft = -originWithinSpriteX;
+        int spriteTop = -originWithinSpriteY;
+        int spriteRight = spriteLeft + bmp.Width;
+        int spriteBottom = spriteTop + bmp.Height;
+
+        minX = Math.Min(minX, spriteLeft);
+        minY = Math.Min(minY, spriteTop);
+        maxX = Math.Max(maxX, spriteRight);
+        maxY = Math.Max(maxY, spriteBottom);
+      }
+
+      // Calculate canvas size
+      int canvasWidth = maxX - minX;
+      int canvasHeight = maxY - minY;
+
+      Console.WriteLine($"Calculated canvas size: {canvasWidth} x {canvasHeight}");
+      Console.WriteLine($"Sprite bounds: X [{minX}, {maxX}], Y [{minY}, {maxY}]");
+      Console.WriteLine($"Origin mode: {origin}");
+
+      // All sprites will be shifted by -minX, -minY to fit on canvas
+      int baseShiftX = -minX;
+      int baseShiftY = -minY;
+
+      Console.WriteLine($"All sprites will be shifted by: ({baseShiftX}, {baseShiftY}) to fit on canvas");
+
+      Directory.CreateDirectory(outputFolder);
+
+      // Process each sprite
+      foreach (var (path, index, xOffset, yOffset, bmp) in spriteInfos)
+      {
+        // Calculate where the origin is within this sprite
+        int originWithinSpriteX = 0, originWithinSpriteY = 0;
+        
+        switch (origin)
+        {
+          case ExpansionOrigin.TopLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.TopCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.TopRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = 1 - yOffset;
+            break;
+          case ExpansionOrigin.MiddleLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.MiddleCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.MiddleRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height / 2 + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomLeft:
+            originWithinSpriteX = 1 - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomCenter:
+            originWithinSpriteX = (bmp.Width / 2 + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+          case ExpansionOrigin.BottomRight:
+            originWithinSpriteX = (bmp.Width + 1) - xOffset;
+            originWithinSpriteY = (bmp.Height + 1) - yOffset;
+            break;
+        }
+        
+        // Top-left position in world space, then shift to canvas space
+        int drawX = -originWithinSpriteX + baseShiftX;
+        int drawY = -originWithinSpriteY + baseShiftY;
+
+        var alignedImage = new Bitmap(canvasWidth, canvasHeight);
+        using (var g = Graphics.FromImage(alignedImage))
+        {
+          g.Clear(Color.Transparent);
+          g.DrawImage(bmp, drawX, drawY);
+        }
+
+        string filename = Path.GetFileName(path);
+        string outputPath = Path.Combine(outputFolder, filename);
+        alignedImage.Save(outputPath);
+        alignedImage.Dispose();
+
+        Console.WriteLine($"Sprite {index}: offset ({xOffset,4},{yOffset,4}) -> drawn at canvas ({drawX,4},{drawY,4})");
+      }
+
+      // Cleanup
+      foreach (var sprite in spriteInfos)
+      {
+        sprite.bmp.Dispose();
+      }
+
+      Console.WriteLine($"\n✓ Successfully aligned {spriteInfos.Count} sprites to '{outputFolder}'");
+      Console.WriteLine($"  All sprites share the same {canvasWidth}x{canvasHeight} canvas with origin at {origin}");
+    }
+
     public static List<byte[]> ExtractSpriteByteSequences(string? filePath, byte[]? data, byte[] startSequence, byte[] endSequence)
     {
       // Read all bytes from the file
-      byte[] fileContent = filePath != null ? File.ReadAllBytes(filePath) : data;
+      byte[] fileContent = filePath != null ? File.ReadAllBytes(filePath) : data ?? Array.Empty<byte>();
 
       List<byte[]> extractedSequences = new List<byte[]>();
       int currentIndex = 0;
@@ -616,7 +1403,7 @@ namespace ExtractCLUT.Helpers
         }
       }
 
-      return null; // or throw an exception, or whatever you want to do if the sequence is not found.
+      return Array.Empty<byte>(); // or throw an exception, or whatever you want to do if the sequence is not found.
     }
 
     public static byte[] RemoveOneZeroFromTripleZeroSequence(byte[] data)
@@ -776,6 +1563,89 @@ namespace ExtractCLUT.Helpers
       // Simple heuristic to filter out unlikely filenames
       // Adjust the criteria based on your specific needs
       return filename.Length > 3 && filename.Contains(".");
+    }
+
+    /// <summary>
+    /// Renames image files in a folder from format "{index}_{offsetX}_{offsetY}.png" 
+    /// to "{FolderName}_{Index}.png" where FolderName is the parent folder name with "_output" removed.
+    /// Files are sorted by index before renaming.
+    /// </summary>
+    /// <param name="folderPath">Path to the folder containing the images to rename</param>
+    public static void RenameIndexedImages(string folderPath)
+    {
+      if (!Directory.Exists(folderPath))
+      {
+        Console.WriteLine($"Directory '{folderPath}' not found.");
+        return;
+      }
+
+      var regex = new Regex(@"^(\d+)_(-?\d+)_(-?\d+)\.png$");
+      var files = Directory.GetFiles(folderPath, "*.png");
+
+      if (files.Length == 0)
+      {
+        Console.WriteLine("No PNG files found in folder.");
+        return;
+      }
+
+      // Parse and collect file information
+      var fileInfos = new List<(string path, int index)>();
+      foreach (var file in files)
+      {
+        var fileName = Path.GetFileName(file);
+        var match = regex.Match(fileName);
+        
+        if (!match.Success)
+        {
+          Console.WriteLine($"Skipping file with invalid format: {fileName}");
+          continue;
+        }
+
+        int index = int.Parse(match.Groups[1].Value);
+        fileInfos.Add((file, index));
+      }
+
+      if (fileInfos.Count == 0)
+      {
+        Console.WriteLine("No files matching the expected format found.");
+        return;
+      }
+
+      // Sort by index
+      fileInfos = fileInfos.OrderBy(f => f.index).ToList();
+
+      // Get folder name and remove "_output" suffix
+      string folderName = new DirectoryInfo(folderPath).Name;
+      folderName = folderName.Replace("_output", "");
+
+      // Rename files
+      int renamedCount = 0;
+      for (int i = 0; i < fileInfos.Count; i++)
+      {
+        var (originalPath, originalIndex) = fileInfos[i];
+        string newFileName = $"{folderName}_{i}.png";
+        string newPath = Path.Combine(folderPath, newFileName);
+
+        // Check if target file already exists
+        if (File.Exists(newPath) && newPath != originalPath)
+        {
+          Console.WriteLine($"Warning: Target file '{newFileName}' already exists. Skipping rename of '{Path.GetFileName(originalPath)}'");
+          continue;
+        }
+
+        try
+        {
+          File.Move(originalPath, newPath);
+          renamedCount++;
+          Console.WriteLine($"Renamed: {Path.GetFileName(originalPath)} -> {newFileName}");
+        }
+        catch (Exception ex)
+        {
+          Console.WriteLine($"Error renaming '{Path.GetFileName(originalPath)}': {ex.Message}");
+        }
+      }
+
+      Console.WriteLine($"\n✓ Successfully renamed {renamedCount} of {fileInfos.Count} files in '{folderPath}'");
     }
   }
 

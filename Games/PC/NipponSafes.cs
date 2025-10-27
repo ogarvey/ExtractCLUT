@@ -64,7 +64,7 @@ namespace ExtractCLUT.Games.PC
                 {
                     var palData = reader.ReadBytes(0x60);
                     File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(slideFile), Path.GetFileNameWithoutExtension(slideFile) + "_pal.bin"), palData);
-                    var palette = ColorHelper.ConvertBytesToRGB(palData, 4);
+                    var palette = ColorHelper.ConvertBytesToRGB(palData, true);
                     var layer0 = reader.ReadByte();
                     var layer1 = reader.ReadByte();
                     var layer2 = reader.ReadByte();
@@ -144,7 +144,7 @@ namespace ExtractCLUT.Games.PC
                 var testPackedData = File.ReadAllBytes(file);
                 var testPal = @"C:\Dev\Gaming\PC_DOS\Games\Nippon-Safes-Inc_DOS_EN\nippon-safes-inc\output\DISK1\grottaint_pal.bin";
                 var testPalData = File.ReadAllBytes(testPal).ToArray();
-                var testPalette = ColorHelper.ConvertBytesToRGB(testPalData, 4);
+                var testPalette = ColorHelper.ConvertBytesToRGB(testPalData, true);
                 var numFrames = testPackedData[0];
                 var width = testPackedData[1];
                 var height = testPackedData[2];

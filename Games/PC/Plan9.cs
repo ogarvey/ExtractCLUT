@@ -26,7 +26,7 @@ namespace ExtractCLUT.Games.PC
                     var colourCount = BitConverter.ToUInt16(data.Skip(index).Take(2).ToArray(), 0);
                     Console.WriteLine($"Colour Count: {colourCount}");
                     var paletteData = data.Skip(index + 2).Take(colourCount * 3).ToArray();
-                    palette = ColorHelper.ConvertBytesToRGB(paletteData, 4);
+                    palette = ColorHelper.ConvertBytesToRGB(paletteData, true);
                     index += 2 + (colourCount * 3);
                 }
 

@@ -68,7 +68,7 @@ namespace ExtractCLUT.Games.PC
                     reader.BaseStream.Seek(paletteHeader.Offset, SeekOrigin.Begin);
                     var paletteData = reader.ReadBytes(768);
                     File.WriteAllBytes(Path.Combine(allPaletteOutputDir, $"{Path.GetFileNameWithoutExtension(picFile)}_palette_{paletteHeader.Offset:X8}.bin"), paletteData);
-                    var palette = ColorHelper.ConvertBytesToRGB(paletteData, 4);
+                    var palette = ColorHelper.ConvertBytesToRGB(paletteData, true);
 
                     if (paletteHeader.Width != 0 && paletteHeader.Height != 0)
                     {

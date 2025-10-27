@@ -289,7 +289,7 @@ namespace ExtractCLUT.Games.PC.MADS
 			}
 
 			using var palStream = tileDataPack.GetEntryDataReader(2);
-			var palette = new List<Rgba32>();
+			var palette = new List<SixLabors.ImageSharp.Color>();
 			var count = palStream.ReadUInt16();
 			for (int i = 0; i < count; i++)
 			{
@@ -301,7 +301,7 @@ namespace ExtractCLUT.Games.PC.MADS
 				var fG = g / 255f;
 				var fB = b / 255f;
 
-				var color = new Rgba32(fR, fG, fB);
+				var color =  new Rgba32(fR, fG, fB);
 				palette.Add(color);
 				palStream.ReadBytes(3);
 				Console.WriteLine(i);
@@ -321,7 +321,7 @@ namespace ExtractCLUT.Games.PC.MADS
 
 			if (tileCount == 1)
 			{
-				var image = ImageFormatHelper.GenerateClutImage(palette, tiles[0], tileWidth, tileHeight);
+				var image = ImageFormatHelper.GenerateIMClutImage(palette, tiles[0], tileWidth, tileHeight);
 				image.Save(imgOutputStream, imgEncoder);
 				// var image = ImageFormatHelper.GenerateClutImage(palette, tiles[0], tileWidth, tileHeight);
 				// image.Save(imageOutputPath, ImageFormat.Png);
@@ -351,7 +351,7 @@ namespace ExtractCLUT.Games.PC.MADS
 						}
 					}
 				}
-				var image = ImageFormatHelper.GenerateClutImage(palette, imageBytes, tileWidth * tileCountX, tileHeight * tileCountY);
+				var image = ImageFormatHelper.GenerateIMClutImage(palette, imageBytes, tileWidth * tileCountX, tileHeight * tileCountY);
 				image.Save(imgOutputStream, imgEncoder);
 
 				// var image = ImageFormatHelper.GenerateClutImage(palette, imageBytes, tileWidth, tileHeight);

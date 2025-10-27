@@ -15,18 +15,24 @@ namespace ExtractCLUT.Games
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
-            var underCdi = new CdiFile(@"C:\Dev\Projects\Gaming\CD-i\Zelda\under.rtf");
+            var overCdi = new CdiFile(@"C:\Dev\Gaming\CD-i\Games\Zelda\under.rtf");
 
-            var sectors = underCdi.Sectors;
-
+            var sectors = overCdi.Sectors;
+            var palette = new List<Color>();
             var dataSectorGroup = new List<CdiSector>();
             var dyuvSectorGroup = new List<CdiSector>();
+            var rl7SectorGroup = new List<CdiSector>();
             foreach (var sector in sectors)
             {
                 if (sector.Coding.VideoString == "DYUV" && sector.SubMode.IsVideo)
                 {
                     dyuvSectorGroup.Add(sector);
                 }
+                else if (sector.Coding.VideoString == "RL7" && sector.SubMode.IsVideo)
+                {
+                    rl7SectorGroup.Add(sector);
+                }
+
                 if (sector.SubMode.IsData)
                 {
                     dataSectorGroup.Add(sector);
@@ -34,29 +40,74 @@ namespace ExtractCLUT.Games
                     if (data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x01 && data[3] == 0x00)
                     {
                         var index = dataSectorGroup.First().SectorIndex;
-                        var paletteBytes = data.Skip(4).Take(0x300).ToArray();
-                        File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\{index}_palette.bin", paletteBytes);
+                        var paletteBytes = data.Skip(0x184).Take(0x768).ToArray();
+                        palette = ConvertBytesToRGB(paletteBytes);
+                        var filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\{index}_palette.bin";
+                        if (!Directory.Exists(Path.GetDirectoryName(filename)))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                        }
+                        File.WriteAllBytes(filename, paletteBytes);
                     }
                 }
 
                 if (sector.SubMode.IsEOR)
                 {
+                    var rl7data = rl7SectorGroup.SelectMany(x => x.GetSectorData()).Skip(0x4).ToArray();
+                    if (rl7data.Length > 0)
+                    {
+                        var rl7filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\collision\{rl7SectorGroup.First().SectorIndex}.bin";
+                        if (!Directory.Exists(Path.GetDirectoryName(rl7filename)))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(rl7filename));
+                        }
+                        File.WriteAllBytes(rl7filename, rl7data);
+                        var image = GenerateRle7Image(palette, rl7data, 384, 240);
+                        image.Save(rl7filename.Replace(".bin", ".png"), ImageFormat.Png);
+                        rl7SectorGroup.Clear();
+                    }
+
+
                     var data = dataSectorGroup.SelectMany(x => x.GetSectorData(true)).ToArray();
                     var dyuvLineAnimData = dataSectorGroup.Skip(1).Take(9).SelectMany(x => x.GetSectorData()).ToArray();
                     var index = dataSectorGroup.First().SectorIndex;
-                    File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\{index}_{dataSectorGroup.Count}.bin", data);
+                    var filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\{index}_{dataSectorGroup.Count}.bin";
+                    if (!Directory.Exists(Path.GetDirectoryName(filename)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                    }
+                    File.WriteAllBytes(filename, data);
 
                     var dyuvData = dyuvSectorGroup.SelectMany(x => x.GetSectorData()).ToArray();
-                    File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\{index}_dyuv.bin", dyuvData);
+                    filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\{index}_dyuv.bin";
+                    if (!Directory.Exists(Path.GetDirectoryName(filename)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                    }
+                    File.WriteAllBytes(filename, dyuvData);
                     var dyuvLineData = dataSectorGroup.First().GetSectorData();
-                    var image = DecodeDYUVImage(dyuvData, 384, 240, useArray: true, yuvArray: dyuvLineData);
-                    image.Save($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\Screens\{index}.png", ImageFormat.Png);
+                    var rl7image = DecodeDYUVImage(dyuvData, 384, 240, useArray: true, yuvArray: dyuvLineData);
+                    filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\Screens\{index}.png";
+                    if (!Directory.Exists(Path.GetDirectoryName(filename)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                    }
+                    rl7image.Save(filename, ImageFormat.Png);
 
                     dyuvSectorGroup.Clear();
-                    var outputPath = $@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\SpriteSectors\{index}.bin";
+                    var outputPath = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\SpriteSectors\{index}.bin";
+                    if (!Directory.Exists(Path.GetDirectoryName(outputPath)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
+                    }
                     var spriteData = dataSectorGroup.Skip(25).SelectMany(x => x.GetSectorData()).ToArray();
                     var spriteHeaderData = dataSectorGroup.Skip(21).Take(4).SelectMany(x => x.GetSectorData()).ToArray();
-                    File.WriteAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\SpriteSectors\Headers\{index}.bin", spriteHeaderData);
+                    filename = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\SpriteSectors\Headers\{index}.bin";
+                    if (!Directory.Exists(Path.GetDirectoryName(filename)))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(filename));
+                    }
+                    File.WriteAllBytes(filename, spriteHeaderData);
                     var nullByteCount = 0;
 
                     for (int i = 0; i < spriteData.Length; i++)
@@ -82,7 +133,7 @@ namespace ExtractCLUT.Games
             }
 
 
-            var files = Directory.GetFiles(@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\SpriteSectors\", "*.bin").OrderBy(x => int.Parse(Path.GetFileNameWithoutExtension(x)));
+            var files = Directory.GetFiles(@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\SpriteSectors\", "*.bin").OrderBy(x => int.Parse(Path.GetFileNameWithoutExtension(x)));
 
             foreach (var file in files)
             {
@@ -92,11 +143,11 @@ namespace ExtractCLUT.Games
                     continue;
                 }
                 var index = int.Parse(Path.GetFileNameWithoutExtension(file));
-                var paletteFile = $@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\under\{index}_palette.bin";
+                var paletteFile = $@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\under\{index}_palette.bin";
 
                 var paletteData = File.ReadAllBytes(paletteFile).Skip(0x180).Take(0x180).ToArray();
-                var palette = ConvertBytesToRGB(paletteData);
-                palette = palette.Select(c =>
+                var sPalette = ConvertBytesToRGB(paletteData);
+                sPalette = sPalette.Select(c =>
                 {
                     var r = c.R;
                     var g = c.G;
@@ -110,7 +161,7 @@ namespace ExtractCLUT.Games
 
                 try
                 {
-                    ZeldasAdventure.ExtractSpriteData(file, palette);
+                    ZeldasAdventure.ExtractSpriteData(file, sPalette);
                 }
                 catch (Exception e)
                 {
@@ -251,22 +302,23 @@ public static class Functions
         var sizeList = new List<SpriteSize>();
         if (index > 0)
         {
-            var underOver = fileName.Contains("under") ? "under" : "over";
-            var headerData = File.ReadAllBytes($@"C:\Dev\Projects\Gaming\CD-i\Zelda\Analysis\Data\{underOver}\SpriteSectors\Headers\{index}.bin");
+            var overOver = fileName.Contains("over") ? "over" : "under";
+            var headerData = File.ReadAllBytes($@"C:\Dev\Gaming\CD-i\Games\Zelda\Analysis\Data\{overOver}\SpriteSectors\Headers\{index}.bin");
             var headerCount = headerData.Skip(0x0b).Take(1).First();
-            var sizeDataOffset = headerCount switch {
+            var sizeDataOffset = headerCount switch
+            {
                 3 => 0x34,
                 5 => 0x3c,
                 7 => 0x44,
                 _ => 0x3c
             };
             var dataStart = headerData.Skip(0x13).Take(1).First();
-            var sizeCount = headerData.Skip(dataStart+(sizeDataOffset-9)).Take(1).First();
-            var sizeData = headerData.Skip(dataStart+sizeDataOffset).Take(sizeCount * 0x2e).ToArray();
-            for (int sIndex = 0; sIndex < sizeCount*0x2e; sIndex+=0x2e)
+            var sizeCount = headerData.Skip(dataStart + (sizeDataOffset - 9)).Take(1).First();
+            var sizeData = headerData.Skip(dataStart + sizeDataOffset).Take(sizeCount * 0x2e).ToArray();
+            for (int sIndex = 0; sIndex < sizeCount * 0x2e; sIndex += 0x2e)
             {
                 var height = BitConverter.ToInt16(sizeData.Skip(sIndex).Take(2).Reverse().ToArray(), 0);
-                var width = BitConverter.ToInt16(sizeData.Skip(sIndex+2).Take(2).Reverse().ToArray(), 0);
+                var width = BitConverter.ToInt16(sizeData.Skip(sIndex + 2).Take(2).Reverse().ToArray(), 0);
                 sizeList.Add(new SpriteSize { Width = width, Height = height });
             }
         }
@@ -295,7 +347,8 @@ public static class Functions
         i = writeOffset + (384 - writeOffset % 384);
         byte[] sprite = new byte[i];
         Buffer.BlockCopy(imageData, 0, sprite, 0, i);
-        if (dumpBinary && sprite.Length != 0) {
+        if (dumpBinary && sprite.Length != 0)
+        {
             File.WriteAllBytes(fileName.Replace(".png", "_raw.bin"), sprite);
         }
         //determine width and height of sprite (and extract datablob of these dimensions)
@@ -330,7 +383,7 @@ public static class Functions
                                 return;
                             }
                         }
-                    }                    
+                    }
 
                     // Save the cropped image with "_icon" suffix
                     var cropFileName = fileName.Replace(".png", $"_cropped_{sIndex}.png");

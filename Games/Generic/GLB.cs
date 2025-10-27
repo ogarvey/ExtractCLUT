@@ -30,7 +30,7 @@ public static class GLBExtractor
         byte[] decryptedFatEntry = DecryptFatEntry(fileBytes, 0, "32768GLB");
 
         int fileCount = BitConverter.ToInt32(decryptedFatEntry, 4);
-
+        var sectionName = "";
         for (int i = 0; i < fileCount; i++)
         {
             int fatEntryOffset = (i + 1) * 28;
@@ -51,7 +51,16 @@ public static class GLBExtractor
             uint fileOffset = BitConverter.ToUInt32(decryptedEntry, 4);
             uint fileLength = BitConverter.ToUInt32(decryptedEntry, 8);
             string fileName = Encoding.ASCII.GetString(decryptedEntry, 12, 16).Trim('\0');
-
+            if (fileName.StartsWith("START"))
+            {
+                sectionName = fileName;
+                continue;
+            }
+            if (fileName.StartsWith("END"))
+            {
+                sectionName = "";
+                continue;
+            }
             byte[] fileData = new byte[fileLength];
             Array.Copy(fileBytes, fileOffset, fileData, 0, fileLength);
 
@@ -60,7 +69,7 @@ public static class GLBExtractor
                 fileData = DecryptFileData(fileData, "32768GLB");
             }
             fileName = Path.GetInvalidFileNameChars().Aggregate(fileName, (current, c) => current.Replace(c.ToString(), ""));
-            string outputFile = Path.Combine(outputDirectory, fileName == "" ? $"file_{i}.bin" : fileName);
+            string outputFile = Path.Combine(outputDirectory, fileName == "" ? $"{sectionName}_{i}.bin" : fileName);
             if (File.Exists(outputFile))
             {
                 var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(outputFile);
@@ -84,7 +93,7 @@ public static class GLBExtractor
         {
             byte currentByte = data[offset + i];
             int keyChar = key[keyIndex];
-            byte decryptedByte = (byte)((currentByte - keyChar - previousByte) & 0xFF);
+            byte decryptedByte = (byte)((currentByte - keyChar - previousByte) % 256);
             decrypted[i] = decryptedByte;
 
             previousByte = currentByte;
@@ -104,7 +113,7 @@ public static class GLBExtractor
         {
             byte currentByte = data[i];
             int keyChar = key[keyIndex];
-            byte decryptedByte = (byte)((currentByte - keyChar - previousByte) & 0xFF);
+            byte decryptedByte = (byte)((currentByte - keyChar - previousByte) % 256);
             decrypted[i] = decryptedByte;
 
             previousByte = currentByte;

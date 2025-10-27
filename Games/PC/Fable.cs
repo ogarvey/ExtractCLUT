@@ -87,7 +87,7 @@ namespace ExtractCLUT.Games.PC
         {
 
             var testPalData = File.ReadAllBytes(spritePal);
-            var testPalette = ColorHelper.ConvertBytesToRGB(testPalData, 4);
+            var testPalette = ColorHelper.ConvertBytesToRGB(testPalData, true);
 
             var testData = File.ReadAllBytes(spriteFile);
             if (testData[0] != 0x53) return;

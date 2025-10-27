@@ -85,7 +85,7 @@ namespace ExtractCLUT.Games.PC
 			}
 		}
 
-		public RoomFile ParseRoomData(int roomNumber)
+		public RoomFile ParseRoomData(int roomNumber, string? outFolder = null)
 		{
 			var roomFile = new RoomFile();
 			var room = Index.Rooms.Where(x => x.RoomNumber == roomNumber).FirstOrDefault();
@@ -112,7 +112,7 @@ namespace ExtractCLUT.Games.PC
 						case "ROOM":
 							break;
 						case "RMHD":
-						reader.ReadBytes(4);
+							//reader.ReadBytes(4);
 							var roomHeader = new RoomHeader(reader.ReadBytes(6));
 							roomFile.Header = roomHeader;
 							break;
@@ -140,16 +140,21 @@ namespace ExtractCLUT.Games.PC
 							reader.ReadBytes((int)blockLength - 8);
 							break;
 						case "APAL":
-							var paletteBytes = reader.ReadBytes((int)blockLength - 8);
-							File.WriteAllBytes($@"C:\Dev\Gaming\PC_DOS\Extractions\DIG\output\Room_Backgrounds\PALs\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}.bin", paletteBytes);
-							roomFile.Palette = ConvertBytesToRGB(paletteBytes);
-							break;
+						case "CLUT":
+							{
+								var paletteBytes = reader.ReadBytes((int)blockLength - 8);
+								var palDir = Path.Combine(outFolder ?? "", "Room_Backgrounds", "PALs");
+								Directory.CreateDirectory(palDir);
+								File.WriteAllBytes($@"{palDir}\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}.bin", paletteBytes);
+								roomFile.Palette = ConvertBytesToRGB(paletteBytes);
+								break;
+							}
 						case "RMIM":
-							ParseRMIMBlock(reader, blockLength - 8, ref roomFile);
+							ParseRMIMBlock(reader, blockLength - 8, ref roomFile, outFolder);
 							break;
 						case "OBIM":
 							if (roomFile.ObjectImages == null) roomFile.ObjectImages = new List<ObjectImage>();
-							ParseOBIMBlock(reader, blockLength - 8, ref roomFile);
+							ParseOBIMBlock(reader, blockLength - 8, ref roomFile, outFolder);
 							break;
 						case "COST":
 							if (roomFile.Costumes == null) roomFile.Costumes = new List<Costume>();
@@ -335,12 +340,13 @@ namespace ExtractCLUT.Games.PC
 									if (picture.Width == 0 || picture.Height == 0) continue;
 									var decoded = DecodeCOSTImage(picture, costume, picture.Width, picture.Height, roomFile.Palette);
 									var image = ImageFormatHelper.GenerateClutImage(roomFile.Palette, decoded, picture.Width, picture.Height, true, 0);
-									var outputFolder = $@"C:\Dev\Gaming\PC_DOS\Extractions\Dig\output\Room_Costumes\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}";
-									if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-									image.Save($@"{outputFolder}\{cIndex}_{pIndex}.png");
-									outputFolder = $@"C:\Dev\Gaming\PC_DOS\Extractions\Dig\output\Room_Costumes\bins\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}";
-									if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
-									File.WriteAllBytes($@"{outputFolder}\{cIndex}_{pIndex}.bin", decoded);
+									var costDir = Path.Combine(outFolder ?? "", "Room_Costumes", $"{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}");
+
+									if (!Directory.Exists(costDir)) Directory.CreateDirectory(costDir);
+									image.Save($@"{costDir}\{cIndex}_{pIndex}_{picture.RelX}_{picture.RelY}_{picture.MoveX}_{picture.MoveY}.png");
+									var binDir = Path.Combine(outFolder ?? "", "Room_Costumes", "bins", $"{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}");
+									if (!Directory.Exists(binDir)) Directory.CreateDirectory(binDir);
+									File.WriteAllBytes($@"{binDir}\{cIndex}_{pIndex}.bin", decoded);
 								}
 							}
 							break;
@@ -353,7 +359,7 @@ namespace ExtractCLUT.Games.PC
 		{
 			return binaryReader.BaseStream.Position - (blockOffSet + 2);
 		}
-		private void ParseOBIMBlock(BinaryReader reader, uint v, ref RoomFile roomFile)
+		private void ParseOBIMBlock(BinaryReader reader, uint v, ref RoomFile roomFile, string? outFolder = null)
 		{
 			var objectImageHeader = new ObjectImageHeader();
 			var end = reader.BaseStream.Position + v;
@@ -383,7 +389,7 @@ namespace ExtractCLUT.Games.PC
 						var stripCount = objectImageHeader.Width / 8;
 						var smapImageBytes = ParseSMAPBlock(reader, blockLength, blockLength - 8, stripCount, width, height);
 						var image = ImageFormatHelper.GenerateClutImage(roomFile.Palette, smapImageBytes, width, height, true, roomFile.TransparencyIndex, false);
-						var outputFolder = $@"C:\Dev\Gaming\PC_DOS\Extractions\DIG\output\Room_Objects\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}";
+						var outputFolder = Path.Combine(outFolder ?? "", "Room_Objects", $"{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}");
 						if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
 						image.Save($@"{outputFolder}\{objectImageHeader.Id}_X{objectImageHeader.X}_Y{objectImageHeader.Y}_{imageCount}.png");
 						imageCount++;
@@ -398,7 +404,7 @@ namespace ExtractCLUT.Games.PC
 			}
 		}
 
-		private void ParseRMIMBlock(BinaryReader reader, uint v, ref RoomFile roomFile)
+		private void ParseRMIMBlock(BinaryReader reader, uint v, ref RoomFile roomFile, string? outFolder = null)
 		{
 			var end = reader.BaseStream.Position + v;
 			while (reader.BaseStream.Position < end)
@@ -419,7 +425,7 @@ namespace ExtractCLUT.Games.PC
 						var stripCount = roomFile.Header.Width / 8;
 						var smapImageBytes = ParseSMAPBlock(reader, blockLength, blockLength - 8, stripCount, width, height);
 						var image = ImageFormatHelper.GenerateClutImage(roomFile.Palette, smapImageBytes, width, height);
-						var outputFolder = $@"C:\Dev\Gaming\PC_DOS\Extractions\DIG\output\Room_Backgrounds";
+						var outputFolder = Path.Combine(outFolder ?? "", "Room_Backgrounds");
 						if (!Directory.Exists(outputFolder)) Directory.CreateDirectory(outputFolder);
 						image.Save($@"{outputFolder}\{roomFile.Room.RoomNumber}_{roomFile.Room.RoomName}.png");
 						break;
@@ -931,8 +937,8 @@ namespace ExtractCLUT.Games.PC
 				reader.ReadByte(); // skip the last byte
 
 				// TODO Parse intervening BLOCKS
-				// for now, skip to 0xECC
-				reader.BaseStream.Seek(0x1441, SeekOrigin.Begin);
+				// for now, skip to 0xECC (Indy)
+				reader.BaseStream.Seek(0xECC, SeekOrigin.Begin);
 				var count = reader.ReadUInt16();
 				for (int i = 0; i < count; i++)
 				{

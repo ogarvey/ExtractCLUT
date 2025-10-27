@@ -73,7 +73,7 @@ namespace ExtractCLUT.Games
 					}
 
 					var statusBar = aFile.SubFiles[1].Take(0x1a40).ToArray();
-					var statusBarImage = ImageFormatHelper.GenerateClutImage(palettes[0], statusBar, 320, 21, true);
+					var statusBarImage = GenerateClutImage(palettes[0], statusBar, 320, 21, true);
 					statusBarImage.Save(Path.Combine(outputFolder, "StatusBar.png"), ImageFormat.Png);
 
 					var spriteBlobs = new List<byte[]>();
@@ -106,7 +106,7 @@ namespace ExtractCLUT.Games
 					foreach (var (blob, index) in spriteBlobs.WithIndex())
 					{
 						var decodedBlob = CompiledSpriteHelper.DecodeCompiledSprite(blob, 0, 0x180);
-						var image = ImageFormatHelper.GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
+						var image = GenerateClutImage(palettes[1], decodedBlob, 384, 240, true);
 						image = (Bitmap)CropImage(image, 20, 5, 0, 1);
 						images.Add(image);
 						var outputName = Path.Combine(tileFolder, $"{index / 4}.png");

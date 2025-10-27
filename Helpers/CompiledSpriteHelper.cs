@@ -84,6 +84,8 @@ namespace ExtractCLUT.Helpers
                 newCpu.SetAddrRegisterLong(2, outputOffset);
                 newCpu.SetAddrRegisterLong(3, outputOffset);
                 newCpu.SetAddrRegisterLong(4, outputOffset);
+                newCpu.SetAddrRegisterLong(5, outputOffset);
+                newCpu.SetAddrRegisterLong(6, outputOffset);
                 newCpu.SetDataRegisterLong(0,0);
                 newCpu.SetPC(0x20000+startPC);
                 for (var i = 0x20000; i < 0x20000 + compiledSpriteData.Length; i++)

@@ -1638,66 +1638,11 @@ ExportTiles(wooTiles, wooColors, wooDataFile);
 // {
 //   var room = scummIndex.Rooms[i];
 //   var roomFile = Path.Combine(outputFolder, $"{room.RoomNumber}_{room.RoomName}_RoomFile.bin");
-//   //scummData.DumpRoomData(room.RoomNumber, roomFile);
+//   scummData.DumpRoomData(room.RoomNumber, roomFile);
 //   var rf = scummData.ParseRoomData(room.RoomNumber);
 // }
 
-// static void ExtractHqr(string hqrFile, string outputFolder)
-// {
-//   var hqrData = File.ReadAllBytes(hqrFile);
-//   var offsets = new List<uint>();
-//   var headerSize = BitConverter.ToUInt32(hqrData.Take(4).ToArray(), 0);
-//   using var ms = new BinaryReader(new MemoryStream(hqrData));
-//   while (ms.BaseStream.Position < headerSize)
-//   {
-//       var offset = ms.ReadUInt32();
-//       if (offset == 0) continue;
-//       offsets.Add(offset);
-//   }
-//   // iterate through offsets and get data, last offset is the file size
-//   for (var i = 0; i < offsets.Count - 1; i++)
-//   {
-//       var offset = offsets[i];
-//       var length = offsets[i + 1] - offset;
-//       var realSize = ms.ReadUInt32();
-//       var compSize = ms.ReadUInt32();
-//       var mode = ms.ReadUInt16();
-//       var data = ms.ReadBytes((int)length-10);
-//       if (mode == 0)
-//       {
-//           File.WriteAllBytes(Path.Combine(outputFolder, $"{i}.bin"), data);
-//       } else {
-//           var decompressed = DecompressHqr(data, (int)realSize, mode);
-//           File.WriteAllBytes(Path.Combine(outputFolder, $"{i}_dc.bin"), decompressed);
-//       }
-//   }
-// }
 
-// static byte[] DecompressHqr(byte[] dat, int decompressedSize, int mode) 
-// {
-//   var output = new List<byte>();
-//   using (var ms = new BinaryReader(new MemoryStream(dat)))
-//   do {
-//     var b = ms.ReadByte();
-//     for (int i = 0; i < 8; i++)
-//     {
-//       if ((b & (1 << i)) == 0)
-//       {
-//         var offset = ms.ReadUInt16();
-//         var length = (offset & 0x1F) + mode + 1;
-//         var lookbackOffset = output.Count - (offset >> 4) - 1;
-//         for (var j = 0; j < length; j++)
-//         {
-//           output.Add(output[lookbackOffset++]);
-//         }
-//       } else {
-//         output.Add(ms.ReadByte());
-//       }
-//       if (output.Count >= decompressedSize) return output.ToArray(); 
-//     }
-//   } while (output.Count < decompressedSize);
-//   return output.ToArray();
-// }
 
 //https://discord.com/channels/581224060529148060/711242520415174666/1231714467461464164
 
@@ -1734,121 +1679,6 @@ ExportTiles(wooTiles, wooColors, wooDataFile);
 // NipponSafes.ExtractBackgroundImages(inputDir);
 // NipponSafes.ExtractSpriteFiles(inputDir);
 
-
-// var rlbHeaderBytes = new byte[] { 0x54, 0x4D, 0x49, 0x2D };
-
-// var ringRLB = @"C:\Dev\Gaming\PC_DOS\Blue-Force_DOS_EN\blue.rlb";
-
-// using var reader = new BinaryReader(File.OpenRead(ringRLB));
-// // check for RLB header
-// var header = reader.ReadBytes(4);
-// if (!header.SequenceEqual(rlbHeaderBytes))
-// {
-//   Console.WriteLine("Not an RLB file");
-//   return;
-// }
-// reader.ReadByte(); // skip 1 byte
-// reader.ReadByte();
-
-// var indexEntry = new RLBResourceEntry();
-// indexEntry.Id = reader.ReadUInt16();
-
-// var size = reader.ReadUInt16();
-// var uncompressedSize = reader.ReadUInt16();
-// var sizeHi = reader.ReadByte();
-// var Type = (byte)(reader.ReadByte() >> 5);
-
-// indexEntry.Offset = reader.ReadUInt32();
-// indexEntry.Size = (uint)(((sizeHi & 0XF) << 16) | size);
-// indexEntry.UncompressedSize = (uint)(((sizeHi & 0xF0) << 12) | uncompressedSize);
-// indexEntry.IsCompressed = Type != 0;
-
-// reader.BaseStream.Seek(indexEntry.Offset, SeekOrigin.Begin);
-// indexEntry.Data = reader.ReadBytes((int)indexEntry.Size);
-
-
-// var outputFolder = Path.Combine(Path.GetDirectoryName(ringRLB), "rlb_output");
-// Directory.CreateDirectory(outputFolder);
-
-// var sections = new List<SectionEntry>();
-// ushort resNum, configId, fileOffset;
-
-// using var iReader = new BinaryReader(new MemoryStream(indexEntry.Data));
-
-// while ((resNum = iReader.ReadUInt16()) != 0xFFFF)
-// {
-//   configId = iReader.ReadUInt16();
-//   fileOffset = iReader.ReadUInt16();
-
-//   var se = new SectionEntry
-//   {
-//     ResNum = resNum,
-//     ResType= (ResourceType)(configId & 0x1F),
-//     Offset = (uint)((((configId >> 5) & 0x7ff) << 16) | fileOffset)
-//   };
-//   sections.Add(se);
-// }
-
-// foreach (var section in sections)
-// {
-//   var entry = new RLBResourceEntry();
-//   reader.BaseStream.Seek(section.Offset, SeekOrigin.Begin); 
-//   header = reader.ReadBytes(4);
-//   if (!header.SequenceEqual(rlbHeaderBytes))
-//   {
-//     Console.WriteLine("Not an RLB file");
-//     return;
-//   }
-//   reader.ReadByte(); // skip 1 byte
-//   var count = reader.ReadByte();
-
-//   for (int i = 0; i < count; i++)
-//   {
-//     reader.BaseStream.Seek(section.Offset + 6 + (i * 12), SeekOrigin.Begin);
-//     entry.Id = reader.ReadUInt16();
-//     size = reader.ReadUInt16();
-//     uncompressedSize = reader.ReadUInt16();
-//     sizeHi = reader.ReadByte();
-//     Type = (byte)(reader.ReadByte() >> 5);
-
-//     entry.Offset = reader.ReadUInt32();
-//     entry.Size = (uint)(((sizeHi & 0XF) << 16) | size);
-//     entry.UncompressedSize = (uint)(((sizeHi & 0xF0) << 12) | uncompressedSize);
-//     entry.IsCompressed = Type != 0;
-
-//     reader.BaseStream.Seek(entry.Offset+section.Offset, SeekOrigin.Begin);
-//     entry.Data = reader.ReadBytes((int)entry.Size);
-
-//     var output = Path.Combine(outputFolder, $"{section.ResNum}_{section.ResType}_{entry.Id}_{(entry.IsCompressed ? "compressed" : "uncompressed")}.bin");
-//     File.WriteAllBytes(output, entry.Data);
-//   }
-// }
-
-// class RLBResourceEntry
-// {
-//   public byte[]? Data { get; set; }
-//   public ushort Id { get; set; }
-//   public uint Size { get; set; }
-//   public uint UncompressedSize { get; set; }
-//   public uint Offset { get; set; }
-//   public bool IsCompressed { get; set; }
-// }
-
-// class SectionEntry
-// {
-//   public uint Offset { get; set; }
-//   public ushort ResNum { get; set; }
-//   public ResourceType ResType { get; set; }
-// }
-
-// enum ResourceType
-// {
-//   RES_LIBRARY, RES_STRIP, RES_IMAGE, RES_PALETTE, RES_VISAGE, RES_SOUND, RES_MESSAGE,
-//   RES_FONT, RES_POINTER, RES_BANK, RES_SND_DRIVER, RES_PRIORITY, RES_CONTROL, RES_WALKRGNS,
-//   RES_BITMAP, RES_SAVE, RES_SEQUENCE,
-//   // Return to Ringworld specific resource types
-//   RT17, RT18, RT19, RT20, RT21, RT22, RT23, RT24, RT25, RT26, RT27, RT28, RT29, RT30, RT31
-// };
 
 
 // var lkLevelDir = @"C:\Dev\Gaming\PC_DOS\Extractions\LionKing";
@@ -3042,4 +2872,54 @@ ExportTiles(wooTiles, wooColors, wooDataFile);
 //   var output = Path.Combine(folderPath, fileName);
 //   File.WriteAllBytes(output, data);
 //   dReader.BaseStream.Seek(currentPos, SeekOrigin.Begin);
+// }
+// var qda = @"C:\Dev\Gaming\PC\Win\Games\Rakuen-no-Guardian_Win_EN\Guardian of Paradise\bmp.qda";
+// using var br = new BinaryReader(File.OpenRead(qda));
+
+// br.BaseStream.Position = 0x8; // skip the first 8 bytes
+// var count = br.ReadUInt16(); // number of files
+// br.BaseStream.Position = 0x100;
+// var offsetsAndLengthsAndNames = new List<(uint offset, uint length, string name)>();
+
+// for (var i = 0; i < count; i++)
+// {
+//   br.BaseStream.Position = 0x100 + i * 0x10c; // skip the first 256 bytes
+//   var offset = br.ReadUInt32();
+//   var length = br.ReadUInt32();
+//   br.ReadBytes(4); // skip 4 bytes
+//   var name = br.ReadNullTerminatedString();
+//   offsetsAndLengthsAndNames.Add((offset, length, name));
+// }
+
+// Console.WriteLine($"Count: {count}");
+// var outputDir = Path.Combine(Path.GetDirectoryName(qda)!, "output");
+// Directory.CreateDirectory(outputDir);
+// var rawOutputDir = Path.Combine(Path.GetDirectoryName(qda)!, "output_raw");
+// Directory.CreateDirectory(rawOutputDir);
+// foreach (var (offset, length, name) in offsetsAndLengthsAndNames)
+// {
+//   br.BaseStream.Position = offset;
+//   var data = br.ReadBytes((int)length);
+//   var rawOutputFile = Path.Combine(rawOutputDir, name);
+//   File.WriteAllBytes(rawOutputFile, data);
+//   var type = Encoding.UTF8.GetString(data.Take(3).ToArray());
+//   var outputFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(name) + ".png");
+//   var width = BitConverter.ToUInt16(data.Skip(0x12).ToArray(), 0);
+//   var height = BitConverter.ToUInt16(data.Skip(0x16).ToArray(), 0);
+//   var image = new Bitmap(width, height, PixelFormat.Format32bppArgb);
+//   if (type == "BM8")
+//   {
+//     var imageData = data.Skip(0x36).ToArray(); // skip the first 0x36 bytes
+//     // // raw rgb888 data
+//     image = ImageFormatHelper.DecodeRgb888(imageData, width, height);
+//   }
+//   else
+//   {
+//     var aletteData = data.Skip(0x36).Take(0x400).ToArray(); // skip the first 0x36 bytes
+//     var alette = ColorHelper.ConvertBytesToARGB(aletteData);
+//     var imageData = data.Skip(0x36 + 0x400).ToArray(); // skip the first 0x36 + 0x400 bytes
+//     image = (Bitmap)ImageFormatHelper.GenerateClutImage(alette, imageData, width, height, true, 0x1d, fixedIndex: true);
+//   }
+//   image.RotateFlip(RotateFlipType.RotateNoneFlipY);
+//   image.Save(outputFile, ImageFormat.Png);
 // }

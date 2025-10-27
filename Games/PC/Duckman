@@ -1,0 +1,198 @@
+
+var actorFile = @"C:\Dev\Gaming\PC\Win\Games\Duckman\DATA\output\65557\1048597.bin";
+using var actorReader = new BinaryReader(File.OpenRead(actorFile));
+
+var totalSize = actorReader.ReadUInt32(); // total size of the actor data
+actorReader.ReadInt16();
+var actorTypesCount = actorReader.ReadInt16(); // number of actor types
+actorReader.BaseStream.Seek(0x10, SeekOrigin.Begin); // skip 16 bytes
+var actorTypesOffset = actorReader.ReadInt32(); // offset to the actor types
+var actorTypes = new List<ActorType>();
+
+for (int i = 0; i < actorTypesCount; i++)
+{
+  actorReader.BaseStream.Position = actorTypesOffset + i * 0x2c;
+  ActorType actorType = new ActorType();
+  actorType.ActorTypeId = actorReader.ReadUInt32(); // actor type ID
+  var surfInfo = new SurfaceInfo
+  {
+    PixelSize = actorReader.ReadUInt32(),
+    Width = actorReader.ReadInt16(),
+    Height = actorReader.ReadInt16(),
+  };
+  uint pointsConfigOffset = actorReader.ReadUInt32(); // offset to the points configuration
+  ushort namedPointsCount = actorReader.ReadUInt16(); // number of named points
+  actorReader.ReadUInt16(); // unknown
+  uint pointsOffset = actorReader.ReadUInt32(); // offset to the points
+  var r = actorReader.ReadByte(); // red component of the color
+  var g = actorReader.ReadByte(); // green component of the color
+  var b = actorReader.ReadByte(); // blue component of the color
+  actorReader.ReadByte(); // alpha component of the color (unused)
+  actorType.AColor = Color.FromArgb(r, g, b);
+  actorType.Info = surfInfo;
+  actorType.Scale = actorReader.ReadByte(); // scale of the actor
+  actorType.Priority = actorReader.ReadByte(); // priority of the actor
+  actorType.Value1E = actorReader.ReadUInt16(); // value 1E (unknown)
+  actorType.PathWalkPointsIndex = actorReader.ReadUInt16(); // index of the path walk points
+  actorType.ScaleLayerIndex = actorReader.ReadUInt16(); // index of the scale layer
+  actorType.PathWalkRectIndex = actorReader.ReadUInt16(); // index of the path walk rectangle
+  actorType.PriorityLayerIndex = actorReader.ReadUInt16(); // index of the priority layer
+  actorType.RegionLayerIndex = actorReader.ReadUInt16(); // index of the region layer
+  actorType.Flags = actorReader.ReadUInt16(); // flags of the actor type
+  actorTypes.Add(actorType);
+
+  Console.WriteLine($"Actor Type ID: {actorType.ActorTypeId}, Color: {actorType.AColor}, Scale: {actorType.Scale}, Priority: {actorType.Priority}, Flags: {actorType.Flags}");
+}
+
+actorReader.BaseStream.Seek(0x8, SeekOrigin.Begin);
+uint sequenceCount = actorReader.ReadUInt16(); // number of sequences
+actorReader.BaseStream.Seek(0x14, SeekOrigin.Begin);
+uint sequencesOffset = actorReader.ReadUInt32(); // offset to the sequences
+var sequences = new List<Sequence>();
+actorReader.BaseStream.Seek(sequencesOffset, SeekOrigin.Begin);
+
+for (int i = 0; i < sequenceCount; i++)
+{
+  var sequence = new Sequence();
+  sequence.SequenceId = actorReader.ReadUInt32(); // sequence ID
+  sequence.Unknown = actorReader.ReadUInt32(); // unknown value
+  var seqCodeOffset = actorReader.ReadUInt32(); // offset to the sequence code
+  Console.WriteLine($"Sequence ID: {sequence.SequenceId}, Unknown: {sequence.Unknown}, SeqCodeOffset: {seqCodeOffset}");
+  sequences.Add(sequence);
+}
+
+actorReader.BaseStream.Seek(0xA, SeekOrigin.Begin);
+var frameCount = actorReader.ReadUInt16(); // number of frames
+actorReader.BaseStream.Seek(0x18, SeekOrigin.Begin);
+var framesOffset = actorReader.ReadUInt32(); // offset to the frames
+var frames = new List<Frame>();
+actorReader.BaseStream.Seek(framesOffset, SeekOrigin.Begin);
+var compressedOffsets = new List<uint>();
+for (int i = 0; i < frameCount; i++)
+{
+  var frame = new Frame();
+  frame.Flags = actorReader.ReadUInt16(); // flags of the frame
+  actorReader.ReadUInt16(); // unknown value
+  uint pointsConfigOffset = actorReader.ReadUInt32(); // offset to the points configuration
+  var surfInfo = new SurfaceInfo
+  {
+    PixelSize = actorReader.ReadUInt32(),
+    Width = actorReader.ReadInt16(),
+    Height = actorReader.ReadInt16(),
+  };
+  frame.Offset = actorReader.ReadUInt32(); // offset to the compressed data
+  frame.Info = surfInfo; // store the surface info
+  frames.Add(frame);
+}
+
+frames = frames.OrderBy(f => f.Offset).ToList(); // sort frames by offset
+var frameOutputDir = Path.Combine(Path.GetDirectoryName(actorFile)!, "frames");
+Directory.CreateDirectory(frameOutputDir); // create output directory for frames
+foreach (var (frame, fIndex) in frames.WithIndex())
+{
+  actorReader.BaseStream.Seek(frame.Offset, SeekOrigin.Begin); // seek to the frame offset
+  var length = actorReader.BaseStream.Length - frame.Offset; // calculate the length of the compressed data
+  var compressedData = actorReader.ReadBytes((int)length); // read the compressed data
+  var decompressedData = DecompressFrame(compressedData, frame); // decompress the frame data
+  File.WriteAllBytes(Path.Combine(frameOutputDir, $"frame_{fIndex}.bin"), decompressedData); // save the compressed data to a file
+}
+
+byte[] DecompressFrame(byte[] compressedData, Frame frame)
+{
+  int pixelSize = (int)(frame.Info?.PixelSize ?? 0);
+  if (pixelSize <= 0)
+  {
+    throw new ArgumentException("Invalid pixel size in frame info.");
+  }
+
+  // Create output buffer - ensure it's exactly the right size
+  var outputData = new byte[frame.Info.Width * frame.Info.Height * 2];
+
+  int processedSize = 0;
+  int xInc, yInc;
+  int x, y;
+  int xStart;
+
+  if ((frame.Flags & 1) > 0)
+  {
+    x = xStart = frame.Info.Width - 1;
+    xInc = -1;
+  }
+  else
+  {
+    x = xStart = 0;
+    xInc = 1;
+  }
+
+  if ((frame.Flags & 2) > 0)
+  {
+    y = frame.Info.Height - 1;
+    yInc = -1;
+  }
+  else
+  {
+    y = 0;
+    yInc = 1;
+  }
+
+  using var cReader = new BinaryReader(new MemoryStream(compressedData));
+
+  while (processedSize < pixelSize)
+  {
+    short op = cReader.ReadInt16();
+
+    if ((op & 0x8000) > 0)
+    {
+      // Run-length encoding
+      int runCount = (op & 0x7FFF) + 1;
+      processedSize += runCount;
+      ushort color = cReader.ReadUInt16();
+
+      while (runCount-- > 0)
+      {
+        // Calculate position directly only when in valid range
+        if (x >= 0 && x < frame.Info.Width && y >= 0 && y < frame.Info.Height)
+        {
+          int pos = y * frame.Info.Width * 2 + x * 2;
+          outputData[pos] = (byte)(color & 0xFF);
+          outputData[pos + 1] = (byte)(color >> 8);
+        }
+
+        x += xInc;
+        if (x >= frame.Info.Width || x < 0)
+        {
+          x = xStart;
+          y += yInc;
+        }
+      }
+    }
+    else
+    {
+      // Direct copy
+      int copyCount = op + 1;
+      processedSize += copyCount;
+
+      while (copyCount-- > 0)
+      {
+        ushort color = cReader.ReadUInt16();
+
+        // Calculate position directly only when in valid range
+        if (x >= 0 && x < frame.Info.Width && y >= 0 && y < frame.Info.Height)
+        {
+          int pos = y * frame.Info.Width * 2 + x * 2;
+          outputData[pos] = (byte)(color & 0xFF);
+          outputData[pos + 1] = (byte)(color >> 8);
+        }
+
+        x += xInc;
+        if (x >= frame.Info.Width || x < 0)
+        {
+          x = xStart;
+          y += yInc;
+        }
+      }
+    }
+  }
+
+  return outputData;
+}

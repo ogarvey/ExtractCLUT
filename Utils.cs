@@ -88,12 +88,20 @@ namespace ExtractCLUT
     {
       return (b & 1 << bitnumber) != 0;
     }
-
-    public static bool CheckBitState(ushort b, int bitnumber)
+    public static bool CheckBitStateEx(this byte b, int bitnumber)
     {
       return (b & 1 << bitnumber) != 0;
     }
 
+    public static bool CheckBitStateEx(ushort b, int bitnumber)
+    {
+      return (b & 1 << bitnumber) != 0;
+    }
+
+    public static bool CheckBitState(this ushort b, int bitnumber)
+    {
+      return (b & 1 << bitnumber) != 0;
+    }
     public static bool MatchesSequence(BinaryReader reader, byte[] sequence)
     {
       for (int i = 0; i < sequence.Length; i++)
@@ -108,6 +116,55 @@ namespace ExtractCLUT
       }
 
       return true;
+    }
+
+    public static byte[] RotateArrayClockwise(byte[] imageData, int originalWidth, int originalHeight)
+    {
+      ArgumentNullException.ThrowIfNull(imageData);
+      if (originalWidth <= 0)
+      {
+        throw new ArgumentException("Original width must be positive.", nameof(originalWidth));
+      }
+      if (originalHeight <= 0)
+      {
+        throw new ArgumentException("Original height must be positive.", nameof(originalHeight));
+      }
+      if (imageData.Length != originalWidth * originalHeight)
+      {
+        throw new ArgumentException("Image data length does not match the specified original dimensions (originalWidth * originalHeight).");
+      }
+
+      // Calculate the dimensions of the new (rotated) image
+      int newWidth = originalHeight;
+      int newHeight = originalWidth;
+
+      // Create a new byte array for the rotated image data
+      byte[] rotatedData = new byte[newWidth * newHeight]; // Same total number of pixels
+
+      for (int origRow = 0; origRow < originalHeight; origRow++)
+      {
+        for (int origCol = 0; origCol < originalWidth; origCol++)
+        {
+          // Calculate the index in the original 1D array
+          int originalIndex = origRow * originalWidth + origCol;
+          byte pixelValue = imageData[originalIndex];
+
+          // Calculate the new coordinates after 90-degree clockwise rotation
+          // Original (origCol, origRow) maps to (newCol, newRow) in the rotated image
+          // newRow corresponds to the original column
+          // newCol corresponds to (originalHeight - 1 - originalRow)
+          int newRow = origCol;
+          int newCol = originalHeight - 1 - origRow;
+
+          // Calculate the index in the new (rotated) 1D array
+          // The rotatedData array is also stored in row-major order,
+          // using its newWidth and newHeight.
+          int rotatedIndex = newRow * newWidth + newCol;
+          rotatedData[rotatedIndex] = pixelValue;
+        }
+      }
+
+      return rotatedData;
     }
 
     public static IEnumerable<(T item, int index)> WithIndex<T>(this IEnumerable<T> source)

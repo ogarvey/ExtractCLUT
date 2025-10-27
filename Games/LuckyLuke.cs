@@ -418,7 +418,7 @@ namespace ExtractCLUT.Games
                 // - Sub Block 7 contains (1,2,4 only) item tile sprite offsets
                 // - Sub Block 8 contains (1,2,4 only) item tile sprite data
                 // Block 1 contains varying number of mpeg blocks, and a final 4 blocks containing map data
-                //var block0 = BlockParser(vFile.SubFiles[0]);
+                var block0 = BlockParser(vFile.SubFiles[0]);
                 var block1 = BlockParser(vFile.SubFiles[1], true);
 
                 // foreach (var (block, index) in  block0.WithIndex()) {
@@ -426,115 +426,115 @@ namespace ExtractCLUT.Games
                 // }
 
                 // Handle Block 0 - Palette 1
-                // var fgDayPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[2].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray());
-                // var fgNightPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[2].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[3].Skip(0x180).Take(0x180).ToArray());
+                var fgDayPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[2].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray());
+                var fgNightPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[2].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[3].Skip(0x180).Take(0x180).ToArray());
 
-                // // Handle Block 0 - Palette 2
-                // var bgDayPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[4].Skip(0).Take(0x180).ToArray());
-                // var bgNightPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[4].Skip(0x180).Take(0x180).ToArray());
+                // Handle Block 0 - Palette 2
+                var bgDayPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[4].Skip(0).Take(0x180).ToArray());
+                var bgNightPalette = levelIndex == 6 ? ConvertBytesToRGB(block0[3].Skip(0).Take(0x180).ToArray()) : ConvertBytesToRGB(block0[4].Skip(0x180).Take(0x180).ToArray());
 
-                // // Handle Block 0 -  Luke and UI Sprites
-                // var lukeAndUISpriteListsDay = ParseSpriteBlock(block0[1], fgDayPalette); // Returns a list of lists of images
-                // var lukeAndUISpriteListsNight = ParseSpriteBlock(block0[1], fgNightPalette); // Returns a list of lists of images
+                // Handle Block 0 -  Luke and UI Sprites
+                var lukeAndUISpriteListsDay = ParseSpriteBlock(block0[1], fgDayPalette); // Returns a list of lists of images
+                var lukeAndUISpriteListsNight = ParseSpriteBlock(block0[1], fgNightPalette); // Returns a list of lists of images
 
-                // // Handle Block 0 -  Enemy Sprites
-                // var enemySpriteListsDay = levelIndex == 6 ? new List<List<Image>>() : ParseSpriteBlock(block0[2], fgDayPalette); // Returns a list of lists of images
-                // var enemySpriteListsNight = levelIndex == 6 ? new List<List<Image>>() : ParseSpriteBlock(block0[2], fgNightPalette); // Returns a list of lists of images
+                // Handle Block 0 -  Enemy Sprites
+                var enemySpriteListsDay = levelIndex == 6 ? new List<List<Image>>() : ParseSpriteBlock(block0[2], fgDayPalette); // Returns a list of lists of images
+                var enemySpriteListsNight = levelIndex == 6 ? new List<List<Image>>() : ParseSpriteBlock(block0[2], fgNightPalette); // Returns a list of lists of images
 
-                // var bgTilesDay = new List<Image>();
-                // var bgTilesNight = new List<Image>();
-                // var fgTilesDay = new List<Image>();
-                // var fgTilesNight = new List<Image>();
-                // // Handle Block 0 -  Sub Block 4
-                // // if (LV1,2,4) - Background Tiles, if (LV3,5,6) - Foreground Tiles
-                // // Sub Block 5 (LV1,2,4)
-                // if (levelIndex == 1 || levelIndex == 2 || levelIndex == 4)
-                // {
-                //     bgTilesDay = ParseBGTileBlock(block0[5], bgDayPalette);
-                //     bgTilesNight = ParseBGTileBlock(block0[5], bgNightPalette);
-                //     fgTilesDay = ParseFGTileBlock(block0[6], fgDayPalette);
-                //     fgTilesNight = ParseFGTileBlock(block0[6], fgNightPalette);
-                // }
-                // else if (levelIndex == 6)
-                // {
-                //     fgTilesDay = ParseFGTileBlock(block0[4], fgDayPalette);
-                //     fgTilesNight = ParseFGTileBlock(block0[4], fgNightPalette);
-                // }
-                // else
-                // {
-                //     fgTilesDay = ParseFGTileBlock(block0[5], fgDayPalette);
-                //     fgTilesNight = ParseFGTileBlock(block0[5], fgNightPalette);
-                // }
+                var bgTilesDay = new List<Image>();
+                var bgTilesNight = new List<Image>();
+                var fgTilesDay = new List<Image>();
+                var fgTilesNight = new List<Image>();
+                // Handle Block 0 -  Sub Block 4
+                // if (LV1,2,4) - Background Tiles, if (LV3,5,6) - Foreground Tiles
+                // Sub Block 5 (LV1,2,4)
+                if (levelIndex == 1 || levelIndex == 2 || levelIndex == 4)
+                {
+                    bgTilesDay = ParseBGTileBlock(block0[5], bgDayPalette);
+                    bgTilesNight = ParseBGTileBlock(block0[5], bgNightPalette);
+                    fgTilesDay = ParseFGTileBlock(block0[6], fgDayPalette);
+                    fgTilesNight = ParseFGTileBlock(block0[6], fgNightPalette);
+                }
+                else if (levelIndex == 6)
+                {
+                    fgTilesDay = ParseFGTileBlock(block0[4], fgDayPalette);
+                    fgTilesNight = ParseFGTileBlock(block0[4], fgNightPalette);
+                }
+                else
+                {
+                    fgTilesDay = ParseFGTileBlock(block0[5], fgDayPalette);
+                    fgTilesNight = ParseFGTileBlock(block0[5], fgNightPalette);
+                }
 
-                // var tileSpriteData = levelIndex switch
-                // {
-                //     1 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
-                //     2 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
-                //     4 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
-                //     6 => block0[5].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[6]).ToArray(),
-                //     _ => block0[6].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[7]).ToArray(),
-                // };
-                // // Handle Block 0 -  Sub Block 5 (LV3,5,6)/Sub Block 6(LV1,2,4)
-                // var tileSpriteDayList = ParseTileSpriteBlock(tileSpriteData, fgDayPalette);
-                // var tileSpriteNightList = ParseTileSpriteBlock(tileSpriteData, fgNightPalette);
+                var tileSpriteData = levelIndex switch
+                {
+                    1 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
+                    2 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
+                    4 => block0[7].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[8]).ToArray(),
+                    6 => block0[5].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[6]).ToArray(),
+                    _ => block0[6].Concat(new byte[4] { 0x45, 0x4e, 0x44, 0x21 }).Concat(block0[7]).ToArray(),
+                };
+                // Handle Block 0 -  Sub Block 5 (LV3,5,6)/Sub Block 6(LV1,2,4)
+                var tileSpriteDayList = ParseTileSpriteBlock(tileSpriteData, fgDayPalette);
+                var tileSpriteNightList = ParseTileSpriteBlock(tileSpriteData, fgNightPalette);
 
-                // var spriteOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "sprites");
-                // var bgOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "bgTiles");
-                // var fgOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "fgTiles");
-                // var tileSpriteOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "tileSprites");
+                var spriteOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "sprites");
+                var bgOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "bgTiles");
+                var fgOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "fgTiles");
+                var tileSpriteOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "tileSprites");
 
-                // var nightOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "night");
-                // Directory.CreateDirectory(nightOutputPath);
-                // var spriteNightOutputPath = Path.Combine(nightOutputPath, "sprites");
-                // var bgNightOutputPath = Path.Combine(nightOutputPath, "bgTiles");
-                // var fgNightOutputPath = Path.Combine(nightOutputPath, "fgTiles");
-                // var tileSpriteNightOutputPath = Path.Combine(nightOutputPath, "tileSprites");
+                var nightOutputPath = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(file.FilePath), "night");
+                Directory.CreateDirectory(nightOutputPath);
+                var spriteNightOutputPath = Path.Combine(nightOutputPath, "sprites");
+                var bgNightOutputPath = Path.Combine(nightOutputPath, "bgTiles");
+                var fgNightOutputPath = Path.Combine(nightOutputPath, "fgTiles");
+                var tileSpriteNightOutputPath = Path.Combine(nightOutputPath, "tileSprites");
 
-                // Directory.CreateDirectory(spriteOutputPath);
-                // Directory.CreateDirectory(bgOutputPath);
-                // Directory.CreateDirectory(fgOutputPath);
-                // Directory.CreateDirectory(tileSpriteOutputPath);
-                // Directory.CreateDirectory(spriteNightOutputPath);
-                // Directory.CreateDirectory(bgNightOutputPath);
-                // Directory.CreateDirectory(fgNightOutputPath);
-                // Directory.CreateDirectory(tileSpriteNightOutputPath);
+                Directory.CreateDirectory(spriteOutputPath);
+                Directory.CreateDirectory(bgOutputPath);
+                Directory.CreateDirectory(fgOutputPath);
+                Directory.CreateDirectory(tileSpriteOutputPath);
+                Directory.CreateDirectory(spriteNightOutputPath);
+                Directory.CreateDirectory(bgNightOutputPath);
+                Directory.CreateDirectory(fgNightOutputPath);
+                Directory.CreateDirectory(tileSpriteNightOutputPath);
 
-                // for (int i = 0; i < tileSpriteDayList.Count; i++)
-                // {
-                //     tileSpriteDayList[i].Save(Path.Combine(tileSpriteOutputPath, $"TileSprite_{i}.png"), ImageFormat.Png);
-                //     tileSpriteNightList[i].Save(Path.Combine(tileSpriteNightOutputPath, $"TileSprite_{i}.png"), ImageFormat.Png);
+                for (int i = 0; i < tileSpriteDayList.Count; i++)
+                {
+                    tileSpriteDayList[i].Save(Path.Combine(tileSpriteOutputPath, $"TileSprite_{i}.png"), ImageFormat.Png);
+                    tileSpriteNightList[i].Save(Path.Combine(tileSpriteNightOutputPath, $"TileSprite_{i}.png"), ImageFormat.Png);
 
-                // }
+                }
 
-                // for (int i = 0; i < lukeAndUISpriteListsDay.Count; i++)
-                // {
-                //     for (int j = 0; j < lukeAndUISpriteListsDay[i].Count; j++)
-                //     {
-                //         lukeAndUISpriteListsDay[i][j].Save(Path.Combine(spriteOutputPath, $"Luke_{i}_{j}.png"), ImageFormat.Png);
-                //         lukeAndUISpriteListsNight[i][j].Save(Path.Combine(spriteNightOutputPath, $"Luke_{i}_{j}.png"), ImageFormat.Png);
-                //     }
-                // }
+                for (int i = 0; i < lukeAndUISpriteListsDay.Count; i++)
+                {
+                    for (int j = 0; j < lukeAndUISpriteListsDay[i].Count; j++)
+                    {
+                        lukeAndUISpriteListsDay[i][j].Save(Path.Combine(spriteOutputPath, $"Luke_{i}_{j}.png"), ImageFormat.Png);
+                        lukeAndUISpriteListsNight[i][j].Save(Path.Combine(spriteNightOutputPath, $"Luke_{i}_{j}.png"), ImageFormat.Png);
+                    }
+                }
 
-                // for (int i = 0; i < enemySpriteListsDay.Count; i++)
-                // {
-                //     for (int j = 0; j < enemySpriteListsDay[i].Count; j++)
-                //     {
-                //         enemySpriteListsDay[i][j].Save(Path.Combine(spriteOutputPath, $"Enemy_{i}_{j}.png"), ImageFormat.Png);
-                //         enemySpriteListsNight[i][j].Save(Path.Combine(spriteNightOutputPath, $"Enemy_{i}_{j}.png"), ImageFormat.Png);
-                //     }
-                // }
+                for (int i = 0; i < enemySpriteListsDay.Count; i++)
+                {
+                    for (int j = 0; j < enemySpriteListsDay[i].Count; j++)
+                    {
+                        enemySpriteListsDay[i][j].Save(Path.Combine(spriteOutputPath, $"Enemy_{i}_{j}.png"), ImageFormat.Png);
+                        enemySpriteListsNight[i][j].Save(Path.Combine(spriteNightOutputPath, $"Enemy_{i}_{j}.png"), ImageFormat.Png);
+                    }
+                }
 
-                // for (int i = 0; i < bgTilesDay.Count; i++)
-                // {
-                //     bgTilesDay[i].Save(Path.Combine(bgOutputPath, $"BG_{i}.png"), ImageFormat.Png);
-                //     bgTilesNight[i].Save(Path.Combine(bgNightOutputPath, $"BG_{i}.png"), ImageFormat.Png);
-                // }
+                for (int i = 0; i < bgTilesDay.Count; i++)
+                {
+                    bgTilesDay[i].Save(Path.Combine(bgOutputPath, $"BG_{i}.png"), ImageFormat.Png);
+                    bgTilesNight[i].Save(Path.Combine(bgNightOutputPath, $"BG_{i}.png"), ImageFormat.Png);
+                }
 
-                // for (int i = 0; i < fgTilesDay.Count; i++)
-                // {
-                //     fgTilesDay[i].Save(Path.Combine(fgOutputPath, $"FG_{i}.png"), ImageFormat.Png);
-                //     fgTilesNight[i].Save(Path.Combine(fgNightOutputPath, $"FG_{i}.png"), ImageFormat.Png);
-                // }
+                for (int i = 0; i < fgTilesDay.Count; i++)
+                {
+                    fgTilesDay[i].Save(Path.Combine(fgOutputPath, $"FG_{i}.png"), ImageFormat.Png);
+                    fgTilesNight[i].Save(Path.Combine(fgNightOutputPath, $"FG_{i}.png"), ImageFormat.Png);
+                }
 
                 var bgMapData = block1[^5].Skip(0x8).Take(0x1c20).ToArray();
                 var fgMapData = block1[^4].Skip(0x8).Take(0x3840).ToArray();
