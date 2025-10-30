@@ -1,0 +1,885 @@
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1902: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6hgw-6x87-578x
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-9ccg-6pjw-x645
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-cfh4-9f7v-fhrc
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-cjc8-g9w8-chfw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-fh55-q5pj-pxgw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-hm4x-r5hc-794f
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-mxvv-97wh-cfmm
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qh3h-j545-h8c9
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qp29-wxp5-wh82
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-vmhh-8rxq-fp9g
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1902: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6hgw-6x87-578x
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-9ccg-6pjw-x645
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-cfh4-9f7v-fhrc
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-cjc8-g9w8-chfw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-fh55-q5pj-pxgw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-hm4x-r5hc-794f
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-mxvv-97wh-cfmm
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qh3h-j545-h8c9
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qp29-wxp5-wh82
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-vmhh-8rxq-fp9g
+
+=== Processing Image 0 ===
+Chunk size: 5348, Compressed data size: 5336
+First 8 bytes (hex): 00 01 A5 43 FF 22 A5 FF 
+First word: 0x0001A543, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6335/10857 (58.3%), Opaque pixels: 4599
+Saved: CC0.chunk0_image0.png
+
+=== Processing Image 1 ===
+Chunk size: 5360, Compressed data size: 5348
+First 8 bytes (hex): 00 01 A5 45 FF FF 00 00 
+First word: 0x0001A545, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6157/10703 (57.5%), Opaque pixels: 4623
+Saved: CC0.chunk0_image1.png
+
+=== Processing Image 2 ===
+Chunk size: 5344, Compressed data size: 5332
+First 8 bytes (hex): 00 01 A9 43 FF 22 85 FF 
+First word: 0x0001A943, Row offset (if 8bpp): 1
+Image is 79x139
+Has transparency mask: True
+Transparent pixels: 6393/10981 (58.2%), Opaque pixels: 4667
+Saved: CC0.chunk0_image2.png
+
+=== Processing Image 3 ===
+Chunk size: 5240, Compressed data size: 5228
+First 8 bytes (hex): 00 01 A8 45 FF FF 22 22 
+First word: 0x0001A845, Row offset (if 8bpp): 1
+Image is 78x137
+Has transparency mask: True
+Transparent pixels: 6154/10686 (57.6%), Opaque pixels: 4610
+Saved: CC0.chunk0_image3.png
+
+=== Processing Image 4 ===
+Chunk size: 5204, Compressed data size: 5192
+First 8 bytes (hex): 00 01 A7 45 FF FF 22 22 
+First word: 0x0001A745, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6192/10626 (58.3%), Opaque pixels: 4511
+Saved: CC0.chunk0_image4.png
+
+=== Processing Image 5 ===
+Chunk size: 5172, Compressed data size: 5160
+First 8 bytes (hex): 00 01 A6 44 FF FF 22 22 
+First word: 0x0001A644, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6458/10780 (59.9%), Opaque pixels: 4399
+Saved: CC0.chunk0_image5.png
+
+=== Processing Image 6 ===
+Chunk size: 5024, Compressed data size: 5012
+First 8 bytes (hex): 00 01 A2 45 FF FF 62 64 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6529/10703 (61.0%), Opaque pixels: 4251
+Saved: CC0.chunk0_image6.png
+
+=== Processing Image 7 ===
+Chunk size: 5176, Compressed data size: 5164
+First 8 bytes (hex): 00 01 A0 43 FF 22 44 FF 
+First word: 0x0001A043, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6453/10780 (59.9%), Opaque pixels: 4404
+Saved: CC0.chunk0_image7.png
+
+=== Processing Image 8 ===
+Chunk size: 5224, Compressed data size: 5212
+First 8 bytes (hex): 00 01 9C 46 FF FF 22 44 
+First word: 0x00019C46, Row offset (if 8bpp): 1
+Image is 65x145
+Has transparency mask: True
+Transparent pixels: 5126/9425 (54.4%), Opaque pixels: 4364
+Saved: CC0.chunk0_image8.png
+
+=== Processing Image 9 ===
+Chunk size: 4344, Compressed data size: 4332
+First 8 bytes (hex): 00 01 99 43 FF FF 22 FF 
+First word: 0x00019943, Row offset (if 8bpp): 1
+Image is 59x149
+Has transparency mask: True
+Transparent pixels: 5342/8791 (60.8%), Opaque pixels: 3508
+Saved: CC0.chunk0_image9.png
+
+=== Processing Image 10 ===
+Chunk size: 4508, Compressed data size: 4496
+First 8 bytes (hex): 00 01 94 C2 FF 44 64 22 
+First word: 0x000194C2, Row offset (if 8bpp): 1
+Image is 66x142
+Has transparency mask: True
+Transparent pixels: 5770/9372 (61.6%), Opaque pixels: 3668
+Saved: CC0.chunk0_image10.png
+
+=== Processing Image 11 ===
+Chunk size: 4576, Compressed data size: 4564
+First 8 bytes (hex): 00 01 A2 46 FF FF 22 44 
+First word: 0x0001A246, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 7065/10780 (65.5%), Opaque pixels: 3792
+Saved: CC0.chunk0_image11.png
+
+=== Processing Image 12 ===
+Chunk size: 4508, Compressed data size: 4496
+First 8 bytes (hex): 00 01 A3 45 FF FF 64 22 
+First word: 0x0001A345, Row offset (if 8bpp): 1
+Image is 66x145
+Has transparency mask: True
+Transparent pixels: 5960/9570 (62.3%), Opaque pixels: 3676
+Saved: CC0.chunk0_image12.png
+
+=== Processing Image 13 ===
+Chunk size: 4744, Compressed data size: 4732
+First 8 bytes (hex): 00 01 9B 46 FF FF 22 44 
+First word: 0x00019B46, Row offset (if 8bpp): 1
+Image is 58x146
+Has transparency mask: True
+Transparent pixels: 4620/8468 (54.6%), Opaque pixels: 3906
+Saved: CC0.chunk0_image13.png
+
+=== Processing Image 14 ===
+Chunk size: 5056, Compressed data size: 5044
+First 8 bytes (hex): 00 01 A0 44 FF FF 44 62 
+First word: 0x0001A044, Row offset (if 8bpp): 1
+Image is 66x142
+Has transparency mask: True
+Transparent pixels: 5180/9372 (55.3%), Opaque pixels: 4258
+Saved: CC0.chunk0_image14.png
+
+=== Processing Image 15 ===
+Chunk size: 5376, Compressed data size: 5364
+First 8 bytes (hex): 00 00 A8 42 FF 85 FF A0 
+First word: 0x0000A842, Row offset (if 8bpp): 0
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6308/10857 (58.1%), Opaque pixels: 4626
+Saved: CC0.chunk0_image15.png
+
+=== Processing Image 16 ===
+Chunk size: 5452, Compressed data size: 5440
+First 8 bytes (hex): 00 01 A2 45 FF FF 22 22 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 75x150
+Has transparency mask: True
+Transparent pixels: 6757/11250 (60.1%), Opaque pixels: 4568
+Saved: CC0.chunk0_image16.png
+
+=== Processing Image 17 ===
+Chunk size: 3716, Compressed data size: 3704
+First 8 bytes (hex): 00 01 9C 43 FF FF 64 FF 
+First word: 0x00019C43, Row offset (if 8bpp): 1
+Image is 70x83
+Has transparency mask: True
+Transparent pixels: 2372/5810 (40.8%), Opaque pixels: 3508
+Saved: CC0.chunk0_image17.png
+
+=== Processing Image 18 ===
+Chunk size: 4932, Compressed data size: 4920
+First 8 bytes (hex): 00 01 A6 43 FF 22 22 FF 
+First word: 0x0001A643, Row offset (if 8bpp): 1
+Image is 77x118
+Has transparency mask: True
+Transparent pixels: 4849/9086 (53.4%), Opaque pixels: 4314
+Saved: CC0.chunk0_image18.png
+
+=== Processing Image 19 ===
+Chunk size: 4016, Compressed data size: 4004
+First 8 bytes (hex): 00 01 A1 44 FF 22 22 FF 
+First word: 0x0001A144, Row offset (if 8bpp): 1
+Image is 89x93
+Has transparency mask: True
+Transparent pixels: 4770/8277 (57.6%), Opaque pixels: 3596
+Saved: CC0.chunk0_image19.png
+
+=== Processing Image 20 ===
+Chunk size: 5092, Compressed data size: 5080
+First 8 bytes (hex): 00 01 96 43 FF 22 22 FF 
+First word: 0x00019643, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6369/10626 (59.9%), Opaque pixels: 4334
+Saved: CC0.chunk0_image20.png
+
+=== Processing Image 21 ===
+Chunk size: 4972, Compressed data size: 4960
+First 8 bytes (hex): 00 02 8F 43 FF 22 22 FF 
+First word: 0x00028F43, Row offset (if 8bpp): 2
+Image is 77x135
+Has transparency mask: True
+Transparent pixels: 6238/10395 (60.0%), Opaque pixels: 4234
+Saved: CC0.chunk0_image21.png
+
+=== Processing Image 22 ===
+Chunk size: 3796, Compressed data size: 3784
+First 8 bytes (hex): 00 01 8F 43 FF 83 C5 FF 
+First word: 0x00018F43, Row offset (if 8bpp): 1
+Image is 85x90
+Has transparency mask: True
+Transparent pixels: 4406/7650 (57.6%), Opaque pixels: 3329
+Saved: CC0.chunk0_image22.png
+
+=== Processing Image 23 ===
+Chunk size: 3808, Compressed data size: 3796
+First 8 bytes (hex): 00 01 A3 44 FF FF 44 44 
+First word: 0x0001A344, Row offset (if 8bpp): 1
+Image is 90x90
+Has transparency mask: True
+Transparent pixels: 4900/8100 (60.5%), Opaque pixels: 3290
+Saved: CC0.chunk0_image23.png
+
+=== Processing Image 24 ===
+Chunk size: 5120, Compressed data size: 5108
+First 8 bytes (hex): 00 01 9A C2 FF C2 22 41 
+First word: 0x00019AC2, Row offset (if 8bpp): 1
+Image is 80x138
+Has transparency mask: True
+Transparent pixels: 6848/11040 (62.0%), Opaque pixels: 4272
+Saved: CC0.chunk0_image24.png
+
+=== Processing Image 25 ===
+Chunk size: 4988, Compressed data size: 4976
+First 8 bytes (hex): 00 01 8F 44 FF FF 22 22 
+First word: 0x00018F44, Row offset (if 8bpp): 1
+Image is 79x139
+Has transparency mask: True
+Transparent pixels: 6875/10981 (62.6%), Opaque pixels: 4185
+Saved: CC0.chunk0_image25.png
+
+=== Processing Image 26 ===
+Chunk size: 4852, Compressed data size: 4840
+First 8 bytes (hex): 00 01 92 45 FF FF 22 22 
+First word: 0x00019245, Row offset (if 8bpp): 1
+Image is 78x137
+Has transparency mask: True
+Transparent pixels: 6746/10686 (63.1%), Opaque pixels: 4018
+Saved: CC0.chunk0_image26.png
+
+=== Processing Image 27 ===
+Chunk size: 4848, Compressed data size: 4836
+First 8 bytes (hex): 00 01 A4 46 FF FF 64 44 
+First word: 0x0001A446, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6716/10703 (62.7%), Opaque pixels: 4064
+Saved: CC0.chunk0_image27.png
+
+=== Processing Image 28 ===
+Chunk size: 5036, Compressed data size: 5024
+First 8 bytes (hex): 00 01 AC 43 FF 22 22 FF 
+First word: 0x0001AC43, Row offset (if 8bpp): 1
+Image is 77x137
+Has transparency mask: True
+Transparent pixels: 6441/10549 (61.1%), Opaque pixels: 4185
+Saved: CC0.chunk0_image28.png
+
+=== Processing Image 29 ===
+Chunk size: 5264, Compressed data size: 5252
+First 8 bytes (hex): 00 01 9E 44 FF FF 22 22 
+First word: 0x00019E44, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6480/10857 (59.7%), Opaque pixels: 4454
+Saved: CC0.chunk0_image29.png
+
+=== Processing Image 30 ===
+Chunk size: 5264, Compressed data size: 5252
+First 8 bytes (hex): 00 01 9D 43 FF 22 22 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6400/10780 (59.4%), Opaque pixels: 4457
+Saved: CC0.chunk0_image30.png
+
+=== Processing Image 31 ===
+Chunk size: 5552, Compressed data size: 5540
+First 8 bytes (hex): 00 01 A4 44 FF FF 22 22 
+First word: 0x0001A444, Row offset (if 8bpp): 1
+Image is 91x140
+Has transparency mask: True
+Transparent pixels: 8097/12740 (63.6%), Opaque pixels: 4734
+Saved: CC0.chunk0_image31.png
+
+=== Processing Image 32 ===
+Chunk size: 5620, Compressed data size: 5608
+First 8 bytes (hex): 00 01 BD 43 FF 22 22 FF 
+First word: 0x0001BD43, Row offset (if 8bpp): 1
+­ƒöì VERBOSE MODE ENABLED FOR IMAGE 32
+Saved raw data to: C:\Dev\Gaming\3do\Games\CD-ROM\CC0\CC0.chunk0_output\image32_raw.bin
+
+[VERBOSE] UnpackCelData called:
+  BitsPerPixel: 8
+  Coded: True
+  Packed: True
+  Data size: 5608 bytes
+  Row header: rowStartWord=0, offset=1, nextRowWord=3, currentWordPos after header=0
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=02b (TRANSPARENT)
+    Packet 4: type=00b (EOL)
+    EOL at pixel 123, nextRowWord=3, currentWordPos=2
+  Row 0: 4 packets - EOL:1 LITERAL:1 TRANSPARENT:2 REPEAT:0 => 119T/4O pixels
+  Row header: rowStartWord=3, offset=2, nextRowWord=7, currentWordPos after header=3
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=02b (TRANSPARENT)
+    Packet 4: type=00b (EOL)
+    EOL at pixel 123, nextRowWord=7, currentWordPos=6
+  Row 1: 4 packets - EOL:1 LITERAL:1 TRANSPARENT:2 REPEAT:0 => 115T/8O pixels
+  Row header: rowStartWord=7, offset=2, nextRowWord=11, currentWordPos after header=7
+    EOL at pixel 123, nextRowWord=11, currentWordPos=10
+  Row 2: 4 packets - EOL:1 LITERAL:1 TRANSPARENT:2 REPEAT:0 => 113T/10O pixels
+  Row header: rowStartWord=11, offset=3, nextRowWord=16, currentWordPos after header=11
+    EOL at pixel 123, nextRowWord=16, currentWordPos=15
+  Row 3: 4 packets - EOL:1 LITERAL:1 TRANSPARENT:2 REPEAT:0 => 111T/12O pixels
+  Row header: rowStartWord=16, offset=3, nextRowWord=21, currentWordPos after header=16
+    EOL at pixel 123, nextRowWord=21, currentWordPos=20
+  Row 4: 6 packets - EOL:1 LITERAL:2 TRANSPARENT:2 REPEAT:1 => 109T/14O pixels
+Image is 123x134
+Has transparency mask: True
+Transparent pixels: 11683/16482 (70.9%), Opaque pixels: 4922
+Saved: CC0.chunk0_image32.png
+
+=== Processing Image 33 ===
+Chunk size: 4688, Compressed data size: 4676
+First 8 bytes (hex): 00 01 B3 45 FF FF 64 44 
+First word: 0x0001B345, Row offset (if 8bpp): 1
+Image is 90x139
+Has transparency mask: True
+Transparent pixels: 8718/12510 (69.7%), Opaque pixels: 3882
+Saved: CC0.chunk0_image33.png
+
+=== Processing Image 34 ===
+Chunk size: 4880, Compressed data size: 4868
+First 8 bytes (hex): 00 01 BF 85 45 FF FF 44 
+First word: 0x0001BF85, Row offset (if 8bpp): 1
+Image is 122x136
+Has transparency mask: True
+Transparent pixels: 12562/16592 (75.7%), Opaque pixels: 4152
+Saved: CC0.chunk0_image34.png
+
+=== Processing Image 35 ===
+Chunk size: 5008, Compressed data size: 4996
+First 8 bytes (hex): 00 01 94 44 FF FF 22 22 
+First word: 0x00019444, Row offset (if 8bpp): 1
+­ƒöì VERBOSE MODE ENABLED FOR IMAGE 35
+Saved raw data to: C:\Dev\Gaming\3do\Games\CD-ROM\CC0\CC0.chunk0_output\image35_raw.bin
+
+[VERBOSE] UnpackCelData called:
+  BitsPerPixel: 8
+  Coded: True
+  Packed: True
+  Data size: 4996 bytes
+  Row header: rowStartWord=0, offset=1, nextRowWord=3, currentWordPos after header=0
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=00b (EOL)
+    EOL at pixel 26, nextRowWord=3, currentWordPos=2
+  Row 0: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 21T/5O pixels
+  Row header: rowStartWord=3, offset=2, nextRowWord=7, currentWordPos after header=3
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=00b (EOL)
+    EOL at pixel 28, nextRowWord=7, currentWordPos=6
+  Row 1: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 19T/9O pixels
+  Row header: rowStartWord=7, offset=2, nextRowWord=11, currentWordPos after header=7
+    EOL at pixel 29, nextRowWord=11, currentWordPos=10
+  Row 2: 5 packets - EOL:1 LITERAL:2 TRANSPARENT:1 REPEAT:1 => 18T/11O pixels
+  Row header: rowStartWord=11, offset=2, nextRowWord=15, currentWordPos after header=11
+    EOL at pixel 30, nextRowWord=15, currentWordPos=14
+  Row 3: 5 packets - EOL:1 LITERAL:2 TRANSPARENT:1 REPEAT:1 => 18T/12O pixels
+  Row header: rowStartWord=15, offset=3, nextRowWord=20, currentWordPos after header=15
+    EOL at pixel 30, nextRowWord=20, currentWordPos=19
+  Row 4: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 17T/13O pixels
+Image is 128x135
+Has transparency mask: True
+Transparent pixels: 13070/17280 (75.6%), Opaque pixels: 4338
+Saved: CC0.chunk0_image35.png
+
+=== Processing Image 36 ===
+Chunk size: 4204, Compressed data size: 4192
+First 8 bytes (hex): 00 01 A2 43 FF C5 44 FF 
+First word: 0x0001A243, Row offset (if 8bpp): 1
+Image is 52x139
+Has transparency mask: True
+Transparent pixels: 3945/7228 (54.6%), Opaque pixels: 3335
+Saved: CC0.chunk0_image36.png
+
+=== Processing Image 37 ===
+Chunk size: 4304, Compressed data size: 4292
+First 8 bytes (hex): 00 01 90 45 FF FF 22 22 
+First word: 0x00019045, Row offset (if 8bpp): 1
+­ƒöì VERBOSE MODE ENABLED FOR IMAGE 37
+Saved raw data to: C:\Dev\Gaming\3do\Games\CD-ROM\CC0\CC0.chunk0_output\image37_raw.bin
+
+[VERBOSE] UnpackCelData called:
+  BitsPerPixel: 8
+  Coded: True
+  Packed: True
+  Data size: 4292 bytes
+  Row header: rowStartWord=0, offset=1, nextRowWord=3, currentWordPos after header=0
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=00b (EOL)
+    EOL at pixel 23, nextRowWord=3, currentWordPos=2
+  Row 0: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 17T/6O pixels
+  Row header: rowStartWord=3, offset=2, nextRowWord=7, currentWordPos after header=3
+    Packet 1: type=02b (TRANSPARENT)
+    Packet 2: type=01b (LITERAL)
+    Packet 3: type=03b (REPEAT)
+    Packet 4: type=01b (LITERAL)
+    Packet 5: type=00b (EOL)
+    EOL at pixel 25, nextRowWord=7, currentWordPos=6
+  Row 1: 5 packets - EOL:1 LITERAL:2 TRANSPARENT:1 REPEAT:1 => 15T/10O pixels
+  Row header: rowStartWord=7, offset=3, nextRowWord=12, currentWordPos after header=7
+    EOL at pixel 26, nextRowWord=12, currentWordPos=11
+  Row 2: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 14T/12O pixels
+  Row header: rowStartWord=12, offset=3, nextRowWord=17, currentWordPos after header=12
+    EOL at pixel 27, nextRowWord=17, currentWordPos=16
+  Row 3: 3 packets - EOL:1 LITERAL:1 TRANSPARENT:1 REPEAT:0 => 14T/13O pixels
+  Row header: rowStartWord=17, offset=3, nextRowWord=22, currentWordPos after header=17
+    EOL at pixel 27, nextRowWord=22, currentWordPos=21
+  Row 4: 5 packets - EOL:1 LITERAL:2 TRANSPARENT:1 REPEAT:1 => 13T/14O pixels
+Image is 107x138
+Has transparency mask: True
+Transparent pixels: 11347/14766 (76.8%), Opaque pixels: 3526
+Saved: CC0.chunk0_image37.png
+
+=== Processing Image 38 ===
+Chunk size: 4264, Compressed data size: 4252
+First 8 bytes (hex): 00 01 91 45 FF FF 22 22 
+First word: 0x00019145, Row offset (if 8bpp): 1
+Image is 110x133
+Has transparency mask: True
+Transparent pixels: 11256/14630 (76.9%), Opaque pixels: 3484
+Saved: CC0.chunk0_image38.png
+
+=== Processing Image 39 ===
+Chunk size: 4288, Compressed data size: 4276
+First 8 bytes (hex): 00 01 A4 44 FF FF 44 83 
+First word: 0x0001A444, Row offset (if 8bpp): 1
+Image is 91x93
+Has transparency mask: True
+Transparent pixels: 4783/8463 (56.5%), Opaque pixels: 3771
+Saved: CC0.chunk0_image39.png
+
+=== Processing Image 40 ===
+Chunk size: 4272, Compressed data size: 4260
+First 8 bytes (hex): 00 00 A9 42 FF 22 FF BB 
+First word: 0x0000A942, Row offset (if 8bpp): 0
+Image is 105x93
+Has transparency mask: True
+Transparent pixels: 6028/9765 (61.7%), Opaque pixels: 3842
+Saved: CC0.chunk0_image40.png
+
+=== Processing Image 41 ===
+Chunk size: 3668, Compressed data size: 3656
+First 8 bytes (hex): 00 01 A6 46 FF FF 44 44 
+First word: 0x0001A646, Row offset (if 8bpp): 1
+Image is 84x91
+Has transparency mask: True
+Transparent pixels: 4589/7644 (60.0%), Opaque pixels: 3139
+Saved: CC0.chunk0_image41.png
+
+=== Processing Image 42 ===
+Chunk size: 3928, Compressed data size: 3916
+First 8 bytes (hex): 00 01 B1 45 FF FF 44 64 
+First word: 0x0001B145, Row offset (if 8bpp): 1
+Image is 101x84
+Has transparency mask: True
+Transparent pixels: 5046/8484 (59.5%), Opaque pixels: 3539
+Saved: CC0.chunk0_image42.png
+
+=== Processing Image 43 ===
+Chunk size: 3900, Compressed data size: 3888
+First 8 bytes (hex): 00 01 95 45 FF FF 22 22 
+First word: 0x00019545, Row offset (if 8bpp): 1
+Image is 129x85
+Has transparency mask: True
+Transparent pixels: 7524/10965 (68.6%), Opaque pixels: 3570
+Saved: CC0.chunk0_image43.png
+
+=== Processing Image 44 ===
+Chunk size: 4264, Compressed data size: 4252
+First 8 bytes (hex): 00 01 BF 98 44 FF FF 22 
+First word: 0x0001BF98, Row offset (if 8bpp): 1
+Image is 120x94
+Has transparency mask: True
+Transparent pixels: 7607/11280 (67.4%), Opaque pixels: 3793
+Saved: CC0.chunk0_image44.png
+
+=== Processing Image 45 ===
+Chunk size: 3172, Compressed data size: 3160
+First 8 bytes (hex): 00 01 97 45 FF FF 22 22 
+First word: 0x00019745, Row offset (if 8bpp): 1
+Image is 67x88
+Has transparency mask: True
+Transparent pixels: 3269/5896 (55.4%), Opaque pixels: 2694
+Saved: CC0.chunk0_image45.png
+
+=== Processing Image 46 ===
+Chunk size: 3760, Compressed data size: 3748
+First 8 bytes (hex): 00 00 99 42 FF 44 FF B6 
+First word: 0x00009942, Row offset (if 8bpp): 0
+Image is 84x89
+Has transparency mask: True
+Transparent pixels: 4245/7476 (56.8%), Opaque pixels: 3315
+Saved: CC0.chunk0_image46.png
+
+=== Processing Image 47 ===
+Chunk size: 3408, Compressed data size: 3396
+First 8 bytes (hex): 00 01 95 46 FF FF 85 62 
+First word: 0x00019546, Row offset (if 8bpp): 1
+Image is 97x92
+Has transparency mask: True
+Transparent pixels: 6118/8924 (68.6%), Opaque pixels: 2903
+Saved: CC0.chunk0_image47.png
+
+=== Processing Image 48 ===
+Chunk size: 3516, Compressed data size: 3504
+First 8 bytes (hex): 00 01 A2 43 FF 44 64 FF 
+First word: 0x0001A243, Row offset (if 8bpp): 1
+Image is 55x99
+Has transparency mask: True
+Transparent pixels: 2560/5445 (47.0%), Opaque pixels: 2940
+Saved: CC0.chunk0_image48.png
+
+=== Processing Image 49 ===
+Chunk size: 3832, Compressed data size: 3820
+First 8 bytes (hex): 00 01 A3 44 FF FF 22 22 
+First word: 0x0001A344, Row offset (if 8bpp): 1
+Image is 76x89
+Has transparency mask: True
+Transparent pixels: 3420/6764 (50.6%), Opaque pixels: 3420
+Saved: CC0.chunk0_image49.png
+
+=== Processing Image 50 ===
+Chunk size: 3920, Compressed data size: 3908
+First 8 bytes (hex): 00 00 A9 42 FF 44 FF AD 
+First word: 0x0000A942, Row offset (if 8bpp): 0
+Image is 91x85
+Has transparency mask: True
+Transparent pixels: 4229/7735 (54.7%), Opaque pixels: 3597
+Saved: CC0.chunk0_image50.png
+
+=== Processing Image 51 ===
+Chunk size: 3888, Compressed data size: 3876
+First 8 bytes (hex): 00 01 BA 46 FF FF 44 44 
+First word: 0x0001BA46, Row offset (if 8bpp): 1
+Image is 103x76
+Has transparency mask: True
+Transparent pixels: 4257/7828 (54.4%), Opaque pixels: 3674
+Saved: CC0.chunk0_image51.png
+
+=== Processing Image 52 ===
+Chunk size: 3384, Compressed data size: 3372
+First 8 bytes (hex): 00 01 9E 44 FF FF 22 22 
+First word: 0x00019E44, Row offset (if 8bpp): 1
+Image is 70x82
+Has transparency mask: True
+Transparent pixels: 2784/5740 (48.5%), Opaque pixels: 3026
+Saved: CC0.chunk0_image52.png
+
+=== Processing Image 53 ===
+Chunk size: 3272, Compressed data size: 3260
+First 8 bytes (hex): 00 01 A6 46 FF FF A5 85 
+First word: 0x0001A646, Row offset (if 8bpp): 1
+Image is 89x79
+Has transparency mask: True
+Transparent pixels: 4199/7031 (59.7%), Opaque pixels: 2921
+Saved: CC0.chunk0_image53.png
+
+=== Processing Image 54 ===
+Chunk size: 3888, Compressed data size: 3876
+First 8 bytes (hex): 00 01 99 44 FF FF 64 44 
+First word: 0x00019944, Row offset (if 8bpp): 1
+Image is 94x83
+Has transparency mask: True
+Transparent pixels: 4356/7802 (55.8%), Opaque pixels: 3540
+Saved: CC0.chunk0_image54.png
+
+=== Processing Image 55 ===
+Chunk size: 3836, Compressed data size: 3824
+First 8 bytes (hex): 00 00 9C 42 FF 22 FF 00 
+First word: 0x00009C42, Row offset (if 8bpp): 0
+Image is 127x83
+Has transparency mask: True
+Transparent pixels: 7006/10541 (66.5%), Opaque pixels: 3662
+Saved: CC0.chunk0_image55.png
+
+=== Processing Image 56 ===
+Chunk size: 3752, Compressed data size: 3740
+First 8 bytes (hex): 00 01 97 43 FF 22 22 FF 
+First word: 0x00019743, Row offset (if 8bpp): 1
+Image is 105x82
+Has transparency mask: True
+Transparent pixels: 5204/8610 (60.4%), Opaque pixels: 3511
+Saved: CC0.chunk0_image56.png
+
+=== Processing Image 57 ===
+Chunk size: 3552, Compressed data size: 3540
+First 8 bytes (hex): 00 00 9B 42 FF 44 FF B7 
+First word: 0x00009B42, Row offset (if 8bpp): 0
+Image is 87x95
+Has transparency mask: True
+Transparent pixels: 5335/8265 (64.5%), Opaque pixels: 3017
+Saved: CC0.chunk0_image57.png
+
+=== Processing Image 58 ===
+Chunk size: 4996, Compressed data size: 4984
+First 8 bytes (hex): 00 01 AF 44 FF FF 22 44 
+First word: 0x0001AF44, Row offset (if 8bpp): 1
+Image is 86x128
+Has transparency mask: True
+Transparent pixels: 6837/11008 (62.1%), Opaque pixels: 4257
+Saved: CC0.chunk0_image58.png
+
+=== Processing Image 59 ===
+Chunk size: 5332, Compressed data size: 5320
+First 8 bytes (hex): 00 00 BF 87 41 DE 9E 80 
+First word: 0x0000BF87, Row offset (if 8bpp): 0
+Image is 75x167
+Has transparency mask: True
+Transparent pixels: 8353/12525 (66.7%), Opaque pixels: 4247
+Saved: CC0.chunk0_image59.png
+
+=== Processing Image 60 ===
+Chunk size: 5484, Compressed data size: 5472
+First 8 bytes (hex): 00 00 AB 42 FF 22 FF A1 
+First word: 0x0000AB42, Row offset (if 8bpp): 0
+Image is 81x141
+Has transparency mask: True
+Transparent pixels: 6795/11421 (59.5%), Opaque pixels: 4707
+Saved: CC0.chunk0_image60.png
+
+=== Processing Image 61 ===
+Chunk size: 4876, Compressed data size: 4864
+First 8 bytes (hex): 00 01 A2 45 FF FF 22 22 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6946/10857 (64.0%), Opaque pixels: 3988
+Saved: CC0.chunk0_image61.png
+
+=== Processing Image 62 ===
+Chunk size: 4696, Compressed data size: 4684
+First 8 bytes (hex): 00 01 95 46 FF FF 44 44 
+First word: 0x00019546, Row offset (if 8bpp): 1
+Image is 93x139
+Has transparency mask: True
+Transparent pixels: 9096/12927 (70.4%), Opaque pixels: 3924
+Saved: CC0.chunk0_image62.png
+
+=== Processing Image 63 ===
+Chunk size: 4608, Compressed data size: 4596
+First 8 bytes (hex): 00 02 BF 83 47 FF FF 83 
+First word: 0x0002BF83, Row offset (if 8bpp): 2
+Image is 84x138
+Has transparency mask: True
+Transparent pixels: 7880/11592 (68.0%), Opaque pixels: 3796
+Saved: CC0.chunk0_image63.png
+
+=== Processing Image 64 ===
+Chunk size: 4856, Compressed data size: 4844
+First 8 bytes (hex): 00 01 A3 46 FF FF 22 64 
+First word: 0x0001A346, Row offset (if 8bpp): 1
+Image is 80x144
+Has transparency mask: True
+Transparent pixels: 7682/11520 (66.7%), Opaque pixels: 3918
+Saved: CC0.chunk0_image64.png
+
+=== Processing Image 65 ===
+Chunk size: 5548, Compressed data size: 5536
+First 8 bytes (hex): 00 01 9D 43 FF FF 22 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 85x140
+Has transparency mask: True
+Transparent pixels: 7193/11900 (60.4%), Opaque pixels: 4792
+Saved: CC0.chunk0_image65.png
+
+=== Processing Image 66 ===
+Chunk size: 5240, Compressed data size: 5228
+First 8 bytes (hex): 00 01 BD 45 FF FF 64 83 
+First word: 0x0001BD45, Row offset (if 8bpp): 1
+Image is 100x129
+Has transparency mask: True
+Transparent pixels: 8526/12900 (66.1%), Opaque pixels: 4474
+Saved: CC0.chunk0_image66.png
+
+=== Processing Image 67 ===
+Chunk size: 5780, Compressed data size: 5768
+First 8 bytes (hex): 00 01 80 41 F8 BE 86 41 
+First word: 0x00018041, Row offset (if 8bpp): 1
+Image is 108x153
+Has transparency mask: True
+Transparent pixels: 11752/16524 (71.1%), Opaque pixels: 4880
+Saved: CC0.chunk0_image67.png
+
+=== Processing Image 68 ===
+Chunk size: 5232, Compressed data size: 5220
+First 8 bytes (hex): 00 01 AE 41 FF FF C2 22 
+First word: 0x0001AE41, Row offset (if 8bpp): 1
+Image is 121x134
+Has transparency mask: True
+Transparent pixels: 11918/16214 (73.5%), Opaque pixels: 4417
+Saved: CC0.chunk0_image68.png
+
+=== Processing Image 69 ===
+Chunk size: 4488, Compressed data size: 4476
+First 8 bytes (hex): 00 01 8E 45 FF FF 22 22 
+First word: 0x00018E45, Row offset (if 8bpp): 1
+Image is 83x136
+Has transparency mask: True
+Transparent pixels: 7686/11288 (68.1%), Opaque pixels: 3685
+Saved: CC0.chunk0_image69.png
+
+=== Processing Image 70 ===
+Chunk size: 4012, Compressed data size: 4000
+First 8 bytes (hex): 00 01 A2 44 9E BE F8 D9 
+First word: 0x0001A244, Row offset (if 8bpp): 1
+Image is 99x73
+Has transparency mask: True
+Transparent pixels: 3707/7227 (51.3%), Opaque pixels: 3619
+Saved: CC0.chunk0_image70.png
+
+=== Processing Image 71 ===
+Chunk size: 4248, Compressed data size: 4236
+First 8 bytes (hex): 00 01 A2 C2 FF 44 44 22 
+First word: 0x0001A2C2, Row offset (if 8bpp): 1
+Image is 127x81
+Has transparency mask: True
+Transparent pixels: 6637/10287 (64.5%), Opaque pixels: 3777
+Saved: CC0.chunk0_image71.png
+
+=== Processing Image 72 ===
+Chunk size: 5176, Compressed data size: 5164
+First 8 bytes (hex): 00 01 9B 43 FF 22 22 FF 
+First word: 0x00019B43, Row offset (if 8bpp): 1
+Image is 82x140
+Has transparency mask: True
+Transparent pixels: 7184/11480 (62.6%), Opaque pixels: 4378
+Saved: CC0.chunk0_image72.png
+
+=== Processing Image 73 ===
+Chunk size: 4992, Compressed data size: 4980
+First 8 bytes (hex): 00 00 98 42 FF 22 FF B0 
+First word: 0x00009842, Row offset (if 8bpp): 0
+Image is 77x135
+Has transparency mask: True
+Transparent pixels: 6218/10395 (59.8%), Opaque pixels: 4254
+Saved: CC0.chunk0_image73.png
+
+=== Processing Image 74 ===
+Chunk size: 4856, Compressed data size: 4844
+First 8 bytes (hex): 00 01 9F 45 FF FF 22 A5 
+First word: 0x00019F45, Row offset (if 8bpp): 1
+Image is 91x134
+Has transparency mask: True
+Transparent pixels: 8157/12194 (66.9%), Opaque pixels: 4128
+Saved: CC0.chunk0_image74.png
+
+=== Processing Image 75 ===
+Chunk size: 4416, Compressed data size: 4404
+First 8 bytes (hex): 00 01 9D 43 FF FF 44 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 77x137
+Has transparency mask: True
+Transparent pixels: 7045/10549 (66.8%), Opaque pixels: 3581
+Saved: CC0.chunk0_image75.png
+
+=== Processing Image 76 ===
+Chunk size: 3364, Compressed data size: 3352
+First 8 bytes (hex): 00 01 91 44 FF FF 44 44 
+First word: 0x00019144, Row offset (if 8bpp): 1
+Image is 93x74
+Has transparency mask: True
+Transparent pixels: 4003/6882 (58.2%), Opaque pixels: 2972
+Saved: CC0.chunk0_image76.png
+
+=== Processing Image 77 ===
+Chunk size: 5204, Compressed data size: 5192
+First 8 bytes (hex): 00 01 97 44 FF FF 22 22 
+First word: 0x00019744, Row offset (if 8bpp): 1
+Image is 82x140
+Has transparency mask: True
+Transparent pixels: 7122/11480 (62.0%), Opaque pixels: 4440
+Saved: CC0.chunk0_image77.png
+
+=== Processing Image 78 ===
+Chunk size: 4852, Compressed data size: 4840
+First 8 bytes (hex): 00 01 91 43 FF 22 22 FF 
+First word: 0x00019143, Row offset (if 8bpp): 1
+Image is 89x137
+Has transparency mask: True
+Transparent pixels: 8217/12193 (67.4%), Opaque pixels: 4065
+Saved: CC0.chunk0_image78.png
+
+=== Processing Image 79 ===
+Chunk size: 4728, Compressed data size: 4716
+First 8 bytes (hex): 00 01 8C 44 FF FF 22 22 
+First word: 0x00018C44, Row offset (if 8bpp): 1
+Image is 117x130
+Has transparency mask: True
+Transparent pixels: 11218/15210 (73.8%), Opaque pixels: 4109
+Saved: CC0.chunk0_image79.png
+
+=== Processing Image 80 ===
+Chunk size: 4572, Compressed data size: 4560
+First 8 bytes (hex): 00 01 88 43 FF 22 22 FF 
+First word: 0x00018843, Row offset (if 8bpp): 1
+Image is 93x130
+Has transparency mask: True
+Transparent pixels: 8260/12090 (68.3%), Opaque pixels: 3923
+Saved: CC0.chunk0_image80.png
+
+=== Processing Image 81 ===
+Chunk size: 4504, Compressed data size: 4492
+First 8 bytes (hex): 00 00 94 42 FF 22 FF B3 
+First word: 0x00009442, Row offset (if 8bpp): 0
+Image is 76x132
+Has transparency mask: True
+Transparent pixels: 6335/10032 (63.1%), Opaque pixels: 3773
+Saved: CC0.chunk0_image81.png
+
+=== Processing Image 82 ===
+Chunk size: 5112, Compressed data size: 5100
+First 8 bytes (hex): 00 01 98 43 FF 22 22 FF 
+First word: 0x00019843, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6400/10626 (60.2%), Opaque pixels: 4303
+Saved: CC0.chunk0_image82.png
+
+=== Processing Image 83 ===
+Chunk size: 5696, Compressed data size: 5684
+First 8 bytes (hex): 00 01 A5 45 FF FF 22 22 
+First word: 0x0001A545, Row offset (if 8bpp): 1
+Image is 99x138
+Has transparency mask: True
+Transparent pixels: 8815/13662 (64.5%), Opaque pixels: 4946
+Saved: CC0.chunk0_image83.png
+
+=== Processing Image 84 ===
+Chunk size: 5496, Compressed data size: 5484
+First 8 bytes (hex): 00 00 BF 9D 40 BC 00 00 
+First word: 0x0000BF9D, Row offset (if 8bpp): 0
+Image is 95x152
+Has transparency mask: True
+Transparent pixels: 9957/14440 (69.0%), Opaque pixels: 4578
+Saved: CC0.chunk0_image84.png
+
+=== Processing Image 85 ===
+Chunk size: 5200, Compressed data size: 5188
+First 8 bytes (hex): 00 01 A4 45 FF FF 22 22 
+First word: 0x0001A445, Row offset (if 8bpp): 1
+Image is 91x138
+Has transparency mask: True
+Transparent pixels: 8306/12558 (66.1%), Opaque pixels: 4343
+Saved: CC0.chunk0_image85.png

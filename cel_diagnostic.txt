@@ -1,0 +1,961 @@
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1902: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6hgw-6x87-578x
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-9ccg-6pjw-x645
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-cfh4-9f7v-fhrc
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-cjc8-g9w8-chfw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-fh55-q5pj-pxgw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-hm4x-r5hc-794f
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-mxvv-97wh-cfmm
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qh3h-j545-h8c9
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qp29-wxp5-wh82
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-vmhh-8rxq-fp9g
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1902: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-6hgw-6x87-578x
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-9ccg-6pjw-x645
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-cfh4-9f7v-fhrc
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-cjc8-g9w8-chfw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-fh55-q5pj-pxgw
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1901: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known low severity vulnerability, https://github.com/advisories/GHSA-hm4x-r5hc-794f
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-mxvv-97wh-cfmm
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qh3h-j545-h8c9
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-qp29-wxp5-wh82
+C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj : warning NU1903: Package 'Magick.NET-Q8-AnyCPU' 14.0.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-vmhh-8rxq-fp9g
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\CreatureShock.cs(13,103): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(28,142): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(28,175): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(28,208): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(9,24): warning CS8618: Non-nullable field 'IMAGE_DATA_TABLE' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(11,25): warning CS8618: Non-nullable field 'BUFFER_ROW_DATA' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(14,24): warning CS8618: Non-nullable field 'IMAGESOURCE' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(15,24): warning CS8618: Non-nullable field 'IMAGEDATA' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(19,23): warning CS8618: Non-nullable field 'SUB_0000639c' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(20,23): warning CS8618: Non-nullable field 'SUB_00006374' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\ConvertedGhidraOutput\Renderer.cs(21,23): warning CS8618: Non-nullable field 'SUB_000063c4' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Voodoo\BitwiseDecompressor.cs(251,23): warning CS8618: Non-nullable property 'InputData' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Voodoo\BitwiseDecompressor.cs(252,27): warning CS8618: Non-nullable property 'Output' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Voodoo\BitwiseDecompressor.cs(253,29): warning CS8618: Non-nullable property 'BufferOutput' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\BrokenSword.cs(55,11): warning CS0162: Unreachable code detected [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\BrokenSword.cs(74,11): warning CS0162: Unreachable code detected [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\BrokenSword.cs(95,11): warning CS0162: Unreachable code detected [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\BrokenSword.cs(155,11): warning CS0162: Unreachable code detected [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\BrokenSword.cs(197,11): warning CS0162: Unreachable code detected [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Utils.cs(331,14): warning CS8603: Possible null reference return. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Models\Dyuv.cs(23,23): warning CS8618: Non-nullable property 'Bytes' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Models\Dyuv.cs(16,32): warning CS8618: Non-nullable property 'Frames' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(163,23): warning CS8618: Non-nullable property 'ImageData' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\BitmapHelper.cs(199,16): warning CS8603: Possible null reference return. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\BitmapHelper.cs(259,21): warning CS8625: Cannot convert null literal to non-nullable reference type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(11,23): warning CS8618: Non-nullable property 'Header' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(14,27): warning CS8618: Non-nullable property 'Palette' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(16,29): warning CS8618: Non-nullable property 'LimbsOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(17,29): warning CS8618: Non-nullable property 'AnimOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(18,32): warning CS8618: Non-nullable property 'Animations' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(19,27): warning CS8618: Non-nullable property 'Commands' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(20,27): warning CS8618: Non-nullable property 'Limbs' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Model\Scumm\Costume.cs(21,39): warning CS8618: Non-nullable property 'Pictures' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(48,55): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(62,55): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(77,51): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(85,51): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(93,51): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(101,51): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(108,51): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\BoltFileHelper.cs(377,16): warning CS8618: Non-nullable property 'Entries' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\CompiledSpriteHelper.cs(96,21): warning CS0219: The variable 'cycleCount' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\BoltFileHelper.cs(307,43): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\CompiledSpriteHelper.cs(165,21): warning CS0219: The variable 'cycleCount' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\ZeldasAdventure.cs(179,39): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\BurnCycle.cs(298,42): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\TheApprentice.cs(936,33): warning CS8618: Non-nullable property 'SpriteOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\TheApprentice.cs(937,33): warning CS8618: Non-nullable property 'ClutOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\BurnCycle.cs(431,42): warning CS8618: Non-nullable property 'Offsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\BurnCycle.cs(433,26): warning CS8618: Non-nullable property 'SectorCounts' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(20,19): warning CS8618: Non-nullable property 'OriginalFile' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(21,25): warning CS8618: Non-nullable property 'SpriteNames' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(22,23): warning CS8618: Non-nullable property 'SpriteNameOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(23,23): warning CS8618: Non-nullable property 'SpriteDataOffsets' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(24,19): warning CS8618: Non-nullable property 'Text' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\FamilyGames.cs(38,28): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\CreatureShock.cs(64,61): warning CS8604: Possible null reference argument for parameter 'bytes' in 'List<Color> ColorHelper.ConvertBytesToRGB(byte[] bytes, bool translate = false)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\CreatureShock.cs(65,74): warning CS8604: Possible null reference argument for parameter 'clut7Bytes' in 'Image ImageFormatHelper.GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height, bool useTransparency = false, int transparencyIndex = 0, bool lowerIndexes = true, bool fixedIndex = false)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\CreatureShock.cs(103,58): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\CreatureShock.cs(104,64): warning CS8604: Possible null reference argument for parameter 'outputDir' in 'List<Image> CreatureShock.ExtractSprites(byte[] data, List<Color> palette, string outputDir = null)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Wintermute\MainData.cs(22,23): warning CS8618: Non-nullable property 'Desc' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Wintermute\MainData.cs(10,24): warning CS8618: Non-nullable property 'Header' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\AgosCompression.cs(18,24): warning CS8603: Possible null reference return. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\ImageFormatHelper.cs(646,37): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\ImageFormatHelper.cs(655,37): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\ImageFormatHelper.cs(676,39): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\MicroMachines.cs(39,48): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\ImageFormatHelper.cs(852,24): warning CS0168: The variable 'ex' is declared but never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(83,76): warning CS8604: Possible null reference argument for parameter 'palette' in 'Image ImageFormatHelper.GenerateClutImage(List<Color> palette, byte[] clut7Bytes, int Width, int Height, bool useTransparency = false, int transparencyIndex = 0, bool lowerIndexes = true, bool fixedIndex = false)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(190,32): warning CS0168: The variable 'ex' is declared but never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TSage\TsageDecompress.cs(87,43): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Touche.cs(36,54): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Touche.cs(41,56): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(212,38): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(269,26): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(304,27): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\HotelMarioHelper.cs(307,17): warning CS0219: The variable 'imageIndex' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(128,46): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(63,50): warning CS8618: Non-nullable property 'frames' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(64,25): warning CS8618: Non-nullable property 'meta' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(52,27): warning CS8618: Non-nullable property 'app' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(53,27): warning CS8618: Non-nullable property 'version' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(54,27): warning CS8618: Non-nullable property 'image' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(55,27): warning CS8618: Non-nullable property 'format' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(57,27): warning CS8618: Non-nullable property 'scale' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(58,27): warning CS8618: Non-nullable property 'smartupdate' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(14,26): warning CS8618: Non-nullable property 'frame' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(17,37): warning CS8618: Non-nullable property 'spriteSourceSize' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(18,31): warning CS8618: Non-nullable property 'sourceSize' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\TexturePacker.cs(19,26): warning CS8618: Non-nullable property 'pivot' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\StarTrek.cs(33,45): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\ImageFormatHelper.cs(2354,24): warning CS0168: The variable 'ex' is declared but never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SoTC.cs(178,26): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SoTC.cs(182,32): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SoTC.cs(186,26): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SoTC.cs(10,37): warning CS8618: Non-nullable field '_source' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SoTC.cs(11,31): warning CS8618: Non-nullable field '_dest' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCUMM\ScummV4.cs(24,20): warning CS0219: The variable 'blockType' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCUMM\ScummV4.cs(25,18): warning CS0219: The variable 'itemSize' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(999,17): warning CS8618: Non-nullable property 'RoomName' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(976,21): warning CS8618: Non-nullable property 'Header' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(977,15): warning CS8618: Non-nullable property 'Room' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(979,22): warning CS8618: Non-nullable property 'Palette' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(981,28): warning CS8618: Non-nullable property 'ObjectImages' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(982,24): warning CS8618: Non-nullable property 'Costumes' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\TheApprentice.cs(824,36): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Delphine\PartFile.cs(60,23): warning CS8618: Non-nullable property 'Name' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\CausewayDecompressor.cs(18,27): warning CS8618: Non-nullable property 'ID' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\ScummVM\Decompression\DecompressorDCL.cs(24,24): warning CS8618: Non-nullable field '_sourceStream' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\ScummVM\Decompression\DecompressorDCL.cs(25,24): warning CS8618: Non-nullable field '_targetStream' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PSX\LegacyOfKain.cs(52,42): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PSX\LegacyOfKain.cs(107,42): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Duckman.cs(116,66): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Duckman.cs(116,66): warning CS8604: Possible null reference argument for parameter '_mapData' in 'Image ImageFormatHelper.CreateScreenImage(List<byte[]> _tiles, short[] _mapData, int widthInTiles, int heightInTiles, int tileWidth, int tileHeight, List<Color> _colors, bool useTransparency = false, int transparencyIndex = 0)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(122,32): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(123,55): warning CS8601: Possible null reference assignment. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(138,32): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(139,67): warning CS8601: Possible null reference assignment. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Discworld.cs(39,46): warning CS8604: Possible null reference argument for parameter 'path' in 'byte[] File.ReadAllBytes(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Discworld.cs(101,39): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Discworld.cs(103,53): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Discworld.cs(120,49): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PSX\LegacyOfKain.cs(159,42): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\RiddleOfTheMaze.cs(43,39): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\DuneSpiceWars.cs(90,30): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\DuneSpiceWars.cs(14,29): warning CS8618: Non-nullable field 'fs' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\DuneSpiceWars.cs(15,31): warning CS8618: Non-nullable field 'br' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\DuneSpiceWars.cs(16,31): warning CS8618: Non-nullable field 'memoryFile' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(199,35): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(200,83): warning CS8601: Possible null reference assignment. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(202,24): warning CS8603: Possible null reference return. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(227,71): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(242,44): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(251,25): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(267,25): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\RleCompression.cs(280,28): warning CS8604: Possible null reference argument for parameter 'sourceArray' in 'void Array.Copy(Array sourceArray, long sourceIndex, Array destinationArray, long destinationIndex, long length)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Sega\Saturn\BlazingDragons.cs(79,34): warning CS0168: The variable 'ex' is declared but never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Sega\Saturn\BlazingDragons.cs(48,17): warning CS0219: The variable 'canvasWidth' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Sega\Saturn\BlazingDragons.cs(49,17): warning CS0219: The variable 'canvasHeight' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Fable.cs(94,42): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Fable.cs(96,48): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\GRIM\LabFile.cs(51,24): warning CS8618: Non-nullable property 'Parent' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\GRIM\LabFile.cs(52,23): warning CS8618: Non-nullable property 'Name' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\JackOrlando\PbmDecompressor.cs(165,23): warning CS8618: Non-nullable property 'Rgb16Data' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\NipponSafes.cs(66,53): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\NipponSafes.cs(131,50): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\AniMagic.cs(18,39): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\SCIUtils.cs(222,26): warning CS8618: Non-nullable property 'Cels' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\SCIUtils.cs(216,23): warning CS8618: Non-nullable property 'RawBitmap' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\Generic\AniMagic.cs(221,34): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Sanitarium.cs(24,49): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\Decompressor.cs(13,26): warning CS8618: Non-nullable field '_src' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\Decompressor.cs(14,26): warning CS8618: Non-nullable field '_dest' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(24,10): warning CS8618: Non-nullable property 'Data' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(805,17): warning CS8618: Non-nullable property 'Data' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\SCIUtils.cs(49,52): warning CS8604: Possible null reference argument for parameter 'path1' in 'string Path.Combine(string path1, string path2, string path3, string path4)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\SCI\SCIUtils.cs(51,47): warning CS8604: Possible null reference argument for parameter 'path' in 'DirectoryInfo Directory.CreateDirectory(string path)'. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(190,29): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(199,41): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(209,38): warning CS8602: Dereference of a possibly null reference. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Scumm.cs(268,43): warning CS8600: Converting null literal or possible null value to non-nullable type. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\BitmapHelper.cs(191,26): warning CS8618: Non-nullable field 'lookupTable' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the field as nullable. [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\MADE\FormatHelper.cs(187,22): warning CS0169: The field 'ValueReader._currentByte' is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\TiledExportHelper.cs(15,31): warning CS0414: The field 'TiledExportHelper._tilemapTemplate' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Helpers\TiledExportHelper.cs(11,31): warning CS0414: The field 'TiledExportHelper._tilesetTemplate' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Delphine\Cine.cs(12,29): warning CS0414: The field 'CineUnpack._srcPos' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+C:\Dev\Gaming\Apps\ExtractCLUT\Games\PC\Voodoo\AssetDecompressor.cs(314,21): warning CS0414: The field 'BitReader.bitPos' is assigned but its value is never used [C:\Dev\Gaming\Apps\ExtractCLUT\ExtractCLUT.csproj]
+
+=== Processing Image 0 ===
+Chunk size: 5348, Compressed data size: 5336
+First 8 bytes (hex): 00 01 A5 43 FF 22 A5 FF 
+First word: 0x0001A543, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6267/10857 (57.7%), Opaque pixels: 4667
+Saved: CC0.chunk0_image0.png
+
+=== Processing Image 1 ===
+Chunk size: 5360, Compressed data size: 5348
+First 8 bytes (hex): 00 01 A5 45 FF FF 00 00 
+First word: 0x0001A545, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6089/10703 (56.9%), Opaque pixels: 4691
+Saved: CC0.chunk0_image1.png
+
+=== Processing Image 2 ===
+Chunk size: 5344, Compressed data size: 5332
+First 8 bytes (hex): 00 01 A9 43 FF 22 85 FF 
+First word: 0x0001A943, Row offset (if 8bpp): 1
+Image is 79x139
+Has transparency mask: True
+Transparent pixels: 6323/10981 (57.6%), Opaque pixels: 4737
+Saved: CC0.chunk0_image2.png
+
+=== Processing Image 3 ===
+Chunk size: 5240, Compressed data size: 5228
+First 8 bytes (hex): 00 01 A8 45 FF FF 22 22 
+First word: 0x0001A845, Row offset (if 8bpp): 1
+Image is 78x137
+Has transparency mask: True
+Transparent pixels: 6085/10686 (56.9%), Opaque pixels: 4679
+Saved: CC0.chunk0_image3.png
+
+=== Processing Image 4 ===
+Chunk size: 5204, Compressed data size: 5192
+First 8 bytes (hex): 00 01 A7 45 FF FF 22 22 
+First word: 0x0001A745, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6124/10626 (57.6%), Opaque pixels: 4579
+Saved: CC0.chunk0_image4.png
+
+=== Processing Image 5 ===
+Chunk size: 5172, Compressed data size: 5160
+First 8 bytes (hex): 00 01 A6 44 FF FF 22 22 
+First word: 0x0001A644, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6390/10780 (59.3%), Opaque pixels: 4467
+Saved: CC0.chunk0_image5.png
+
+=== Processing Image 6 ===
+Chunk size: 5024, Compressed data size: 5012
+First 8 bytes (hex): 00 01 A2 45 FF FF 62 64 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6461/10703 (60.4%), Opaque pixels: 4319
+Saved: CC0.chunk0_image6.png
+
+=== Processing Image 7 ===
+Chunk size: 5176, Compressed data size: 5164
+First 8 bytes (hex): 00 01 A0 43 FF 22 44 FF 
+First word: 0x0001A043, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6385/10780 (59.2%), Opaque pixels: 4472
+Saved: CC0.chunk0_image7.png
+
+=== Processing Image 8 ===
+Chunk size: 5224, Compressed data size: 5212
+First 8 bytes (hex): 00 01 9C 46 FF FF 22 44 
+First word: 0x00019C46, Row offset (if 8bpp): 1
+Image is 65x145
+Has transparency mask: True
+Transparent pixels: 5126/9425 (54.4%), Opaque pixels: 4364
+Saved: CC0.chunk0_image8.png
+
+=== Processing Image 9 ===
+Chunk size: 4344, Compressed data size: 4332
+First 8 bytes (hex): 00 01 99 43 FF FF 22 FF 
+First word: 0x00019943, Row offset (if 8bpp): 1
+Image is 59x149
+Has transparency mask: True
+Transparent pixels: 5342/8791 (60.8%), Opaque pixels: 3508
+Saved: CC0.chunk0_image9.png
+
+=== Processing Image 10 ===
+Chunk size: 4508, Compressed data size: 4496
+First 8 bytes (hex): 00 01 94 C2 FF 44 64 22 
+First word: 0x000194C2, Row offset (if 8bpp): 1
+Image is 66x142
+Has transparency mask: True
+Transparent pixels: 5770/9372 (61.6%), Opaque pixels: 3668
+Saved: CC0.chunk0_image10.png
+
+=== Processing Image 11 ===
+Chunk size: 4576, Compressed data size: 4564
+First 8 bytes (hex): 00 01 A2 46 FF FF 22 44 
+First word: 0x0001A246, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 7065/10780 (65.5%), Opaque pixels: 3792
+Saved: CC0.chunk0_image11.png
+
+=== Processing Image 12 ===
+Chunk size: 4508, Compressed data size: 4496
+First 8 bytes (hex): 00 01 A3 45 FF FF 64 22 
+First word: 0x0001A345, Row offset (if 8bpp): 1
+Image is 66x145
+Has transparency mask: True
+Transparent pixels: 5960/9570 (62.3%), Opaque pixels: 3676
+Saved: CC0.chunk0_image12.png
+
+=== Processing Image 13 ===
+Chunk size: 4744, Compressed data size: 4732
+First 8 bytes (hex): 00 01 9B 46 FF FF 22 44 
+First word: 0x00019B46, Row offset (if 8bpp): 1
+Image is 58x146
+Has transparency mask: True
+Transparent pixels: 4620/8468 (54.6%), Opaque pixels: 3906
+Saved: CC0.chunk0_image13.png
+
+=== Processing Image 14 ===
+Chunk size: 5056, Compressed data size: 5044
+First 8 bytes (hex): 00 01 A0 44 FF FF 44 62 
+First word: 0x0001A044, Row offset (if 8bpp): 1
+Image is 66x142
+Has transparency mask: True
+Transparent pixels: 5180/9372 (55.3%), Opaque pixels: 4258
+Saved: CC0.chunk0_image14.png
+
+=== Processing Image 15 ===
+Chunk size: 5376, Compressed data size: 5364
+First 8 bytes (hex): 00 00 A8 42 FF 85 FF A0 
+First word: 0x0000A842, Row offset (if 8bpp): 0
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6240/10857 (57.5%), Opaque pixels: 4694
+Saved: CC0.chunk0_image15.png
+
+=== Processing Image 16 ===
+Chunk size: 5452, Compressed data size: 5440
+First 8 bytes (hex): 00 01 A2 45 FF FF 22 22 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 75x150
+Has transparency mask: True
+Transparent pixels: 6555/11250 (58.3%), Opaque pixels: 4770
+Saved: CC0.chunk0_image16.png
+
+=== Processing Image 17 ===
+Chunk size: 3716, Compressed data size: 3704
+First 8 bytes (hex): 00 01 9C 43 FF FF 64 FF 
+First word: 0x00019C43, Row offset (if 8bpp): 1
+Image is 70x83
+Has transparency mask: True
+Transparent pixels: 2372/5810 (40.8%), Opaque pixels: 3508
+Saved: CC0.chunk0_image17.png
+
+=== Processing Image 18 ===
+Chunk size: 4932, Compressed data size: 4920
+First 8 bytes (hex): 00 01 A6 43 FF 22 22 FF 
+First word: 0x0001A643, Row offset (if 8bpp): 1
+Image is 77x118
+Has transparency mask: True
+Transparent pixels: 4781/9086 (52.6%), Opaque pixels: 4382
+Saved: CC0.chunk0_image18.png
+
+=== Processing Image 19 ===
+Chunk size: 4016, Compressed data size: 4004
+First 8 bytes (hex): 00 01 A1 44 FF 22 22 FF 
+First word: 0x0001A144, Row offset (if 8bpp): 1
+Image is 89x93
+Has transparency mask: True
+Transparent pixels: 4633/8277 (56.0%), Opaque pixels: 3733
+Saved: CC0.chunk0_image19.png
+
+=== Processing Image 20 ===
+Chunk size: 5092, Compressed data size: 5080
+First 8 bytes (hex): 00 01 96 43 FF 22 22 FF 
+First word: 0x00019643, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6301/10626 (59.3%), Opaque pixels: 4402
+Saved: CC0.chunk0_image20.png
+
+=== Processing Image 21 ===
+Chunk size: 4972, Compressed data size: 4960
+First 8 bytes (hex): 00 02 8F 43 FF 22 22 FF 
+First word: 0x00028F43, Row offset (if 8bpp): 2
+Image is 77x135
+Has transparency mask: True
+Transparent pixels: 6170/10395 (59.4%), Opaque pixels: 4302
+Saved: CC0.chunk0_image21.png
+
+=== Processing Image 22 ===
+Chunk size: 3796, Compressed data size: 3784
+First 8 bytes (hex): 00 01 8F 43 FF 83 C5 FF 
+First word: 0x00018F43, Row offset (if 8bpp): 1
+Image is 85x90
+Has transparency mask: True
+Transparent pixels: 4338/7650 (56.7%), Opaque pixels: 3397
+Saved: CC0.chunk0_image22.png
+
+=== Processing Image 23 ===
+Chunk size: 3808, Compressed data size: 3796
+First 8 bytes (hex): 00 01 A3 44 FF FF 44 44 
+First word: 0x0001A344, Row offset (if 8bpp): 1
+Image is 90x90
+Has transparency mask: True
+Transparent pixels: 4832/8100 (59.7%), Opaque pixels: 3358
+Saved: CC0.chunk0_image23.png
+
+=== Processing Image 24 ===
+Chunk size: 5120, Compressed data size: 5108
+First 8 bytes (hex): 00 01 9A C2 FF C2 22 41 
+First word: 0x00019AC2, Row offset (if 8bpp): 1
+Image is 80x138
+Has transparency mask: True
+Transparent pixels: 6780/11040 (61.4%), Opaque pixels: 4340
+Saved: CC0.chunk0_image24.png
+
+=== Processing Image 25 ===
+Chunk size: 4988, Compressed data size: 4976
+First 8 bytes (hex): 00 01 8F 44 FF FF 22 22 
+First word: 0x00018F44, Row offset (if 8bpp): 1
+Image is 79x139
+Has transparency mask: True
+Transparent pixels: 6807/10981 (62.0%), Opaque pixels: 4253
+Saved: CC0.chunk0_image25.png
+
+=== Processing Image 26 ===
+Chunk size: 4852, Compressed data size: 4840
+First 8 bytes (hex): 00 01 92 45 FF FF 22 22 
+First word: 0x00019245, Row offset (if 8bpp): 1
+Image is 78x137
+Has transparency mask: True
+Transparent pixels: 6678/10686 (62.5%), Opaque pixels: 4086
+Saved: CC0.chunk0_image26.png
+
+=== Processing Image 27 ===
+Chunk size: 4848, Compressed data size: 4836
+First 8 bytes (hex): 00 01 A4 46 FF FF 64 44 
+First word: 0x0001A446, Row offset (if 8bpp): 1
+Image is 77x139
+Has transparency mask: True
+Transparent pixels: 6648/10703 (62.1%), Opaque pixels: 4132
+Saved: CC0.chunk0_image27.png
+
+=== Processing Image 28 ===
+Chunk size: 5036, Compressed data size: 5024
+First 8 bytes (hex): 00 01 AC 43 FF 22 22 FF 
+First word: 0x0001AC43, Row offset (if 8bpp): 1
+Image is 77x137
+Has transparency mask: True
+Transparent pixels: 6373/10549 (60.4%), Opaque pixels: 4253
+Saved: CC0.chunk0_image28.png
+
+=== Processing Image 29 ===
+Chunk size: 5264, Compressed data size: 5252
+First 8 bytes (hex): 00 01 9E 44 FF FF 22 22 
+First word: 0x00019E44, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6412/10857 (59.1%), Opaque pixels: 4522
+Saved: CC0.chunk0_image29.png
+
+=== Processing Image 30 ===
+Chunk size: 5264, Compressed data size: 5252
+First 8 bytes (hex): 00 01 9D 43 FF 22 22 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 77x140
+Has transparency mask: True
+Transparent pixels: 6332/10780 (58.7%), Opaque pixels: 4525
+Saved: CC0.chunk0_image30.png
+
+=== Processing Image 31 ===
+Chunk size: 5552, Compressed data size: 5540
+First 8 bytes (hex): 00 01 A4 44 FF FF 22 22 
+First word: 0x0001A444, Row offset (if 8bpp): 1
+Image is 91x140
+Has transparency mask: True
+Transparent pixels: 8015/12740 (62.9%), Opaque pixels: 4816
+Saved: CC0.chunk0_image31.png
+
+=== Processing Image 32 ===
+Chunk size: 5620, Compressed data size: 5608
+First 8 bytes (hex): 00 01 BD 43 FF 22 22 FF 
+First word: 0x0001BD43, Row offset (if 8bpp): 1
+Image is 123x134
+Has transparency mask: True
+Transparent pixels: 10767/16482 (65.3%), Opaque pixels: 5838
+Saved: CC0.chunk0_image32.png
+
+=== Processing Image 33 ===
+Chunk size: 4688, Compressed data size: 4676
+First 8 bytes (hex): 00 01 B3 45 FF FF 64 44 
+First word: 0x0001B345, Row offset (if 8bpp): 1
+Image is 90x139
+Has transparency mask: True
+Transparent pixels: 8637/12510 (69.0%), Opaque pixels: 3963
+Saved: CC0.chunk0_image33.png
+
+=== Processing Image 34 ===
+Chunk size: 4880, Compressed data size: 4868
+First 8 bytes (hex): 00 01 BF 85 45 FF FF 44 
+First word: 0x0001BF85, Row offset (if 8bpp): 1
+Image is 122x136
+Has transparency mask: True
+Transparent pixels: 12449/16592 (75.0%), Opaque pixels: 4265
+Saved: CC0.chunk0_image34.png
+
+=== Processing Image 35 ===
+Chunk size: 5008, Compressed data size: 4996
+First 8 bytes (hex): 00 01 94 44 FF FF 22 22 
+First word: 0x00019444, Row offset (if 8bpp): 1
+Image is 128x135
+Has transparency mask: True
+Transparent pixels: 4152/17280 (24.0%), Opaque pixels: 13256
+Saved: CC0.chunk0_image35.png
+
+=== Processing Image 36 ===
+Chunk size: 4204, Compressed data size: 4192
+First 8 bytes (hex): 00 01 A2 43 FF C5 44 FF 
+First word: 0x0001A243, Row offset (if 8bpp): 1
+Image is 52x139
+Has transparency mask: True
+Transparent pixels: 3945/7228 (54.6%), Opaque pixels: 3335
+Saved: CC0.chunk0_image36.png
+
+=== Processing Image 37 ===
+Chunk size: 4304, Compressed data size: 4292
+First 8 bytes (hex): 00 01 90 45 FF FF 22 22 
+First word: 0x00019045, Row offset (if 8bpp): 1
+Image is 107x138
+Has transparency mask: True
+Transparent pixels: 2606/14766 (17.6%), Opaque pixels: 12267
+Saved: CC0.chunk0_image37.png
+
+=== Processing Image 38 ===
+Chunk size: 4264, Compressed data size: 4252
+First 8 bytes (hex): 00 01 91 45 FF FF 22 22 
+First word: 0x00019145, Row offset (if 8bpp): 1
+Image is 110x133
+Has transparency mask: True
+Transparent pixels: 3767/14630 (25.7%), Opaque pixels: 10973
+Saved: CC0.chunk0_image38.png
+
+=== Processing Image 39 ===
+Chunk size: 4288, Compressed data size: 4276
+First 8 bytes (hex): 00 01 A4 44 FF FF 44 83 
+First word: 0x0001A444, Row offset (if 8bpp): 1
+Image is 91x93
+Has transparency mask: True
+Transparent pixels: 4715/8463 (55.7%), Opaque pixels: 3839
+Saved: CC0.chunk0_image39.png
+
+=== Processing Image 40 ===
+Chunk size: 4272, Compressed data size: 4260
+First 8 bytes (hex): 00 00 A9 42 FF 22 FF BB 
+First word: 0x0000A942, Row offset (if 8bpp): 0
+Image is 105x93
+Has transparency mask: True
+Transparent pixels: 5939/9765 (60.8%), Opaque pixels: 3931
+Saved: CC0.chunk0_image40.png
+
+=== Processing Image 41 ===
+Chunk size: 3668, Compressed data size: 3656
+First 8 bytes (hex): 00 01 A6 46 FF FF 44 44 
+First word: 0x0001A646, Row offset (if 8bpp): 1
+Image is 84x91
+Has transparency mask: True
+Transparent pixels: 4521/7644 (59.1%), Opaque pixels: 3207
+Saved: CC0.chunk0_image41.png
+
+=== Processing Image 42 ===
+Chunk size: 3928, Compressed data size: 3916
+First 8 bytes (hex): 00 01 B1 45 FF FF 44 64 
+First word: 0x0001B145, Row offset (if 8bpp): 1
+Image is 101x84
+Has transparency mask: True
+Transparent pixels: 4957/8484 (58.4%), Opaque pixels: 3628
+Saved: CC0.chunk0_image42.png
+
+=== Processing Image 43 ===
+Chunk size: 3900, Compressed data size: 3888
+First 8 bytes (hex): 00 01 95 45 FF FF 22 22 
+First word: 0x00019545, Row offset (if 8bpp): 1
+Image is 129x85
+Has transparency mask: True
+Transparent pixels: 1800/10965 (16.4%), Opaque pixels: 9294
+Saved: CC0.chunk0_image43.png
+
+=== Processing Image 44 ===
+Chunk size: 4264, Compressed data size: 4252
+First 8 bytes (hex): 00 01 BF 98 44 FF FF 22 
+First word: 0x0001BF98, Row offset (if 8bpp): 1
+Image is 120x94
+Has transparency mask: True
+Transparent pixels: 7493/11280 (66.4%), Opaque pixels: 3907
+Saved: CC0.chunk0_image44.png
+
+=== Processing Image 45 ===
+Chunk size: 3172, Compressed data size: 3160
+First 8 bytes (hex): 00 01 97 45 FF FF 22 22 
+First word: 0x00019745, Row offset (if 8bpp): 1
+Image is 67x88
+Has transparency mask: True
+Transparent pixels: 3269/5896 (55.4%), Opaque pixels: 2694
+Saved: CC0.chunk0_image45.png
+
+=== Processing Image 46 ===
+Chunk size: 3760, Compressed data size: 3748
+First 8 bytes (hex): 00 00 99 42 FF 44 FF B6 
+First word: 0x00009942, Row offset (if 8bpp): 0
+Image is 84x89
+Has transparency mask: True
+Transparent pixels: 4245/7476 (56.8%), Opaque pixels: 3315
+Saved: CC0.chunk0_image46.png
+
+=== Processing Image 47 ===
+Chunk size: 3408, Compressed data size: 3396
+First 8 bytes (hex): 00 01 95 46 FF FF 85 62 
+First word: 0x00019546, Row offset (if 8bpp): 1
+Image is 97x92
+Has transparency mask: True
+Transparent pixels: 4628/8924 (51.9%), Opaque pixels: 4393
+Saved: CC0.chunk0_image47.png
+
+=== Processing Image 48 ===
+Chunk size: 3516, Compressed data size: 3504
+First 8 bytes (hex): 00 01 A2 43 FF 44 64 FF 
+First word: 0x0001A243, Row offset (if 8bpp): 1
+Image is 55x99
+Has transparency mask: True
+Transparent pixels: 2560/5445 (47.0%), Opaque pixels: 2940
+Saved: CC0.chunk0_image48.png
+
+=== Processing Image 49 ===
+Chunk size: 3832, Compressed data size: 3820
+First 8 bytes (hex): 00 01 A3 44 FF FF 22 22 
+First word: 0x0001A344, Row offset (if 8bpp): 1
+Image is 76x89
+Has transparency mask: True
+Transparent pixels: 3420/6764 (50.6%), Opaque pixels: 3420
+Saved: CC0.chunk0_image49.png
+
+=== Processing Image 50 ===
+Chunk size: 3920, Compressed data size: 3908
+First 8 bytes (hex): 00 00 A9 42 FF 44 FF AD 
+First word: 0x0000A942, Row offset (if 8bpp): 0
+Image is 91x85
+Has transparency mask: True
+Transparent pixels: 4229/7735 (54.7%), Opaque pixels: 3597
+Saved: CC0.chunk0_image50.png
+
+=== Processing Image 51 ===
+Chunk size: 3888, Compressed data size: 3876
+First 8 bytes (hex): 00 01 BA 46 FF FF 44 44 
+First word: 0x0001BA46, Row offset (if 8bpp): 1
+Image is 103x76
+Has transparency mask: True
+Transparent pixels: 4257/7828 (54.4%), Opaque pixels: 3674
+Saved: CC0.chunk0_image51.png
+
+=== Processing Image 52 ===
+Chunk size: 3384, Compressed data size: 3372
+First 8 bytes (hex): 00 01 9E 44 FF FF 22 22 
+First word: 0x00019E44, Row offset (if 8bpp): 1
+Image is 70x82
+Has transparency mask: True
+Transparent pixels: 2784/5740 (48.5%), Opaque pixels: 3026
+Saved: CC0.chunk0_image52.png
+
+=== Processing Image 53 ===
+Chunk size: 3272, Compressed data size: 3260
+First 8 bytes (hex): 00 01 A6 46 FF FF A5 85 
+First word: 0x0001A646, Row offset (if 8bpp): 1
+Image is 89x79
+Has transparency mask: True
+Transparent pixels: 4199/7031 (59.7%), Opaque pixels: 2921
+Saved: CC0.chunk0_image53.png
+
+=== Processing Image 54 ===
+Chunk size: 3888, Compressed data size: 3876
+First 8 bytes (hex): 00 01 99 44 FF FF 64 44 
+First word: 0x00019944, Row offset (if 8bpp): 1
+Image is 94x83
+Has transparency mask: True
+Transparent pixels: 4356/7802 (55.8%), Opaque pixels: 3540
+Saved: CC0.chunk0_image54.png
+
+=== Processing Image 55 ===
+Chunk size: 3836, Compressed data size: 3824
+First 8 bytes (hex): 00 00 9C 42 FF 22 FF 00 
+First word: 0x00009C42, Row offset (if 8bpp): 0
+Image is 127x83
+Has transparency mask: True
+Transparent pixels: 1978/10541 (18.8%), Opaque pixels: 8690
+Saved: CC0.chunk0_image55.png
+
+=== Processing Image 56 ===
+Chunk size: 3752, Compressed data size: 3740
+First 8 bytes (hex): 00 01 97 43 FF 22 22 FF 
+First word: 0x00019743, Row offset (if 8bpp): 1
+Image is 105x82
+Has transparency mask: True
+Transparent pixels: 3538/8610 (41.1%), Opaque pixels: 5177
+Saved: CC0.chunk0_image56.png
+
+=== Processing Image 57 ===
+Chunk size: 3552, Compressed data size: 3540
+First 8 bytes (hex): 00 00 9B 42 FF 44 FF B7 
+First word: 0x00009B42, Row offset (if 8bpp): 0
+Image is 87x95
+Has transparency mask: True
+Transparent pixels: 5267/8265 (63.7%), Opaque pixels: 3085
+Saved: CC0.chunk0_image57.png
+
+=== Processing Image 58 ===
+Chunk size: 4996, Compressed data size: 4984
+First 8 bytes (hex): 00 01 AF 44 FF FF 22 44 
+First word: 0x0001AF44, Row offset (if 8bpp): 1
+Image is 86x128
+Has transparency mask: True
+Transparent pixels: 6686/11008 (60.7%), Opaque pixels: 4408
+Saved: CC0.chunk0_image58.png
+
+=== Processing Image 59 ===
+Chunk size: 5332, Compressed data size: 5320
+First 8 bytes (hex): 00 00 BF 87 41 DE 9E 80 
+First word: 0x0000BF87, Row offset (if 8bpp): 0
+Image is 75x167
+Has transparency mask: True
+Transparent pixels: 8283/12525 (66.1%), Opaque pixels: 4317
+Saved: CC0.chunk0_image59.png
+
+=== Processing Image 60 ===
+Chunk size: 5484, Compressed data size: 5472
+First 8 bytes (hex): 00 00 AB 42 FF 22 FF A1 
+First word: 0x0000AB42, Row offset (if 8bpp): 0
+Image is 81x141
+Has transparency mask: True
+Transparent pixels: 6648/11421 (58.2%), Opaque pixels: 4854
+Saved: CC0.chunk0_image60.png
+
+=== Processing Image 61 ===
+Chunk size: 4876, Compressed data size: 4864
+First 8 bytes (hex): 00 01 A2 45 FF FF 22 22 
+First word: 0x0001A245, Row offset (if 8bpp): 1
+Image is 77x141
+Has transparency mask: True
+Transparent pixels: 6878/10857 (63.4%), Opaque pixels: 4056
+Saved: CC0.chunk0_image61.png
+
+=== Processing Image 62 ===
+Chunk size: 4696, Compressed data size: 4684
+First 8 bytes (hex): 00 01 95 46 FF FF 44 44 
+First word: 0x00019546, Row offset (if 8bpp): 1
+Image is 93x139
+Has transparency mask: True
+Transparent pixels: 9012/12927 (69.7%), Opaque pixels: 4008
+Saved: CC0.chunk0_image62.png
+
+=== Processing Image 63 ===
+Chunk size: 4608, Compressed data size: 4596
+First 8 bytes (hex): 00 02 BF 83 47 FF FF 83 
+First word: 0x0002BF83, Row offset (if 8bpp): 2
+Image is 84x138
+Has transparency mask: True
+Transparent pixels: 7727/11592 (66.7%), Opaque pixels: 3949
+Saved: CC0.chunk0_image63.png
+
+=== Processing Image 64 ===
+Chunk size: 4856, Compressed data size: 4844
+First 8 bytes (hex): 00 01 A3 46 FF FF 22 64 
+First word: 0x0001A346, Row offset (if 8bpp): 1
+Image is 80x144
+Has transparency mask: True
+Transparent pixels: 7537/11520 (65.4%), Opaque pixels: 4063
+Saved: CC0.chunk0_image64.png
+
+=== Processing Image 65 ===
+Chunk size: 5548, Compressed data size: 5536
+First 8 bytes (hex): 00 01 9D 43 FF FF 22 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 85x140
+Has transparency mask: True
+Transparent pixels: 7125/11900 (59.9%), Opaque pixels: 4860
+Saved: CC0.chunk0_image65.png
+
+=== Processing Image 66 ===
+Chunk size: 5240, Compressed data size: 5228
+First 8 bytes (hex): 00 01 BD 45 FF FF 64 83 
+First word: 0x0001BD45, Row offset (if 8bpp): 1
+Image is 100x129
+Has transparency mask: True
+Transparent pixels: 8435/12900 (65.4%), Opaque pixels: 4565
+Saved: CC0.chunk0_image66.png
+
+=== Processing Image 67 ===
+Chunk size: 5780, Compressed data size: 5768
+First 8 bytes (hex): 00 01 80 41 F8 BE 86 41 
+First word: 0x00018041, Row offset (if 8bpp): 1
+Image is 108x153
+Has transparency mask: True
+Transparent pixels: 10725/16524 (64.9%), Opaque pixels: 5907
+Saved: CC0.chunk0_image67.png
+
+=== Processing Image 68 ===
+Chunk size: 5232, Compressed data size: 5220
+First 8 bytes (hex): 00 01 AE 41 FF FF C2 22 
+First word: 0x0001AE41, Row offset (if 8bpp): 1
+Image is 121x134
+Has transparency mask: True
+Transparent pixels: 11652/16214 (71.9%), Opaque pixels: 4683
+Saved: CC0.chunk0_image68.png
+
+=== Processing Image 69 ===
+Chunk size: 4488, Compressed data size: 4476
+First 8 bytes (hex): 00 01 8E 45 FF FF 22 22 
+First word: 0x00018E45, Row offset (if 8bpp): 1
+Image is 83x136
+Has transparency mask: True
+Transparent pixels: 7686/11288 (68.1%), Opaque pixels: 3685
+Saved: CC0.chunk0_image69.png
+
+=== Processing Image 70 ===
+Chunk size: 4012, Compressed data size: 4000
+First 8 bytes (hex): 00 01 A2 44 9E BE F8 D9 
+First word: 0x0001A244, Row offset (if 8bpp): 1
+Image is 99x73
+Has transparency mask: True
+Transparent pixels: 3707/7227 (51.3%), Opaque pixels: 3619
+Saved: CC0.chunk0_image70.png
+
+=== Processing Image 71 ===
+Chunk size: 4248, Compressed data size: 4236
+First 8 bytes (hex): 00 01 A2 C2 FF 44 44 22 
+First word: 0x0001A2C2, Row offset (if 8bpp): 1
+Image is 127x81
+Has transparency mask: True
+Transparent pixels: 4482/10287 (43.6%), Opaque pixels: 5932
+Saved: CC0.chunk0_image71.png
+
+=== Processing Image 72 ===
+Chunk size: 5176, Compressed data size: 5164
+First 8 bytes (hex): 00 01 9B 43 FF 22 22 FF 
+First word: 0x00019B43, Row offset (if 8bpp): 1
+Image is 82x140
+Has transparency mask: True
+Transparent pixels: 7116/11480 (62.0%), Opaque pixels: 4446
+Saved: CC0.chunk0_image72.png
+
+=== Processing Image 73 ===
+Chunk size: 4992, Compressed data size: 4980
+First 8 bytes (hex): 00 00 98 42 FF 22 FF B0 
+First word: 0x00009842, Row offset (if 8bpp): 0
+Image is 77x135
+Has transparency mask: True
+Transparent pixels: 6150/10395 (59.2%), Opaque pixels: 4322
+Saved: CC0.chunk0_image73.png
+
+=== Processing Image 74 ===
+Chunk size: 4856, Compressed data size: 4844
+First 8 bytes (hex): 00 01 9F 45 FF FF 22 A5 
+First word: 0x00019F45, Row offset (if 8bpp): 1
+Image is 91x134
+Has transparency mask: True
+Transparent pixels: 8075/12194 (66.2%), Opaque pixels: 4210
+Saved: CC0.chunk0_image74.png
+
+=== Processing Image 75 ===
+Chunk size: 4416, Compressed data size: 4404
+First 8 bytes (hex): 00 01 9D 43 FF FF 44 FF 
+First word: 0x00019D43, Row offset (if 8bpp): 1
+Image is 77x137
+Has transparency mask: True
+Transparent pixels: 7045/10549 (66.8%), Opaque pixels: 3581
+Saved: CC0.chunk0_image75.png
+
+=== Processing Image 76 ===
+Chunk size: 3364, Compressed data size: 3352
+First 8 bytes (hex): 00 01 91 44 FF FF 44 44 
+First word: 0x00019144, Row offset (if 8bpp): 1
+Image is 93x74
+Has transparency mask: True
+Transparent pixels: 3666/6882 (53.3%), Opaque pixels: 3309
+Saved: CC0.chunk0_image76.png
+
+=== Processing Image 77 ===
+Chunk size: 5204, Compressed data size: 5192
+First 8 bytes (hex): 00 01 97 44 FF FF 22 22 
+First word: 0x00019744, Row offset (if 8bpp): 1
+Image is 82x140
+Has transparency mask: True
+Transparent pixels: 7122/11480 (62.0%), Opaque pixels: 4440
+Saved: CC0.chunk0_image77.png
+
+=== Processing Image 78 ===
+Chunk size: 4852, Compressed data size: 4840
+First 8 bytes (hex): 00 01 91 43 FF 22 22 FF 
+First word: 0x00019143, Row offset (if 8bpp): 1
+Image is 89x137
+Has transparency mask: True
+Transparent pixels: 8150/12193 (66.8%), Opaque pixels: 4132
+Saved: CC0.chunk0_image78.png
+
+=== Processing Image 79 ===
+Chunk size: 4728, Compressed data size: 4716
+First 8 bytes (hex): 00 01 8C 44 FF FF 22 22 
+First word: 0x00018C44, Row offset (if 8bpp): 1
+Image is 117x130
+Has transparency mask: True
+Transparent pixels: 4273/15210 (28.1%), Opaque pixels: 11054
+Saved: CC0.chunk0_image79.png
+
+=== Processing Image 80 ===
+Chunk size: 4572, Compressed data size: 4560
+First 8 bytes (hex): 00 01 88 43 FF 22 22 FF 
+First word: 0x00018843, Row offset (if 8bpp): 1
+Image is 93x130
+Has transparency mask: True
+Transparent pixels: 7732/12090 (64.0%), Opaque pixels: 4451
+Saved: CC0.chunk0_image80.png
+
+=== Processing Image 81 ===
+Chunk size: 4504, Compressed data size: 4492
+First 8 bytes (hex): 00 00 94 42 FF 22 FF B3 
+First word: 0x00009442, Row offset (if 8bpp): 0
+Image is 76x132
+Has transparency mask: True
+Transparent pixels: 6335/10032 (63.1%), Opaque pixels: 3773
+Saved: CC0.chunk0_image81.png
+
+=== Processing Image 82 ===
+Chunk size: 5112, Compressed data size: 5100
+First 8 bytes (hex): 00 01 98 43 FF 22 22 FF 
+First word: 0x00019843, Row offset (if 8bpp): 1
+Image is 77x138
+Has transparency mask: True
+Transparent pixels: 6332/10626 (59.6%), Opaque pixels: 4371
+Saved: CC0.chunk0_image82.png
+
+=== Processing Image 83 ===
+Chunk size: 5696, Compressed data size: 5684
+First 8 bytes (hex): 00 01 A5 45 FF FF 22 22 
+First word: 0x0001A545, Row offset (if 8bpp): 1
+Image is 99x138
+Has transparency mask: True
+Transparent pixels: 8735/13662 (63.9%), Opaque pixels: 5026
+Saved: CC0.chunk0_image83.png
+
+=== Processing Image 84 ===
+Chunk size: 5496, Compressed data size: 5484
+First 8 bytes (hex): 00 00 BF 9D 40 BC 00 00 
+First word: 0x0000BF9D, Row offset (if 8bpp): 0
+Image is 95x152
+Has transparency mask: True
+Transparent pixels: 9883/14440 (68.4%), Opaque pixels: 4652
+Saved: CC0.chunk0_image84.png
+
+=== Processing Image 85 ===
+Chunk size: 5200, Compressed data size: 5188
+First 8 bytes (hex): 00 01 A4 45 FF FF 22 22 
+First word: 0x0001A445, Row offset (if 8bpp): 1
+Image is 91x138
+Has transparency mask: True
+Transparent pixels: 8238/12558 (65.6%), Opaque pixels: 4411
+Saved: CC0.chunk0_image85.png

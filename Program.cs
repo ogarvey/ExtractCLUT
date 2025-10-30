@@ -34,23 +34,222 @@ using ExtractCLUT.Games.PC.Cryo;
 using Image = SixLabors.ImageSharp.Image;
 using SixLabors.ImageSharp.Processing;
 using Point = SixLabors.ImageSharp.Point;
+using ExtractCLUT.Games.ThreeDO;
 
 
+var celFile = @"C:\Dev\Gaming\3do\Games\WoW\CC6\CC6.name.cel";
+var celPng = Path.ChangeExtension(celFile, ".png");
 
-var pcDir = @"C:\Dev\Gaming\PC\Dos\Games\PerfectAssassin\DATA";
-var pcFiles = Directory.GetFiles(pcDir, "*.PC", SearchOption.TopDirectoryOnly);
-
-foreach (var pcFile in pcFiles)
+// Let's examine the file structure first
+var fileData = File.ReadAllBytes(celFile);
+Console.WriteLine($"File size: {fileData.Length} bytes");
+Console.WriteLine("First 64 bytes:");
+for (int i = 0; i < Math.Min(64, fileData.Length); i += 16)
 {
-		try
-		{
-				ParsePCFile(pcFile);
-		}
-		catch (Exception ex)
-		{
-				Console.WriteLine($"An error occurred during PC processing of {pcFile}: {ex.Message}");
-		}
+	var hex = string.Join(" ", fileData.Skip(i).Take(16).Select(b => $"{b:X2}"));
+	var ascii = string.Join("", fileData.Skip(i).Take(16).Select(b => b >= 32 && b < 127 ? (char)b : '.'));
+	Console.WriteLine($"{i:X4}: {hex.PadRight(48)} {ascii}");
 }
+
+var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 8);
+if (d != null)
+{
+	if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0)
+	{
+		// This is an image file with pixel data
+		Console.WriteLine($"Width: {d.Width}, Height: {d.Height}, PixelData Length: {d.PixelData.Length}");
+		if (d.Palette != null)
+		{
+			Console.WriteLine($"Palette colors: {d.Palette.Count}");
+		}
+		
+		// Save the image using the SaveCelImage method
+		if (d.Palette != null)
+		{
+			CelUnpacker.SaveCelImage(d, celPng, d.Palette);
+		}
+		else
+		{
+			Console.WriteLine("Warning: No palette available for image conversion");
+			// Could use a default palette or skip saving
+		}
+		Console.WriteLine($"Image saved as: {celPng}");
+	}
+	else if (d.Palette != null && d.Palette.Count > 0)
+	{
+		// This is a palette-only file (no pixel data)
+		Console.WriteLine($"Extracted palette with {d.Palette.Count} colors (palette-only file)");
+		
+		// Save the palette as a visual representation
+		string palettePng = Path.ChangeExtension(celFile, ".palette.png");
+		var systemDrawingColors = d.Palette.Select(c => 
+		{
+			var rgba = c.ToPixel<Rgba32>();
+			return System.Drawing.Color.FromArgb(rgba.A, rgba.R, rgba.G, rgba.B);
+		}).ToList();
+		ColorHelper.WritePalette(palettePng, systemDrawingColors);
+		Console.WriteLine($"Palette saved as: {palettePng}");
+	}
+	else
+	{
+		Console.WriteLine("File contains neither valid image data nor palette data");
+	}
+}
+else
+{
+	Console.WriteLine("Failed to parse CEL file - may be a palette/metadata file or invalid format");
+}
+
+// else
+
+// {
+// 	var folderToResize = @"C:\Dev\Gaming\3do\Extractions\WayOfTheWarrior\IconGen";
+// 	FileHelpers.ResizeImagesInFolder(folderToResize, ExpansionOrigin.BottomCenter);
+
+// }
+// // var cafFileDir = @"C:\Dev\Gaming\3do\Games\WoW\";
+// // var cafFiles = Directory.GetFiles(cafFileDir, "*.caf", SearchOption.AllDirectories);
+// // foreach (var cafFile in cafFiles)
+// // {
+// // 	try
+// // 	{
+// // 		ParseCafFile(cafFile);
+// // 	}
+// // 	catch (Exception ex)
+// // 	{
+// // 		Console.WriteLine($"An error occurred during CAF processing of {cafFile}: {ex.Message}");
+// // 	}
+// // }
+
+// void ParseCafFile(string cafFile)
+// {
+// 	using var cafReader = new BinaryReader(File.OpenRead(cafFile));
+// 	var outputDir = Path.GetDirectoryName(cafFile)!;
+// 	Directory.CreateDirectory(outputDir);
+
+// 	var celOutputs = new List<CelImageData>();
+// 	var palettes = new List<List<Color>>();
+
+// 	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	while (magic == "PDAT" || magic == "PLUT")
+// 	{
+// 		var chunkSize = cafReader.ReadBigEndianUInt32();
+// 		if (magic == "PDAT")
+// 		{
+// 			cafReader.ReadUInt32();
+// 			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
+
+// 			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: 8);
+
+// 			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
+// 			{
+// 				celOutputs.Add(celOutput);
+// 			}
+// 		}
+// 		else
+// 		{
+// 			var entries = cafReader.ReadBigEndianUInt32();
+// 			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
+// 			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 			palettes.Add(palette);
+// 		}
+// 		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	}
+
+// 	if (palettes.Count == 0)
+// 	{
+// 		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
+// 		// Attempt to find chunk 0 file in same directory
+// 		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
+// 		var dir = Path.GetDirectoryName(cafFile)!;
+// 		var fileName = Path.GetFileNameWithoutExtension(cafFile);
+// 		var charIdPart = fileName.Split('.')[0].Substring(2); // Get part after "CC"
+// 		var chunk0File = Path.Combine(dir, $"CC{charIdPart}.chunk0.caf");
+// 		if (File.Exists(chunk0File))
+// 		{
+// 			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
+// 			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			while (chunk0Magic != "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 			while (chunk0Magic == "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				var entries = chunk0Reader.ReadBigEndianUInt32();
+// 				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
+// 				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 				palettes.Add(palette);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 		}
+// 	}
+
+// 	for (int i = 0; i < palettes.Count; i++)
+// 	{
+// 		var imageIndex = 0;
+// 		var palDir = Path.Combine(outputDir, $"palette_{i}");
+// 		Directory.CreateDirectory(palDir);
+// 		foreach (var celOutput in celOutputs)
+// 		{
+// 			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(cafFile)}_image{imageIndex++}.png");
+// 			// Generate image with transparency support
+// 			SaveCelImage(celOutput, outputPng, palettes[i]);
+// 			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
+// 		}
+// 	}
+
+// }
+
+
+// var glFile = @"C:\Dev\Gaming\PC\Dos\Games\B13\DATA_output\mapart";
+// ParseGLFile(glFile);
+
+// void ParseGLFile(string glFile)
+// {
+// 	var outputFolder = Path.Combine(Path.GetDirectoryName(glFile)!, Path.GetFileNameWithoutExtension(glFile) + "_output");
+// 	using var glReader = new BinaryReader(File.OpenRead(glFile));
+// 	var count = glReader.ReadUInt16();
+// 	var tableOffset = glReader.ReadUInt32();
+
+// 	glReader.BaseStream.Seek(tableOffset, SeekOrigin.Begin);
+// 	var offsetsAndNames = new List<(uint Offset, string Name)>();
+// 	for (int i = 0; i < count; i++)
+// 	{
+// 		var offset = glReader.ReadUInt32();
+// 		var nameBytes = glReader.ReadBytes(8);
+// 		var name = Encoding.ASCII.GetString(nameBytes).TrimEnd('\0');
+// 		offsetsAndNames.Add((offset, name));
+// 	}
+
+// 	Directory.CreateDirectory(outputFolder);
+// 	for (int i = 0; i < count; i++)
+// 	{
+// 		glReader.BaseStream.Seek(offsetsAndNames[i].Offset, SeekOrigin.Begin);
+// 		var nextOffset = (i < count - 1) ? offsetsAndNames[i + 1].Offset : (uint)glReader.BaseStream.Length;
+// 		var dataSize = nextOffset - offsetsAndNames[i].Offset;
+// 		var data = glReader.ReadBytes((int)dataSize);
+// 		var outputFile = Path.Combine(outputFolder, $"{offsetsAndNames[i].Name}");
+// 		File.WriteAllBytes(outputFile, data);
+// 	}
+// }
+
+// var pcDir = @"C:\Dev\Gaming\PC\Dos\Games\PerfectAssassin\DATA";
+// var pcFiles = Directory.GetFiles(pcDir, "*.PC", SearchOption.TopDirectoryOnly);
+
+// foreach (var pcFile in pcFiles)
+// {
+// 		try
+// 		{
+// 				ParsePCFile(pcFile);
+// 		}
+// 		catch (Exception ex)
+// 		{
+// 				Console.WriteLine($"An error occurred during PC processing of {pcFile}: {ex.Message}");
+// 		}
+// }
 
 // var bbDir = @"C:\Dev\Gaming\PC\Dos\DiscImages\Brudal-Baddle_DOS_EN";
 // var bbFiles = Directory.GetFiles(bbDir, "*.SPR", SearchOption.AllDirectories);

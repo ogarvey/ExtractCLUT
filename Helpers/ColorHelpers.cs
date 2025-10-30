@@ -249,6 +249,28 @@ namespace ExtractCLUT.Helpers
       return colors;
     }
 
+    public static List<SixLabors.ImageSharp.Color> ReadRgb15PaletteIS(byte[] bytes)
+    {
+      List<SixLabors.ImageSharp.Color> colors = new List<SixLabors.ImageSharp.Color>();
+
+      for (int i = 0; i < bytes.Length - 1; i += 2)
+      {
+        ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).Reverse().ToArray(), 0);
+        byte red = (byte)((color >> 10) & 0x1F);
+        byte green = (byte)((color >> 5) & 0x1F);
+        byte blue = (byte)(color & 0x1F);
+
+        red = (byte)((red << 3) | (red >> 2));
+        green = (byte)((green << 3) | (green >> 2));
+        blue = (byte)((blue << 3) | (blue >> 2));
+
+        Rgba32 rgbColor = new Rgba32(red, green, blue);
+        colors.Add(rgbColor);
+      }
+
+      return colors;
+    }
+
     public static List<Color> ConvertBytesToARGB(byte[] bytes, int intensity = 1)
     {
       List<Color> colors = new List<Color>();
