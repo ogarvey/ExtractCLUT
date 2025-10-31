@@ -36,12 +36,6 @@ using SixLabors.ImageSharp.Processing;
 using Point = SixLabors.ImageSharp.Point;
 using ExtractCLUT.Games.ThreeDO;
 
-// var cafFile = @"C:\Dev\Gaming\3do\Games\WoW\Displays\Numbers.caf";
-// ParseCafFile(cafFile,1);
-
-// var folderToResize = @"C:\Dev\Gaming\3do\Extractions\WayOfTheWarrior\IconGen";
-// FileHelpers.ResizeImagesInFolder(folderToResize, ExpansionOrigin.BottomLeft);
-// Debugger.Break();
 
 
 var celFileDir = @"C:\Dev\Gaming\3do\Games\WoW";
@@ -56,7 +50,7 @@ foreach (var celFile in testFiles)
 
 	var celPng = Path.ChangeExtension(celFile, ".png");
 
-	var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 0, skipUncompSize: true);
+	var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 0);
 	if (d != null)
 	{
 		if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0)
@@ -107,87 +101,87 @@ foreach (var celFile in testFiles)
 } // End of foreach loop
 
 
-void ParseCafFile(string cafFile, int bpp = 6)
-{
-	using var cafReader = new BinaryReader(File.OpenRead(cafFile));
-	var outputDir = Path.GetDirectoryName(cafFile)!;
-	Directory.CreateDirectory(outputDir);
+// void ParseCafFile(string cafFile, int bpp = 6)
+// {
+// 	using var cafReader = new BinaryReader(File.OpenRead(cafFile));
+// 	var outputDir = Path.GetDirectoryName(cafFile)!;
+// 	Directory.CreateDirectory(outputDir);
 
-	var celOutputs = new List<CelImageData>();
-	var palettes = new List<List<Color>>();
+// 	var celOutputs = new List<CelImageData>();
+// 	var palettes = new List<List<Color>>();
 
-	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-	while (magic == "PDAT" || magic == "PLUT")
-	{
-		var chunkSize = cafReader.ReadBigEndianUInt32();
-		if (magic == "PDAT")
-		{
-			cafReader.ReadUInt32();
-			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
+// 	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	while (magic == "PDAT" || magic == "PLUT")
+// 	{
+// 		var chunkSize = cafReader.ReadBigEndianUInt32();
+// 		if (magic == "PDAT")
+// 		{
+// 			cafReader.ReadUInt32();
+// 			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
 
-			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
+// 			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
 
-			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
-			{
-				celOutputs.Add(celOutput);
-			}
-		}
-		else
-		{
-			var entries = cafReader.ReadBigEndianUInt32();
-			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
-			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-			palettes.Add(palette);
-		}
-		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-	}
+// 			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
+// 			{
+// 				celOutputs.Add(celOutput);
+// 			}
+// 		}
+// 		else
+// 		{
+// 			var entries = cafReader.ReadBigEndianUInt32();
+// 			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
+// 			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 			palettes.Add(palette);
+// 		}
+// 		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	}
 
-	if (palettes.Count == 0)
-	{
-		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
-		// Attempt to find chunk 0 file in same directory
-		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
-		var dir = Path.GetDirectoryName(cafFile)!;
-		var dirName = Path.GetFileName(dir);
-		var charIdPart = dirName.Substring(2); // Get part after "CC"
-		var chunk0File = Path.Combine(dir, $"Parts.caf");
-		if (File.Exists(chunk0File))
-		{
-			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
-			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			while (chunk0Magic != "PLUT")
-			{
-				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
-				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			}
-			while (chunk0Magic == "PLUT")
-			{
-				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-				var entries = chunk0Reader.ReadBigEndianUInt32();
-				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
-				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-				palettes.Add(palette);
-				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			}
-		}
-	}
+// 	if (palettes.Count == 0)
+// 	{
+// 		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
+// 		// Attempt to find chunk 0 file in same directory
+// 		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
+// 		var dir = Path.GetDirectoryName(cafFile)!;
+// 		var dirName = Path.GetFileName(dir);
+// 		var charIdPart = dirName.Substring(2); // Get part after "CC"
+// 		var chunk0File = Path.Combine(dir, $"Parts.caf");
+// 		if (File.Exists(chunk0File))
+// 		{
+// 			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
+// 			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			while (chunk0Magic != "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 			while (chunk0Magic == "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				var entries = chunk0Reader.ReadBigEndianUInt32();
+// 				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
+// 				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 				palettes.Add(palette);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < palettes.Count; i++)
-	{
-		var imageIndex = 0;
-		var palDir = Path.Combine(outputDir, $"palette_{i}");
-		Directory.CreateDirectory(palDir);
-		foreach (var celOutput in celOutputs)
-		{
-			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(cafFile)}_image{imageIndex++}.png");
-			// Generate image with transparency support
-			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i]);
-			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
-		}
-	}
+// 	for (int i = 0; i < palettes.Count; i++)
+// 	{
+// 		var imageIndex = 0;
+// 		var palDir = Path.Combine(outputDir, $"palette_{i}");
+// 		Directory.CreateDirectory(palDir);
+// 		foreach (var celOutput in celOutputs)
+// 		{
+// 			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(cafFile)}_image{imageIndex++}.png");
+// 			// Generate image with transparency support
+// 			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i]);
+// 			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
+// 		}
+// 	}
 
-}
+// }
 
 
 // var glFile = @"C:\Dev\Gaming\PC\Dos\Games\B13\DATA_output\mapart";

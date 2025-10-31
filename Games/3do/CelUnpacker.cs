@@ -410,7 +410,7 @@ namespace ExtractCLUT.Games.ThreeDO
             // Uncoded formats use RGB data directly
             // We'll unpack to RGBA32 format (4 bytes per pixel)
             byte[] unpackedData = new byte[width * height * 4]; // RGBA32
-            
+
             BitReader bitReader = new BitReader(celData);
 
             for (int row = 0; row < height; row++)
@@ -1136,10 +1136,18 @@ namespace ExtractCLUT.Games.ThreeDO
             bool isCoded = true;
             bool isPacked = false;
             int bpp = bitsPerPixel; // Use override if provided
+                                    // Check CCBPRE flag to determine where preamble is located
+            bool ccbpreFlag = (ccbFlags & 0x00400000) != 0; // CCBPRE flag - bit 22
 
-            // Check if we have PRE0 from CCB header
-            if ((ccbFlags & 0x00400000) != 0 && pre0 != 0) // CCBPRE flag set and PRE0 exists
+            if (ccbpreFlag && pre0 != 0)
             {
+                // CCBPRE=1: Preamble is in CCB (PRE0/PRE1 fields)
+                // Pixel data starts immediately in PDAT
+                if (verbose)
+                {
+                    Console.WriteLine($"CCBPRE=1: Preamble in CCB, pixel data starts at PDAT offset 0");
+                }
+
                 bool linear = (pre0 & 0x10) != 0;    // Bit 4: 1 = linear (uncoded), 0 = coded
                 bool packed = (pre0 & 0x80) != 0;    // Bit 7: 1 = packed, 0 = unpacked
                 isCoded = !linear;
@@ -1152,10 +1160,52 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Packed (bit 7): {packed}");
                 }
             }
-
-            // Also check PACKED flag from CCB FLAGS word
-            if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
+            else if (!ccbpreFlag && pixelData != null && pixelData.Length >= 4)
             {
+                // CCBPRE=0: Preamble is at the beginning of PDAT
+                // Read PRE0 from first 4 bytes of pixel data
+                pre0 = ReadBigEndianUInt32(pixelData, 0);
+
+                bool linear = (pre0 & 0x10) != 0;    // Bit 4: 1 = linear (uncoded), 0 = coded
+                bool packed = (pre0 & 0x80) != 0;    // Bit 7: 1 = packed, 0 = unpacked
+                isCoded = !linear;
+                isPacked = packed;
+
+                // IMPORTANT: Check if CCB FLAGS PACKED bit overrides PRE0 bit 7 BEFORE calculating preamble size
+                if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
+                {
+                    isPacked = true;
+                }
+
+                // Determine how many preamble bytes to skip based on FINAL isPacked value (after CCB override)
+                int preambleBytes = isPacked ? 4 : 8; // Packed=4 bytes (PRE0 only), Unpacked=8 bytes (PRE0+PRE1)
+
+                if (verbose)
+                {
+                    Console.WriteLine($"CCBPRE=0: Preamble at start of PDAT");
+                    Console.WriteLine($"  PRE0 from PDAT: 0x{pre0:X8}");
+                    Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
+                    Console.WriteLine($"  Packed (bit 7): {packed}");
+                    if ((ccbFlags & 0x00000200) != 0)
+                    {
+                        Console.WriteLine($"  PACKED flag in CCB FLAGS overrides PRE0 bit 7 -> isPacked=true");
+                    }
+                    Console.WriteLine($"  Skipping {preambleBytes} preamble bytes from PDAT");
+                }
+
+                // Skip the preamble bytes - create new array without them
+                byte[] actualPixelData = new byte[pixelData.Length - preambleBytes];
+                Array.Copy(pixelData, preambleBytes, actualPixelData, 0, actualPixelData.Length);
+                pixelData = actualPixelData;
+
+                if (verbose)
+                {
+                    Console.WriteLine($"  Pixel data size after skipping preamble: {pixelData.Length} bytes");
+                }
+            }
+            else if ((ccbFlags & 0x00000200) != 0) // PACKED flag in CCB FLAGS (only if CCBPRE=1)
+            {
+                // CCBPRE=1: Check PACKED flag from CCB FLAGS word
                 isPacked = true;
                 if (verbose)
                 {
