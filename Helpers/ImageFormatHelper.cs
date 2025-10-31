@@ -1297,6 +1297,56 @@ namespace ExtractCLUT.Helpers
 
       return clutImage;
     }
+
+    public static Image<Rgba32> GenerateIM16BitImage(
+    List<SixLabors.ImageSharp.Color> palette,
+    byte[] pixelData,
+    int width,
+    int height,
+    bool useTransparency = false,
+    int transparencyIndex = 0,
+    bool lowerIndexes = true,
+    bool fixedIndex = false)
+    {
+      // Create a new ImageSharp image
+      var image = new Image<Rgba32>(width, height);
+
+      try
+      {
+        // Loop through each pixel
+        for (int y = 0; y < height; y++)
+        {
+          for (int x = 0; x < width; x++)
+          {
+            var pixelIndex = y * width + x;
+            var byteOffset = pixelIndex * 2; // 2 bytes per pixel for 16bpp
+            
+            // Read 16-bit palette index (little-endian)
+            var paletteIndex = pixelData[byteOffset] | (pixelData[byteOffset + 1] << 8);
+
+            // Determine the color from the palette
+            Rgba32 color = paletteIndex < palette.Count ?
+            ((useTransparency && !fixedIndex) && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex))) ?
+            Rgba32.ParseHex("#00000000") : palette[paletteIndex] : palette[paletteIndex % palette.Count];
+            if (useTransparency && fixedIndex && paletteIndex == transparencyIndex)
+            {
+              color = Rgba32.ParseHex("#00000000");
+            }
+
+            // Set the pixel color
+            image[x, y] = color;
+          }
+        }
+      }
+      catch (Exception)
+      {
+        // Return the current state of the image in case of an exception
+        return image;
+      }
+
+      return image;
+    }
+
     public static Bitmap ConvertBGR888(byte[] bgr888Bytes, int width, int height)
     {
       if (bgr888Bytes.Length != (width * height) * 3)
