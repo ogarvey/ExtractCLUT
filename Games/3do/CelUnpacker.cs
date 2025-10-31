@@ -93,7 +93,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 // Save position at start of row (in words, not bits)
                 int rowStartWord = bitReader.CurrentWordPosition;
 
-                if (verbose) Console.WriteLine($"  Row {row}: Start word position = {rowStartWord}");
+                //if (verbose) Console.WriteLine($"  Row {row}: Start word position = {rowStartWord}");
 
                 // Read offset to next row
                 // For 8/16 bpp: 10-bit offset in bits 25-16
@@ -109,12 +109,12 @@ namespace ExtractCLUT.Games.ThreeDO
                     nextRowOffset = bitReader.ReadBits(8); // Read bits 31-24
                 }
 
-                if (verbose) Console.WriteLine($"    Next row offset: {nextRowOffset}");
+                //if (verbose) Console.WriteLine($"    Next row offset: {nextRowOffset}");
 
                 // Calculate where next row should start (in words)
                 int nextRowWord = rowStartWord + nextRowOffset + 2;
 
-                if (verbose) Console.WriteLine($"    Next row word position: {nextRowWord}, data has {actualData.Length / 4} words total");
+                //if (verbose) Console.WriteLine($"    Next row word position: {nextRowWord}, data has {actualData.Length / 4} words total");
 
                 // Process packets for this row
                 int pixelsInRow = 0;
@@ -212,11 +212,6 @@ namespace ExtractCLUT.Games.ThreeDO
 
                 // Jump to next row
                 bitReader.SeekToWord(nextRowWord);
-
-                if (verbose && row < 5)
-                {
-                    Console.WriteLine($"  Row {row}: {pixelsInRow} pixels decoded");
-                }
             }
 
             return new CelImageData
@@ -323,11 +318,6 @@ namespace ExtractCLUT.Games.ThreeDO
 
                 int nextRowWord = rowStartWord + nextRowOffset + 2;
 
-                if (verbose && row < 5)
-                {
-                    Console.WriteLine($"  Row {row}: Offset={nextRowOffset}, NextWord={nextRowWord}");
-                }
-
                 int pixelsInRow = 0;
                 bool endOfLine = false;
 
@@ -382,10 +372,6 @@ namespace ExtractCLUT.Games.ThreeDO
                 // Advance to next row
                 bitReader.SeekToWord(nextRowWord);
 
-                if (verbose && row < 5)
-                {
-                    Console.WriteLine($"    Pixels in row: {pixelsInRow}");
-                }
             }
 
             return new CelImageData
@@ -437,11 +423,6 @@ namespace ExtractCLUT.Games.ThreeDO
                     int rgbValue = bitReader.ReadBits(bitsPerPixel);
                     int pixelIndex = row * width + col;
                     WriteRGBPixel(unpackedData, pixelIndex * 4, rgbValue, bitsPerPixel);
-                }
-
-                if (verbose && row < 5)
-                {
-                    Console.WriteLine($"  Row {row}: Processed {width} pixels");
                 }
             }
 
@@ -500,23 +481,11 @@ namespace ExtractCLUT.Games.ThreeDO
                 // Each row starts at a 32-bit word boundary
                 bitReader.AlignToWord();
 
-                if (verbose && row < 5)
-                {
-                    int bitPos = bitReader.CurrentWordPosition * 32;
-                    Console.WriteLine($"  Row {row}: Word position = {bitReader.CurrentWordPosition}, Bit position ~{bitPos}");
-                    Console.Write($"    First 8 pixels:");
-                }
-
                 // For BOTH coded and uncoded unpacked data: just read raw pixels
                 // The only difference is that coded pixels go through PLUT lookup later
                 for (int col = 0; col < width; col++)
                 {
                     int pixelValue = bitReader.ReadBits(bitsPerPixel);
-
-                    if (verbose && row < 5 && col < 8)
-                    {
-                        Console.Write($" {pixelValue:X2}");
-                    }
 
                     WritePixel(unpackedData, outputOffset, pixelValue, bitsPerPixel);
                     outputOffset += bytesPerPixel;
@@ -1005,28 +974,6 @@ namespace ExtractCLUT.Games.ThreeDO
             {
                 Console.WriteLine($"File too small to contain a CCB header (minimum 32 bytes, got {data.Length})");
                 return null;
-            }
-
-            if (verbose)
-            {
-                Console.WriteLine($"File size: {data.Length} bytes");
-                // Show first 64 bytes as hex dump
-                Console.WriteLine("First 64 bytes:");
-                for (int i = 0; i < Math.Min(64, data.Length); i += 16)
-                {
-                    Console.Write($"{i:X4}: ");
-                    for (int j = 0; j < 16 && i + j < data.Length && i + j < 64; j++)
-                    {
-                        Console.Write($"{data[i + j]:X2} ");
-                    }
-                    Console.Write(" ");
-                    for (int j = 0; j < 16 && i + j < data.Length && i + j < 64; j++)
-                    {
-                        char c = (char)data[i + j];
-                        Console.Write(char.IsControl(c) ? '.' : c);
-                    }
-                    Console.WriteLine();
-                }
             }
 
             // Use chunk-based parsing with BinaryReader

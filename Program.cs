@@ -43,100 +43,69 @@ using ExtractCLUT.Games.ThreeDO;
 // FileHelpers.ResizeImagesInFolder(folderToResize, ExpansionOrigin.BottomLeft);
 // Debugger.Break();
 
-// Test all 3DO CEL formats  
-string[] testFiles = {
-		// Coded packed
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_1pp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_4bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_6bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_8bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_16bpp.cel",
-		// Coded unpacked  
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_1bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_2bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_3bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_6bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_8bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_16bpp.cel",
-		// Uncoded packed
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_packed_8bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_packed_16bpp.cel",
-		// Uncoded unpacked
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_unpacked_8bpp.cel",
-		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_unpacked_16bpp.cel",
 
-};
+var celFileDir = @"C:\Dev\Gaming\3do\Games\WoW";
+// Test all 3DO CEL formats  
+string[] testFiles = Directory.GetFiles(celFileDir, "*.cel", SearchOption.AllDirectories);
 
 foreach (var celFile in testFiles)
 {
-    Console.WriteLine($"\n========================================");
-    Console.WriteLine($"Testing: {Path.GetFileName(celFile)}");
-    Console.WriteLine($"========================================");
-    
-var celPng = Path.ChangeExtension(celFile, ".png");
+	Console.WriteLine($"\n========================================");
+	Console.WriteLine($"Testing: {Path.GetFileName(celFile)}");
+	Console.WriteLine($"========================================");
 
-var d = CelUnpacker.UnpackCelFile(celFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false);
-if (d != null)
-{
-	if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0 )
+	var celPng = Path.ChangeExtension(celFile, ".png");
+
+	var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 0, skipUncompSize: true);
+	if (d != null)
 	{
-		// Save raw pixel data for inspection
-		File.WriteAllBytes(Path.ChangeExtension(celFile, ".raw"), d.PixelData);
-		Console.WriteLine($"Raw pixel data saved: {Path.ChangeExtension(celFile, ".raw")}");
-		
-		// Save the image using the SaveCelImage method
-		// 32bpp uncoded formats don't need a palette (RGBA32 data)
-		if (d.BitsPerPixel == 32 || d.Palette != null)
+		if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0)
 		{
-			CelUnpacker.SaveCelImage(d, celPng, d.Palette);
-		}
-		else
-		{
-			Console.WriteLine("Enter filepath to palette file");
-			var paletteFile = Console.ReadLine();
-			if (!string.IsNullOrEmpty(paletteFile) && File.Exists(paletteFile))
+			// Save raw pixel data for inspection
+			//File.WriteAllBytes(Path.ChangeExtension(celFile, ".raw"), d.PixelData);
+
+			// Save the image using the SaveCelImage method
+			// 32bpp uncoded formats don't need a palette (RGBA32 data)
+			if (d.BitsPerPixel == 32 || d.Palette != null)
 			{
-				var customPalette = ColorHelper.ReadRgb15PaletteIS(File.ReadAllBytes(paletteFile));
-				CelUnpacker.SaveCelImage(d, celPng, customPalette);
+				CelUnpacker.SaveCelImage(d, celPng, d.Palette);
+				Console.WriteLine($"Image saved as: {celPng}");
 			}
 			else
 			{
-				Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
+				Console.WriteLine("Enter filepath to palette file");
+				var paletteFile = Console.ReadLine();
+				if (!string.IsNullOrEmpty(paletteFile) && File.Exists(paletteFile))
+				{
+					// parse as cel file
+					var customPalette = CelUnpacker.UnpackCelFile(paletteFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false)?.Palette;
+					if (customPalette != null)
+					{
+						CelUnpacker.SaveCelImage(d, celPng, customPalette);
+						Console.WriteLine($"Image saved as: {celPng}");
+					}
+					else
+					{
+						Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
+					}
+				}
+				else
+				{
+					Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
+				}
 			}
 		}
-		Console.WriteLine($"Image saved as: {celPng}");
+		else
+		{
+			Console.WriteLine("File contains incorrect data");
+		}
 	}
 	else
 	{
-		Console.WriteLine("File contains incorrect data");
+		Console.WriteLine("Failed to parse CEL file - may be a palette/metadata file or invalid format");
 	}
-}
-else
-{
-	Console.WriteLine("Failed to parse CEL file - may be a palette/metadata file or invalid format");
-}
 } // End of foreach loop
 
-// else
-
-// {
-// 	var folderToResize = @"C:\Dev\Gaming\3do\Extractions\WayOfTheWarrior\IconGen";
-// 	FileHelpers.ResizeImagesInFolder(folderToResize, ExpansionOrigin.BottomCenter);
-
-// }
-// // var cafFileDir = @"C:\Dev\Gaming\3do\Games\WoW\";
-// // var cafFiles = Directory.GetFiles(cafFileDir, "*.caf", SearchOption.AllDirectories);
-// // foreach (var cafFile in cafFiles)
-// // {
-// // 	try
-// // 	{
-// // 		ParseCafFile(cafFile);
-// // 	}
-// // 	catch (Exception ex)
-// // 	{
-// // 		Console.WriteLine($"An error occurred during CAF processing of {cafFile}: {ex.Message}");
-// // 	}
-// // }
 
 void ParseCafFile(string cafFile, int bpp = 6)
 {
