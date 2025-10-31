@@ -1278,8 +1278,11 @@ namespace ExtractCLUT.Games.ThreeDO
                 CelImageData result;
 
                 // Route to the appropriate unpacking method based on format
+                Console.WriteLine($"[DEBUG] Routing to unpacker: isCoded={isCoded}, isPacked={isPacked}");
+                
                 if (isCoded && isPacked)
                 {
+                    Console.WriteLine($"[DEBUG] Calling UnpackCodedPacked");
                     // CODED PACKED format - use dedicated method with known dimensions
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1293,6 +1296,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else if (isCoded && !isPacked)
                 {
+                    Console.WriteLine($"[DEBUG] Calling UnpackCodedUnpacked");
                     // CODED UNPACKED format
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1303,6 +1307,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else if (!isCoded && isPacked)
                 {
+                    Console.WriteLine($"[DEBUG] Calling UnpackUncodedPacked");
                     // UNCODED PACKED format - contains direct RGB values with packet encoding
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1313,6 +1318,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else
                 {
+                    Console.WriteLine($"[DEBUG] Calling UnpackUncodedUnpacked");
                     // UNCODED UNPACKED format - contains raw RGB values word-aligned per row
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1826,8 +1832,20 @@ namespace ExtractCLUT.Games.ThreeDO
                     throw new ArgumentNullException(nameof(palette), "Palette is required for palette-indexed CEL images");
                 }
 
-                if (celOutput.BitsPerPixel <= 8)
+                if (celOutput.BitsPerPixel == 8)
                 {
+                    // For 8bpp coded formats, pixel values contain both PLUT index and AMV
+                    // Format: [AMV:3][PLUT:5] - we need to extract the lower 5 bits (PLUT index)
+                    byte[] cleanedPixelData = new byte[celOutput.PixelData.Length];
+                    for (int i = 0; i < celOutput.PixelData.Length; i++)
+                    {
+                        cleanedPixelData[i] = (byte)(celOutput.PixelData[i] & 0x1F); // Extract lower 5 bits (PLUT index)
+                    }
+                    image = ImageFormatHelper.GenerateIMClutImage(palette, cleanedPixelData, celOutput.Width, celOutput.Height, true);
+                }
+                else if (celOutput.BitsPerPixel < 8)
+                {
+                    // For sub-byte formats (1, 2, 4, 6 bpp), data is already clean palette indices
                     image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height, true);
                 }
                 else // 16bpp

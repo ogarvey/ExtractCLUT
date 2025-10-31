@@ -43,14 +43,28 @@ using ExtractCLUT.Games.ThreeDO;
 // FileHelpers.ResizeImagesInFolder(folderToResize, ExpansionOrigin.BottomLeft);
 // Debugger.Break();
 
-// Test all 3DO CEL formats
+// Test all 3DO CEL formats  
 string[] testFiles = {
+		// Coded packed
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_1pp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_4bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_6bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_8bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_packed_16bpp.cel",
+		// Coded unpacked  
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_1bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_2bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_3bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_6bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_8bpp.cel",
+		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\coded_unpacked_16bpp.cel",
 		// Uncoded packed
 		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_packed_8bpp.cel",
 		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_packed_16bpp.cel",
 		// Uncoded unpacked
 		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_unpacked_8bpp.cel",
 		@"C:\Dev\Gaming\Apps\ExtractCLUT\3do\examples\uncoded_unpacked_16bpp.cel",
+
 };
 
 foreach (var celFile in testFiles)
@@ -64,6 +78,10 @@ var celPng = Path.ChangeExtension(celFile, ".png");
 var d = CelUnpacker.UnpackCelFile(celFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false);
 if (d != null)
 {
+	Console.WriteLine($"  TransparencyMask: {(d.TransparencyMask != null ? "YES" : "NO")}");
+	Console.WriteLine($"  AMV: {(d.AlternateMultiplyValues != null ? "YES" : "NO")}");
+	Console.WriteLine($"  BitsPerPixel: {d.BitsPerPixel}");
+	
 	if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0 )
 	{
 		// Save raw pixel data for inspection
