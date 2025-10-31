@@ -1193,7 +1193,7 @@ namespace ExtractCLUT.Games.ThreeDO
             // Check if we have PRE0 from CCB header
             if ((ccbFlags & 0x00400000) != 0 && pre0 != 0) // CCBPRE flag set and PRE0 exists
             {
-                bool linear = (pre0 & 0x40) != 0;    // Bit 6: 1 = linear (uncoded), 0 = coded
+                bool linear = (pre0 & 0x10) != 0;    // Bit 4: 1 = linear (uncoded), 0 = coded
                 bool packed = (pre0 & 0x80) != 0;    // Bit 7: 1 = packed, 0 = unpacked
                 isCoded = !linear;
                 isPacked = packed;
@@ -1201,8 +1201,8 @@ namespace ExtractCLUT.Games.ThreeDO
                 if (verbose)
                 {
                     Console.WriteLine($"Format detected from CCB PRE0:");
-                    Console.WriteLine($"  Linear: {linear} (Coded: {isCoded})");
-                    Console.WriteLine($"  Packed: {packed}");
+                    Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
+                    Console.WriteLine($"  Packed (bit 7): {packed}");
                 }
             }
 
@@ -1278,11 +1278,8 @@ namespace ExtractCLUT.Games.ThreeDO
                 CelImageData result;
 
                 // Route to the appropriate unpacking method based on format
-                Console.WriteLine($"[DEBUG] Routing to unpacker: isCoded={isCoded}, isPacked={isPacked}");
-                
                 if (isCoded && isPacked)
                 {
-                    Console.WriteLine($"[DEBUG] Calling UnpackCodedPacked");
                     // CODED PACKED format - use dedicated method with known dimensions
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1296,7 +1293,6 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else if (isCoded && !isPacked)
                 {
-                    Console.WriteLine($"[DEBUG] Calling UnpackCodedUnpacked");
                     // CODED UNPACKED format
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1307,7 +1303,6 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else if (!isCoded && isPacked)
                 {
-                    Console.WriteLine($"[DEBUG] Calling UnpackUncodedPacked");
                     // UNCODED PACKED format - contains direct RGB values with packet encoding
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1318,7 +1313,6 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
                 else
                 {
-                    Console.WriteLine($"[DEBUG] Calling UnpackUncodedUnpacked");
                     // UNCODED UNPACKED format - contains raw RGB values word-aligned per row
                     if (ccbWidth <= 0 || ccbHeight <= 0)
                     {
@@ -1841,16 +1835,16 @@ namespace ExtractCLUT.Games.ThreeDO
                     {
                         cleanedPixelData[i] = (byte)(celOutput.PixelData[i] & 0x1F); // Extract lower 5 bits (PLUT index)
                     }
-                    image = ImageFormatHelper.GenerateIMClutImage(palette, cleanedPixelData, celOutput.Width, celOutput.Height, true);
+                    image = ImageFormatHelper.GenerateIMClutImage(palette, cleanedPixelData, celOutput.Width, celOutput.Height);
                 }
                 else if (celOutput.BitsPerPixel < 8)
                 {
                     // For sub-byte formats (1, 2, 4, 6 bpp), data is already clean palette indices
-                    image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height, true);
+                    image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height);
                 }
                 else // 16bpp
                 {
-                    image = ImageFormatHelper.GenerateIM16BitImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height, true);
+                    image = ImageFormatHelper.GenerateIM16BitImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height);
                 }
             }
 

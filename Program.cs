@@ -78,10 +78,6 @@ var celPng = Path.ChangeExtension(celFile, ".png");
 var d = CelUnpacker.UnpackCelFile(celFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false);
 if (d != null)
 {
-	Console.WriteLine($"  TransparencyMask: {(d.TransparencyMask != null ? "YES" : "NO")}");
-	Console.WriteLine($"  AMV: {(d.AlternateMultiplyValues != null ? "YES" : "NO")}");
-	Console.WriteLine($"  BitsPerPixel: {d.BitsPerPixel}");
-	
 	if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0 )
 	{
 		// Save raw pixel data for inspection
