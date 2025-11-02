@@ -1749,18 +1749,15 @@ namespace ExtractCLUT.Games.ThreeDO
                     }
                 }
             }
-            // Check if we need custom rendering (transparency or AMV data) for palette-based formats
+            // Check if we have transparency or AMV data that needs special handling
             else if (celOutput.TransparencyMask != null || celOutput.AlternateMultiplyValues != null)
             {
-                // Palette-based formats with transparency/AMV require a palette
-                if (palette == null)
-                {
-                    throw new ArgumentNullException(nameof(palette), "Palette is required for CEL images with transparency or AMV data");
-                }
-
                 // Create RGBA image with transparency and/or AMV support
                 image = new Image<Rgba32>(celOutput.Width, celOutput.Height);
                 int bytesPerPixel = (celOutput.BitsPerPixel + 7) / 8;
+
+                // Determine if this is uncoded (direct RGB) or coded (palette indices)
+                bool isUncoded = (celOutput.BitsPerPixel == 16 || celOutput.BitsPerPixel == 8) && palette == null;
 
                 for (int y = 0; y < celOutput.Height; y++)
                 {
@@ -1768,50 +1765,86 @@ namespace ExtractCLUT.Games.ThreeDO
                     {
                         int pixelIndex = y * celOutput.Width + x;
 
-                        // Read palette index based on bits per pixel
-                        int plutIndex;
-                        if (celOutput.BitsPerPixel == 16)
-                        {
-                            // For 16bpp, read 2 bytes as a 16-bit index
-                            int byteOffset = pixelIndex * 2;
-                            plutIndex = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
-                        }
-                        else
-                        {
-                            // For 8bpp and lower, read single byte
-                            plutIndex = celOutput.PixelData[pixelIndex];
-                        }
-
-                        // Check transparency if mask exists
+                        // Check transparency first
                         if (celOutput.TransparencyMask != null && celOutput.TransparencyMask[pixelIndex])
                         {
                             // Transparent pixel - set alpha to 0
                             image[x, y] = new Rgba32(0, 0, 0, 0);
+                            continue;
+                        }
+
+                        Rgba32 baseColor;
+
+                        if (isUncoded)
+                        {
+                            // UNCODED FORMAT: Convert RGB data directly (no palette lookup)
+                            if (celOutput.BitsPerPixel == 16)
+                            {
+                                // 16bpp uncoded: RGB555 format (5R, 5G, 5B, 1 control bit)
+                                int byteOffset = pixelIndex * 2;
+                                int pixelValue = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
+                                
+                                int r = ((pixelValue >> 10) & 0x1F) << 3; // Scale 5 bits to 8 bits
+                                int g = ((pixelValue >> 5) & 0x1F) << 3;
+                                int b = (pixelValue & 0x1F) << 3;
+                                
+                                baseColor = new Rgba32((byte)r, (byte)g, (byte)b, 255);
+                            }
+                            else // 8bpp uncoded
+                            {
+                                // 8bpp uncoded: RGB332 format (3R, 3G, 2B)
+                                byte pixelValue = celOutput.PixelData[pixelIndex];
+                                
+                                int r = ((pixelValue >> 5) & 0x07) * 255 / 7; // Scale 3 bits to 8 bits
+                                int g = ((pixelValue >> 2) & 0x07) * 255 / 7;
+                                int b = (pixelValue & 0x03) * 255 / 3; // Scale 2 bits to 8 bits
+                                
+                                baseColor = new Rgba32((byte)r, (byte)g, (byte)b, 255);
+                            }
                         }
                         else
                         {
-                            // Opaque pixel - use palette color
-                            Rgba32 baseColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
-
-                            // Apply AMV (Alternate Multiply Value) for brightness modulation if available
-                            if (celOutput.AlternateMultiplyValues != null)
+                            // CODED FORMAT: Use palette lookup
+                            if (palette == null)
                             {
-                                byte amv = celOutput.AlternateMultiplyValues[pixelIndex];
-                                // AMV provides 8 brightness levels (0-7)
-                                // 0 = darkest (black), 7 = full brightness
-                                // Scale color by (amv / 7.0)
-                                float multiplier = amv / 7.0f;
-
-                                baseColor = new Rgba32(
-                                    (byte)(baseColor.R * multiplier),
-                                    (byte)(baseColor.G * multiplier),
-                                    (byte)(baseColor.B * multiplier),
-                                    baseColor.A
-                                );
+                                throw new ArgumentNullException(nameof(palette), "Palette is required for coded CEL images with transparency or AMV data");
                             }
 
-                            image[x, y] = baseColor;
+                            // Read palette index based on bits per pixel
+                            int plutIndex;
+                            if (celOutput.BitsPerPixel == 16)
+                            {
+                                // For 16bpp coded, read 2 bytes as a 16-bit index
+                                int byteOffset = pixelIndex * 2;
+                                plutIndex = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
+                            }
+                            else
+                            {
+                                // For 8bpp and lower, read single byte
+                                plutIndex = celOutput.PixelData[pixelIndex];
+                            }
+
+                            baseColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
                         }
+
+                        // Apply AMV (Alternate Multiply Value) for brightness modulation if available
+                        if (celOutput.AlternateMultiplyValues != null)
+                        {
+                            byte amv = celOutput.AlternateMultiplyValues[pixelIndex];
+                            // AMV provides 8 brightness levels (0-7)
+                            // 0 = darkest (black), 7 = full brightness
+                            // Scale color by (amv / 7.0)
+                            float multiplier = amv / 7.0f;
+
+                            baseColor = new Rgba32(
+                                (byte)(baseColor.R * multiplier),
+                                (byte)(baseColor.G * multiplier),
+                                (byte)(baseColor.B * multiplier),
+                                baseColor.A
+                            );
+                        }
+
+                        image[x, y] = baseColor;
                     }
                 }
             }
@@ -1857,7 +1890,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <param name="verbose">If true, displays diagnostic information</param>
         /// <returns>True if successful, false if failed</returns>
-        public static bool UnpackAndSaveCelFile(string celFilePath, string outputPath, List<Color> palette, int bitsPerPixel = 0, bool verbose = false)
+        public static bool UnpackAndSaveCelFile(string celFilePath, string outputPath, List<Color>? palette = null, int bitsPerPixel = 0, bool verbose = false)
         {
             var celData = UnpackCelFile(celFilePath, verbose, bitsPerPixel);
             if (celData == null)

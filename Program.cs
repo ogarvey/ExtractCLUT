@@ -36,152 +36,598 @@ using SixLabors.ImageSharp.Processing;
 using Point = SixLabors.ImageSharp.Point;
 using ExtractCLUT.Games.ThreeDO;
 
+var unkCelFile = @"C:\Dev\Gaming\3do\Games\Deathkeep\data2\interface\Splash.cel";
+var outputPng = Path.ChangeExtension(unkCelFile, ".png");
+CelUnpacker.UnpackAndSaveCelFile(unkCelFile, outputPng, verbose: true);
 
-
-var celFileDir = @"C:\Dev\Gaming\3do\Games\WoW";
-// Test all 3DO CEL formats  
-string[] testFiles = Directory.GetFiles(celFileDir, "*.cel", SearchOption.AllDirectories);
-
-foreach (var celFile in testFiles)
-{
-	Console.WriteLine($"\n========================================");
-	Console.WriteLine($"Testing: {Path.GetFileName(celFile)}");
-	Console.WriteLine($"========================================");
-
-	var celPng = Path.ChangeExtension(celFile, ".png");
-
-	var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 0);
-	if (d != null)
-	{
-		if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0)
-		{
-			// Save raw pixel data for inspection
-			//File.WriteAllBytes(Path.ChangeExtension(celFile, ".raw"), d.PixelData);
-
-			// Save the image using the SaveCelImage method
-			// 32bpp uncoded formats don't need a palette (RGBA32 data)
-			if (d.BitsPerPixel == 32 || d.Palette != null)
-			{
-				CelUnpacker.SaveCelImage(d, celPng, d.Palette);
-				Console.WriteLine($"Image saved as: {celPng}");
-			}
-			else
-			{
-				Console.WriteLine("Enter filepath to palette file");
-				var paletteFile = Console.ReadLine();
-				if (!string.IsNullOrEmpty(paletteFile) && File.Exists(paletteFile))
-				{
-					// parse as cel file
-					var customPalette = CelUnpacker.UnpackCelFile(paletteFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false)?.Palette;
-					if (customPalette != null)
-					{
-						CelUnpacker.SaveCelImage(d, celPng, customPalette);
-						Console.WriteLine($"Image saved as: {celPng}");
-					}
-					else
-					{
-						Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
-					}
-				}
-				else
-				{
-					Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
-				}
-			}
-		}
-		else
-		{
-			Console.WriteLine("File contains incorrect data");
-		}
-	}
-	else
-	{
-		Console.WriteLine("Failed to parse CEL file - may be a palette/metadata file or invalid format");
-	}
-} // End of foreach loop
-
-
-// void ParseCafFile(string cafFile, int bpp = 6)
+// var secPackedPath = @"C:\Dev\Gaming\PC\Dos\DiscImages\Black-Sect_DOS_EN\LIEU32.SEC";
+// var secOutputDir = Path.Combine(Path.GetDirectoryName(secPackedPath)!, Path.GetFileNameWithoutExtension(secPackedPath) + "_output");
+// Directory.CreateDirectory(secOutputDir);
+// using var secReader = new BinaryReader(File.OpenRead(secPackedPath));
+// var firstOffset = secReader.ReadUInt32();
+// var offsets = new List<uint> { firstOffset };
+// while (secReader.BaseStream.Position < firstOffset)
 // {
-// 	using var cafReader = new BinaryReader(File.OpenRead(cafFile));
-// 	var outputDir = Path.GetDirectoryName(cafFile)!;
-// 	Directory.CreateDirectory(outputDir);
+// 	var offset = secReader.ReadUInt32();
+// 	offsets.Add(offset);
+// }
 
-// 	var celOutputs = new List<CelImageData>();
-// 	var palettes = new List<List<Color>>();
+// for (int i = 0; i < offsets.Count; i++)
+// {
+// 	secReader.BaseStream.Seek(offsets[i], SeekOrigin.Begin);
+// 	var nextOffset = (i < offsets.Count - 1) ? offsets[i + 1] : (uint)secReader.BaseStream.Length;
+// 	var dataSize = nextOffset - offsets[i];
+// 	var data = secReader.ReadBytes((int)dataSize);
+// 	if (data.Length == 0)
+// 		continue;
+// 	var outputFile = Path.Combine(secOutputDir, $"{i:D4}.bin");
+// 	File.WriteAllBytes(outputFile, data);
+// }
+// var fpgPath = @"C:\Dev\Gaming\PC\Dos\DiscImages\Billabong-Racers_DOS_EN_Original-version-on-English\Billabong_Racers_EN\TOMIKART.FPG";
+// var fpgOutputDir = Path.Combine(Path.GetDirectoryName(fpgPath)!, "fpg_output");
+// Directory.CreateDirectory(fpgOutputDir);
 
-// 	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-// 	while (magic == "PDAT" || magic == "PLUT")
+// using var fpgReader = new BinaryReader(File.OpenRead(fpgPath));
+// fpgReader.BaseStream.Seek(0x8, SeekOrigin.Begin);
+
+// var palData = fpgReader.ReadBytes(256 * 3);
+// var pal = ColorHelper.ConvertBytesToRgbIS(palData, true);
+
+// fpgReader.BaseStream.Seek(0x1530, SeekOrigin.Begin);
+// var imageIndex = 0;
+// while (fpgReader.BaseStream.Position < fpgReader.BaseStream.Length)
+// {
+// 	var dataLength = fpgReader.ReadUInt32();
+
+// 	var data = fpgReader.ReadBytes((int)dataLength - 4); // length includes the 4 bytes of length itself
+// 	using var dataReader = new BinaryReader(new MemoryStream(data));
 // 	{
-// 		var chunkSize = cafReader.ReadBigEndianUInt32();
-// 		if (magic == "PDAT")
+// 		var initialName = dataReader.ReadNullTerminatedString();
+// 		dataReader.BaseStream.Seek(0x20, SeekOrigin.Begin); // move to image data start
+// 		var nameStartPos = dataReader.BaseStream.Position;
+// 		var filename = dataReader.ReadNullTerminatedString();
+// 		dataReader.BaseStream.Seek(0x2C, SeekOrigin.Begin); // move to width/height
+// 		var width = dataReader.ReadUInt32();
+// 		var height = dataReader.ReadUInt32();
+// 		var unk1 = dataReader.ReadUInt32();
+// 		var xOffset = unk1 == 0 ? 0 : dataReader.ReadInt16();
+// 		var yOffset = unk1 == 0 ? 0 : dataReader.ReadInt16();
+// 		var imageData = dataReader.ReadBytes((int)width * (int)height);
+// 		var image = ImageFormatHelper.GenerateIMClutImage(pal, imageData, (int)width, (int)height, true);
+// 		var outputPng = Path.Combine(fpgOutputDir, $"{imageIndex++}_{Path.GetFileNameWithoutExtension(initialName)}_{Path.GetFileNameWithoutExtension(filename)}_{xOffset}_{yOffset}.png");
+// 		image.SaveAsPng(outputPng);
+// 	}
+// }
+
+// var palFile = @"C:\Dev\Gaming\PC\Dos\Games\BC-Racers_DOS_EN\bcracers\GRAPHICS\PLAYERS\PLYR.PAL";
+// var palette = ColorHelper.ConvertBytesToRgbIS(File.ReadAllBytes(palFile));
+
+// var blockFile1 = @"C:\Dev\Gaming\PC\Dos\Games\BC-Racers_DOS_EN\bcracers\GRAPHICS\CITY\MCITY1.PC";
+// // 32 x 32 pixel tiles
+// var blockData1 = File.ReadAllBytes(blockFile1);
+// var blockOutputDir = Path.Combine(Path.GetDirectoryName(blockFile1)!, "blocks_output");
+// Directory.CreateDirectory(blockOutputDir);
+// for (int i = 0; i < blockData1.Length; i += 32 * 32)
+// {
+// 	var tileData = blockData1.Skip(i).Take(32 * 32).ToArray();
+// 	var image = ImageFormatHelper.GenerateIMClutImage(palette, tileData, 32, 32, true);
+// 	var outputPng = Path.Combine(blockOutputDir, $"{i / (32 * 32)}.png");
+// 	image.SaveAsPng(outputPng);
+// 	Console.WriteLine($"Saved: {outputPng}");
+// }
+
+// var pcdFile = @"C:\Dev\Gaming\PC\Dos\Games\BC-Racers_DOS_EN\bcracers\GRAPHICS\PLAYERS\PLYR.PCD";
+// var pcdOutputDir = Path.Combine(Path.GetDirectoryName(pcdFile)!, Path.GetFileNameWithoutExtension(pcdFile) + "_output");
+// Directory.CreateDirectory(pcdOutputDir);
+// using var pcdReader = new BinaryReader(File.OpenRead(pcdFile));
+// var pcdIndex = 0;
+// while (pcdReader.BaseStream.Position < pcdReader.BaseStream.Length)
+// {
+// 	var width = pcdReader.ReadUInt16() + 1;
+// 	var height = pcdReader.ReadUInt16();
+// 	var dataSize = width * height;
+// 	var imageData = pcdReader.ReadBytes((int)dataSize);
+// 	var image = ImageFormatHelper.GenerateIMClutImage(palette, imageData, width, height, true);
+// 	var outputPng = Path.Combine(pcdOutputDir, $"pcd_{pcdIndex++}.png");
+// 	image.SaveAsPng(outputPng);
+// 	Console.WriteLine($"Saved: {outputPng}");
+// }
+
+// var caf = @"C:\Dev\Gaming\3do\Games\WoW\Displays\greenbar.caf";
+// ParseHeaderlessCelBruteForce(caf);
+
+//var celFileDir = @"C:\Dev\Gaming\3do\Games\WoW";
+// Test all 3DO CEL formats  
+// string[] testFiles = Directory.GetFiles(celFileDir, "*.cel", SearchOption.AllDirectories);
+// string[] headerlessTestFiles = Directory.GetFiles(celFileDir, "*.caf", SearchOption.AllDirectories);
+// string[] allFiles = testFiles.Concat(headerlessTestFiles).ToArray();
+
+// foreach (var celFile in allFiles)
+// {
+// 	Console.WriteLine($"\n========================================");
+// 	Console.WriteLine($"Testing: {Path.GetFileName(celFile)}");
+// 	Console.WriteLine($"========================================");
+
+// 	var celPng = Path.ChangeExtension(celFile, ".png");
+
+// 	// read first 4 bytes for magic
+// 	using var fs = new FileStream(celFile, FileMode.Open, FileAccess.Read);
+// 	using var br = new BinaryReader(fs);
+// 	var magic = new string(br.ReadChars(4));
+// 	Console.WriteLine($"Magic: {magic}");
+// 	if (magic == "CCB ")
+// 	{
+// 		var d = CelUnpacker.UnpackCelFile(celFile, verbose: true, bitsPerPixel: 0);
+// 		if (d != null)
 // 		{
-// 			cafReader.ReadUInt32();
-// 			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
-
-// 			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
-
-// 			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
+// 			if (d.PixelData != null && d.PixelData.Length > 0 && d.Width > 0 && d.Height > 0)
 // 			{
-// 				celOutputs.Add(celOutput);
+// 				// Save raw pixel data for inspection
+// 				//File.WriteAllBytes(Path.ChangeExtension(celFile, ".raw"), d.PixelData);
+
+// 				// Save the image using the SaveCelImage method
+// 				// 32bpp uncoded formats don't need a palette (RGBA32 data)
+// 				if (d.BitsPerPixel == 32 || d.Palette != null)
+// 				{
+// 					CelUnpacker.SaveCelImage(d, celPng, d.Palette);
+// 					Console.WriteLine($"Image saved as: {celPng}");
+// 				}
+// 				else
+// 				{
+// 					Console.WriteLine("Enter filepath to palette file");
+// 					var paletteFile = Console.ReadLine();
+// 					if (!string.IsNullOrEmpty(paletteFile) && File.Exists(paletteFile))
+// 					{
+// 						// parse as cel file
+// 						var customPalette = CelUnpacker.UnpackCelFile(paletteFile, verbose: false, bitsPerPixel: 0, skipUncompSize: false)?.Palette;
+// 						if (customPalette != null)
+// 						{
+// 							CelUnpacker.SaveCelImage(d, celPng, customPalette);
+// 							Console.WriteLine($"Image saved as: {celPng}");
+// 						}
+// 						else
+// 						{
+// 							Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
+// 						}
+// 					}
+// 					else
+// 					{
+// 						Console.WriteLine("Invalid palette file. Could use a default palette or skip saving.");
+// 					}
+// 				}
+// 			}
+// 			else
+// 			{
+// 				Console.WriteLine("File contains incorrect data");
 // 			}
 // 		}
 // 		else
 // 		{
-// 			var entries = cafReader.ReadBigEndianUInt32();
-// 			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
-// 			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-// 			palettes.Add(palette);
-// 		}
-// 		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-// 	}
-
-// 	if (palettes.Count == 0)
-// 	{
-// 		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
-// 		// Attempt to find chunk 0 file in same directory
-// 		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
-// 		var dir = Path.GetDirectoryName(cafFile)!;
-// 		var dirName = Path.GetFileName(dir);
-// 		var charIdPart = dirName.Substring(2); // Get part after "CC"
-// 		var chunk0File = Path.Combine(dir, $"Parts.caf");
-// 		if (File.Exists(chunk0File))
-// 		{
-// 			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
-// 			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-// 			while (chunk0Magic != "PLUT")
-// 			{
-// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-// 				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
-// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-// 			}
-// 			while (chunk0Magic == "PLUT")
-// 			{
-// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-// 				var entries = chunk0Reader.ReadBigEndianUInt32();
-// 				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
-// 				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-// 				palettes.Add(palette);
-// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-// 			}
+// 			Console.WriteLine("Failed to parse CEL file - may be a palette/metadata file or invalid format");
 // 		}
 // 	}
+// 	else
+//   {
+// 		ParseHeaderlessCelBruteForce(celFile);
+//   }
+// } // End of foreach loop
 
-// 	for (int i = 0; i < palettes.Count; i++)
-// 	{
-// 		var imageIndex = 0;
-// 		var palDir = Path.Combine(outputDir, $"palette_{i}");
-// 		Directory.CreateDirectory(palDir);
-// 		foreach (var celOutput in celOutputs)
-// 		{
-// 			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(cafFile)}_image{imageIndex++}.png");
-// 			// Generate image with transparency support
-// 			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i]);
-// 			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
-// 		}
-// 	}
 
-// }
+void ParseHeaderlessCel(string celFile, int bpp = 6)
+{
+	using var cafReader = new BinaryReader(File.OpenRead(celFile));
+	var outputDir = Path.GetDirectoryName(celFile)!;
+	Directory.CreateDirectory(outputDir);
+
+	var celOutputs = new List<CelImageData>();
+	var palettes = new List<List<Color>>();
+
+	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+	while (magic == "PDAT" || magic == "PLUT")
+	{
+		var chunkSize = cafReader.ReadBigEndianUInt32();
+		if (magic == "PDAT")
+		{
+			cafReader.ReadUInt32();
+			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
+
+			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
+
+			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
+			{
+				celOutputs.Add(celOutput);
+			}
+		}
+		else
+		{
+			var entries = cafReader.ReadBigEndianUInt32();
+			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
+			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+			palettes.Add(palette);
+		}
+		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+	}
+
+	if (palettes.Count == 0)
+	{
+		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
+		// Attempt to find chunk 0 file in same directory
+		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
+		var dir = Path.GetDirectoryName(celFile)!;
+		var dirName = Path.GetFileName(dir);
+		var charIdPart = dirName.Substring(2); // Get part after "CC"
+		var chunk0File = Path.Combine(dir, $"Parts.caf");
+		if (File.Exists(chunk0File))
+		{
+			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
+			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+			while (chunk0Magic != "PLUT")
+			{
+				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
+				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+			}
+			while (chunk0Magic == "PLUT")
+			{
+				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+				var entries = chunk0Reader.ReadBigEndianUInt32();
+				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
+				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+				palettes.Add(palette);
+				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+			}
+		}
+	}
+
+	for (int i = 0; i < palettes.Count; i++)
+	{
+		var imageIndex = 0;
+		var palDir = Path.Combine(outputDir, $"palette_{i}");
+		Directory.CreateDirectory(palDir);
+		foreach (var celOutput in celOutputs)
+		{
+			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(celFile)}_image{imageIndex++}.png");
+			// Generate image with transparency support
+			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i]);
+			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
+		}
+	}
+
+}
+
+// Enhanced headerless CEL parser with brute-force format detection
+void ParseHeaderlessCelBruteForce(string celFile)
+{
+	Console.WriteLine($"\n{new string('=', 70)}");
+	Console.WriteLine($"Processing headerless CEL: {Path.GetFileName(celFile)}");
+	Console.WriteLine(new string('=', 70));
+
+	var outputDir = Path.Combine(Path.GetDirectoryName(celFile)!, Path.GetFileNameWithoutExtension(celFile) + "_decoded");
+	Directory.CreateDirectory(outputDir);
+
+	// Parse all PDAT and PLUT chunks from the file
+	var pdatChunks = new List<byte[]>();
+	var palettes = new List<List<Color>>();
+
+	using (var reader = new BinaryReader(File.OpenRead(celFile)))
+	{
+		while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
+		{
+			var magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
+			if (magic != "PDAT" && magic != "PLUT")
+			{
+				Console.WriteLine($"Unknown magic '{magic}' at position {reader.BaseStream.Position - 4}, stopping parse.");
+				// read 4 bytes at a time until we find a valid magic or reach end of file
+				while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
+				{
+					magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
+					if (magic == "PDAT" || magic == "PLUT")
+					{
+						break;
+					}
+				}
+			}
+
+			var chunkSize = reader.ReadBigEndianUInt32();
+
+			if (magic == "PDAT")
+			{
+				// PDAT chunk: skip 4 bytes (usually uncompressed size or flags), then read pixel data
+				reader.ReadUInt32(); // Skip 4 bytes after size
+				var pixelData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + skip(4)
+				pdatChunks.Add(pixelData);
+				Console.WriteLine($"Found PDAT chunk: {pixelData.Length} bytes of pixel data");
+			}
+			else if (magic == "PLUT")
+			{
+				// PLUT chunk: read entry count, then palette data
+				var entries = reader.ReadBigEndianUInt32();
+				var paletteData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + entries(4)
+				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+				palettes.Add(palette);
+				Console.WriteLine($"Found PLUT chunk: {entries} entries, {palette.Count} colors extracted");
+			}
+		}
+	}
+
+	if (pdatChunks.Count == 0)
+	{
+		Console.WriteLine("No PDAT chunks found in file.");
+		return;
+	}
+
+	Console.WriteLine($"\nTotal: {pdatChunks.Count} PDAT chunk(s), {palettes.Count} palette(s)");
+
+	// If no palettes in file, look for palettes in other .cel files in the same directory
+	if (palettes.Count == 0)
+	{
+		Console.WriteLine("\nNo palettes found in file. Searching for palettes in other .cel files...");
+		var dir = Path.GetDirectoryName(celFile)!;
+		var otherCelFiles = Directory.GetFiles(dir, "*.cel", SearchOption.TopDirectoryOnly)
+			.Where(f => !f.Equals(celFile, StringComparison.OrdinalIgnoreCase))
+			.ToList();
+
+		foreach (var otherFile in otherCelFiles)
+		{
+			try
+			{
+				var otherCelData = CelUnpacker.UnpackCelFile(otherFile, verbose: false, bitsPerPixel: 0);
+				if (otherCelData?.Palette != null)
+				{
+					palettes.Add(otherCelData.Palette);
+					Console.WriteLine($"  Found palette in {Path.GetFileName(otherFile)}: {otherCelData.Palette.Count} colors");
+				}
+			}
+			catch { /* Ignore files that can't be read */ }
+
+			if (palettes.Count >= 5) break; // Limit to 5 palettes to avoid too many combinations
+		}
+	}
+
+	// Define format attempts in order of likelihood (coded formats first, most common bpp values)
+	var formatAttempts = new List<(string Name, Func<byte[], CelImageData?> Decoder)>
+	{
+		// Coded Packed (most common)
+		("Coded_Packed_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 6, verbose: false))),
+		("Coded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 8, verbose: false))),
+		("Coded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 16, verbose: false))),
+		// Coded Unpacked (most common) - no brute-force for now
+		// ("Coded_Unpacked_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 6, verbose: false))),
+		// ("Coded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 8, verbose: false))),
+		// ("Coded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 16, verbose: false))),
+		
+		// Coded Packed (least common)
+		("Coded_Packed_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 4, verbose: false))),
+		("Coded_Packed_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 2, verbose: false))),
+		("Coded_Packed_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 1, verbose: false))),
+		
+		// Uncoded Packed (less common)
+		("Uncoded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 16))),
+		("Uncoded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 8))),
+
+		// Uncoded Unpacked (least common) - no brute-force for now
+		// ("Uncoded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 16))),
+		// ("Uncoded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 8))),
+	};
+
+	// Track confirmed format for batch processing
+	string? confirmedFormat = null;
+
+	// Process each PDAT chunk
+	for (int pdatIndex = 0; pdatIndex < pdatChunks.Count; pdatIndex++)
+	{
+		var pixelData = pdatChunks[pdatIndex];
+		Console.WriteLine($"\n{new string('-', 70)}");
+		Console.WriteLine($"Processing PDAT chunk {pdatIndex + 1}/{pdatChunks.Count} ({pixelData.Length} bytes)");
+		Console.WriteLine(new string('-', 70));
+
+		bool decoded = false;
+
+		// If we have a confirmed format from a previous chunk, use it directly with all palettes
+		if (confirmedFormat != null)
+		{
+			Console.WriteLine($"\nApplying confirmed format: {confirmedFormat.Replace("_", " ")}...");
+			var confirmedAttempt = formatAttempts.FirstOrDefault(f => f.Name == confirmedFormat);
+			if (confirmedAttempt != default)
+			{
+				var result = confirmedAttempt.Decoder(pixelData);
+				if (result != null && result.Width > 0 && result.Height > 0 && result.PixelData.Length > 0)
+				{
+					Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
+					
+					// Save with all available palettes (or just once for 32bpp uncoded)
+					int palettesToSave = result.BitsPerPixel == 32 ? 1 : palettes.Count;
+					if (palettesToSave == 0) palettesToSave = 1;
+					
+					int savedCount = 0;
+					for (int palIdx = 0; palIdx < palettesToSave; palIdx++)
+					{
+						var palette = (result.BitsPerPixel == 32 || palettes.Count == 0) ? null : palettes[palIdx];
+						var fileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{confirmedFormat}";
+						if (palette != null) fileName += $"_pal{palIdx + 1}";
+						fileName += ".png";
+						var filePath = Path.Combine(outputDir, fileName);
+						
+						try
+						{
+							CelUnpacker.SaveCelImage(result, filePath, palette);
+							Console.WriteLine($"  💾 Saved: {fileName}");
+							savedCount++;
+						}
+						catch (Exception ex)
+						{
+							Console.WriteLine($"  ✗ Error saving image with palette {palIdx + 1}: {ex.Message}");
+						}
+					}
+					
+					if (savedCount > 0)
+					{
+						decoded = true;
+					}
+				}
+				else
+				{
+					Console.WriteLine($"  ✗ Failed to decode with confirmed format, trying all formats...");
+					confirmedFormat = null; // Reset and try all formats
+				}
+			}
+		}
+
+		// If no confirmed format or it failed, try each format
+		if (!decoded)
+		{
+			foreach (var (formatName, decoder) in formatAttempts)
+			{
+				Console.WriteLine($"\nTrying format: {formatName.Replace("_", " ")}...");
+				var result = decoder(pixelData);
+
+				if (result == null || result.Width <= 0 || result.Height <= 0 || result.PixelData.Length == 0)
+				{
+					Console.WriteLine($"  ✗ Failed: Invalid dimensions or no data");
+					continue;
+				}
+
+			Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
+
+			// Check if this is a coded format (requires palette) or uncoded format (direct RGB)
+			bool isCoded = formatName.StartsWith("Coded_");
+			bool isUncoded = formatName.StartsWith("Uncoded_");
+
+			// For coded formats, need a palette
+			if (isCoded && palettes.Count == 0)
+			{
+				Console.WriteLine($"  ⚠ Skipping: Coded format requires palette (none available)");
+				continue;
+			}
+
+			// Determine how many palette variations to try
+			// - Uncoded formats: Don't use palettes (direct RGB), so only 1 version
+			// - Coded formats: Use all available palettes
+			int palettesToTry = isUncoded ? 1 : palettes.Count;
+			if (palettesToTry == 0) palettesToTry = 1; // Fallback if no palettes
+			
+			for (int palIdx = 0; palIdx < palettesToTry; palIdx++)
+			{
+				// Uncoded formats don't use palettes (they have direct RGB values)
+				// Coded formats need a palette to map indices to colors
+				var palette = (isUncoded || palettes.Count == 0) ? null : palettes[palIdx];
+				var testFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}";
+				if (palette != null) testFileName += $"_pal{palIdx + 1}";
+				testFileName += ".png";
+				var testFilePath = Path.Combine(outputDir, testFileName);					try
+					{
+						CelUnpacker.SaveCelImage(result, testFilePath, palette);
+						Console.WriteLine($"  💾 Saved test image: {Path.GetFullPath(testFilePath)}");
+
+						// Ask user for confirmation
+						Console.Write($"\n  Is this image correct? (y/n/a=use for all remaining/s=skip): ");
+						var response = Console.ReadLine()?.Trim().ToLower();
+
+						if (response == "y" || response == "yes")
+						{
+							Console.WriteLine($"  ✓ Confirmed! Saving with all {palettes.Count} palette(s)...");
+							decoded = true;
+							
+							// Save this chunk with all remaining palettes (current palette already saved above)
+							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
+							{
+								// Skip the palette we just saved
+								if (remainingPalIdx == palIdx) continue;
+								
+								var remainingPalette = palettes[remainingPalIdx];
+								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
+								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
+								
+								try
+								{
+									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette);
+									Console.WriteLine($"  💾 Saved: {remainingFileName}");
+								}
+								catch (Exception ex)
+								{
+									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
+								}
+							}
+							
+							break;
+						}
+						else if (response == "a" || response == "all")
+						{
+							Console.WriteLine($"  ✓ Confirmed! Will use this format for all remaining PDAT chunks (with all palettes)");
+							confirmedFormat = formatName;
+							decoded = true;
+							
+							// Save this chunk with all remaining palettes (current palette already saved above)
+							Console.WriteLine($"  💾 Saving current chunk with all {palettes.Count} palette(s)...");
+							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
+							{
+								// Skip the palette we just saved
+								if (remainingPalIdx == palIdx) continue;
+								
+								var remainingPalette = palettes[remainingPalIdx];
+								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
+								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
+								
+								try
+								{
+									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette);
+									Console.WriteLine($"  💾 Saved: {remainingFileName}");
+								}
+								catch (Exception ex)
+								{
+									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
+								}
+							}
+							
+							break;
+						}
+						else if (response == "s" || response == "skip")
+						{
+							Console.WriteLine($"  ⊗ Skipping remaining formats for this PDAT chunk");
+							File.Delete(testFilePath);
+							decoded = true; // Mark as handled to skip remaining formats
+							break;
+						}
+						else
+						{
+							Console.WriteLine($"  ✗ Rejected. Deleting {testFileName}");
+							File.Delete(testFilePath);
+						}
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine($"  ✗ Error saving image: {ex.Message}");
+						if (File.Exists(testFilePath)) File.Delete(testFilePath);
+					}
+				}
+
+				if (decoded) break; // Move to next PDAT chunk
+			}
+		}
+
+		if (!decoded)
+		{
+			Console.WriteLine($"\n  ⚠ No format worked for PDAT chunk {pdatIndex + 1}");
+		}
+	}
+
+	Console.WriteLine($"\n{new string('=', 70)}");
+	Console.WriteLine($"Decoding complete. Output saved to: {outputDir}");
+	Console.WriteLine($"{new string('=', 70)}\n");
+}
+
+// Helper method to safely try decoding
+CelImageData? TryDecode(Func<CelImageData> decoderFunc)
+{
+	try
+	{
+		return decoderFunc();
+	}
+	catch
+	{
+		return null;
+	}
+}
 
 
 // var glFile = @"C:\Dev\Gaming\PC\Dos\Games\B13\DATA_output\mapart";
