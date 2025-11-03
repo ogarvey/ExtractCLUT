@@ -969,6 +969,19 @@ namespace ExtractCLUT.Games.ThreeDO
             }
 
             byte[] data = File.ReadAllBytes(celFile);
+            return UnpackCelFile_FromBytes(data, verbose, bitsPerPixel, skipUncompSize);
+        }
+
+        /// <summary>
+        /// Parses CEL data from a byte array (CCB header + PDAT chunks) and automatically unpacks the pixel data.
+        /// This is useful for processing CEL data embedded in other file formats (like ANIM files).
+        /// </summary>
+        /// <param name="data">CEL data bytes (must start with CCB or PDAT chunk)</param>
+        /// <param name="verbose">If true, displays CCB header information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
+        /// <returns>Unpacked CEL image data with dimensions and pixel data</returns>
+        private static CelImageData? UnpackCelFile_FromBytes(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        {
 
             if (data.Length < 0x20)
             {
@@ -1237,9 +1250,9 @@ namespace ExtractCLUT.Games.ThreeDO
                 bpp = 6; // Safe default
             }
 
-            // Heuristic: If file size is much smaller than expected unpacked size, it's likely packed
-            // even if the CCB header flags say otherwise (some files have incorrect PRE0 bits)
-            if (!isPacked && ccbWidth > 0 && ccbHeight > 0 && bpp > 0)
+            // Heuristic: Validate packed/unpacked flag against actual file size
+            // Some files have incorrect PRE0 bit 7 in CCB headers
+            if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
             {
                 // For unpacked format, each row is word-aligned (32-bit boundary)
                 // Calculate bits per row, then round up to nearest word (4 bytes)
@@ -1248,15 +1261,36 @@ namespace ExtractCLUT.Games.ThreeDO
                 int expectedUnpackedSize = ccbHeight * bytesPerRow;
                 int actualDataSize = pixelData.Length;
 
-                // If actual data is less than 75% of expected size, assume it's packed (compressed)
-                if (actualDataSize < expectedUnpackedSize * 0.75)
+                // Calculate expected size for simple unpacked case (no word alignment, just raw bytes)
+                int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\n  File size analysis:");
+                    Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
+                    Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
+                    Console.WriteLine($"    Actual size: {actualDataSize} bytes");
+                }
+
+                // Case 1: Marked as UNPACKED, but size is too small -> Actually PACKED
+                if (!isPacked && actualDataSize < expectedUnpackedSize * 0.75)
                 {
                     if (verbose)
                     {
-                        Console.WriteLine($"  File size heuristic: Expected {expectedUnpackedSize} bytes for unpacked, got {actualDataSize} bytes");
-                        Console.WriteLine($"  Overriding format to PACKED (CCB header may have incorrect flags)");
+                        Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
                     }
                     isPacked = true;
+                }
+                // Case 2: Marked as PACKED, but size matches unpacked exactly -> Actually UNPACKED
+                else if (isPacked && (actualDataSize == expectedUnpackedSize || 
+                                      actualDataSize == simpleUnpackedSize ||
+                                      Math.Abs(actualDataSize - expectedUnpackedSize) < 100))
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
+                    }
+                    isPacked = false;
                 }
             }
 
@@ -1882,6 +1916,239 @@ namespace ExtractCLUT.Games.ThreeDO
         }
 
         /// <summary>
+        /// Unpacks an ANIM file containing multiple CEL frames and saves them as separate PNG files.
+        /// ANIM files contain an ANIM chunk followed by multiple CCB+PDAT chunks for each frame.
+        /// </summary>
+        /// <param name="animFile">Path to the ANIM file</param>
+        /// <param name="outputDir">Directory where to save the frame images</param>
+        /// <param name="verbose">If true, displays diagnostic information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel. If 0, auto-detect.</param>
+        /// <returns>Number of frames extracted, or -1 on error</returns>
+        public static int UnpackAnimFile(string animFile, string outputDir, bool verbose = false, int bitsPerPixel = 0)
+        {
+            if (!File.Exists(animFile))
+            {
+                Console.WriteLine($"ANIM file not found: {animFile}");
+                return -1;
+            }
+
+            var data = File.ReadAllBytes(animFile);
+            if (data.Length < 16)
+            {
+                Console.WriteLine($"File too small to be valid ANIM: {animFile}");
+                return -1;
+            }
+
+            // Create output directory
+            Directory.CreateDirectory(outputDir);
+
+            using var stream = new MemoryStream(data);
+            using var reader = new BinaryReader(stream);
+
+            // Parse ANIM chunk header
+            var magic = new string(reader.ReadChars(4));
+            if (magic != "ANIM")
+            {
+                Console.WriteLine($"Invalid ANIM magic in {Path.GetFileName(animFile)}: expected 'ANIM', got '{magic}'");
+                return -1;
+            }
+
+            var chunkSize = ReadBigEndianInt32(data, 4);
+            var version = ReadBigEndianInt32(data, 8);
+            var animType = ReadBigEndianInt32(data, 12);
+            var numFrames = ReadBigEndianInt32(data, 16);
+            var frameRate = ReadBigEndianInt32(data, 20);
+            var startFrame = ReadBigEndianInt32(data, 24);
+            var numLoops = ReadBigEndianInt32(data, 28);
+
+            if (verbose)
+            {
+                Console.WriteLine($"\n========================================");
+                Console.WriteLine($"ANIM File: {Path.GetFileName(animFile)}");
+                Console.WriteLine($"========================================");
+                Console.WriteLine($"ANIM Chunk:");
+                Console.WriteLine($"  Version: {version}");
+                Console.WriteLine($"  Animation Type: {animType} ({(animType == 0 ? "multi-CCB" : "single CCB")})");
+                Console.WriteLine($"  Number of Frames: {numFrames}");
+                Console.WriteLine($"  Frame Rate: {frameRate} (1/60th sec per frame = {60.0 / frameRate:F2} fps)");
+                Console.WriteLine($"  Start Frame: {startFrame}");
+                Console.WriteLine($"  Number of Loops: {numLoops}");
+            }
+
+            // Skip loop data (each loop is 16 bytes: start, end, repeatCount, repeatDelay)
+            // Note: AnimChunk structure has loop[1] meaning at least 1 loop record exists
+            // even when numLoops is 0, so we need to read max(1, numLoops) records
+            int loopRecordsToSkip = Math.Max(1, numLoops);
+            stream.Seek(32 + (loopRecordsToSkip * 16), SeekOrigin.Begin);
+            
+            if (verbose && numLoops == 0)
+            {
+                Console.WriteLine($"  Note: Reading 1 loop record even though numLoops=0 (per 3DO spec)");
+            }
+
+            // Now parse CEL frames (CCB + PDAT chunks)
+            int frameIndex = 0;
+            List<Color>? currentPalette = null;
+            byte[]? currentCCB = null;
+            byte[]? sharedCCB = null; // For animType==1 (single CCB for all frames)
+            int framesExtracted = 0;
+
+            while (stream.Position < data.Length - 8)
+            {
+                var chunkMagic = new string(reader.ReadChars(4));
+                var chunkDataSize = ReadBigEndianInt32(data, (int)stream.Position);
+                stream.Seek(4, SeekOrigin.Current); // Skip size field we just read
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\nChunk: {chunkMagic}, Size: {chunkDataSize}");
+                }
+
+                if (chunkMagic == "CCB ")
+                {
+                    // Store the CCB data for pairing with the next PDAT
+                    long ccbStart = stream.Position - 8; // Include magic + size
+                    currentCCB = new byte[chunkDataSize];
+                    stream.Seek(ccbStart, SeekOrigin.Begin);
+                    stream.Read(currentCCB, 0, chunkDataSize);
+
+                    // If this is a single CCB animation, save it for reuse
+                    if (animType == 1 && sharedCCB == null)
+                    {
+                        sharedCCB = currentCCB;
+                        if (verbose)
+                        {
+                            Console.WriteLine($"  Stored shared CCB for all frames (animType=1)");
+                        }
+                    }
+
+                    // Extract dimensions for logging
+                    int width = ReadBigEndianInt32(currentCCB, 72);
+                    int height = ReadBigEndianInt32(currentCCB, 76);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  CCB for frame {frameIndex}: {width}x{height}");
+                    }
+                }
+                else if (chunkMagic == "PLUT")
+                {
+                    // Read palette data
+                    int dataSize = chunkDataSize - 8; // Subtract header
+                    byte[] plutData = reader.ReadBytes(dataSize);
+                    currentPalette = ExtractPaletteFromPLUT(plutData, verbose);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  Loaded palette with {currentPalette.Count} colors");
+                    }
+                }
+                else if (chunkMagic == "PDAT")
+                {
+                    // For animType==1 (single CCB), reuse the shared CCB for all PDAT chunks
+                    byte[]? ccbToUse = null;
+                    if (animType == 1 && sharedCCB != null)
+                    {
+                        ccbToUse = sharedCCB;
+                    }
+                    else
+                    {
+                        ccbToUse = currentCCB;
+                    }
+                    
+                    // This PDAT belongs to the previous CCB
+                    if (ccbToUse == null)
+                    {
+                        Console.WriteLine($"Warning: PDAT chunk at offset {stream.Position - 8} has no preceding CCB");
+                        int dataSize = chunkDataSize - 8;
+                        stream.Seek(dataSize, SeekOrigin.Current);
+                        continue;
+                    }
+
+                    // Read the PDAT chunk
+                    long pdatStart = stream.Position - 8;
+                    byte[] pdatChunk = new byte[chunkDataSize];
+                    stream.Seek(pdatStart, SeekOrigin.Begin);
+                    stream.Read(pdatChunk, 0, chunkDataSize);
+
+                    // Combine CCB + PDAT into a single buffer for processing
+                    byte[] celData = new byte[ccbToUse.Length + pdatChunk.Length];
+                    Array.Copy(ccbToUse, 0, celData, 0, ccbToUse.Length);
+                    Array.Copy(pdatChunk, 0, celData, ccbToUse.Length, pdatChunk.Length);
+
+                    // Process this CEL frame
+                    try
+                    {
+                        // Create a temporary stream with CCB + PDAT data
+                        var celImageData = UnpackCelFile_FromBytes(celData, verbose: false, bitsPerPixel: bitsPerPixel);
+                        
+                        if (celImageData != null)
+                        {
+                            // Determine output filename
+                            string frameFileName = $"{Path.GetFileNameWithoutExtension(animFile)}_frame{frameIndex:D4}.png";
+                            string frameOutputPath = Path.Combine(outputDir, frameFileName);
+
+                            // Use palette from CEL data if available, otherwise use current palette
+                            var paletteToUse = celImageData.Palette ?? currentPalette;
+
+                            // Save the frame
+                            SaveCelImage(celImageData, frameOutputPath, paletteToUse);
+                            
+                            if (verbose)
+                            {
+                                Console.WriteLine($"  ✓ Saved frame {frameIndex}: {frameFileName}");
+                            }
+                            
+                            framesExtracted++;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"  ✗ Failed to unpack frame {frameIndex}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"  ✗ Error processing frame {frameIndex}: {ex.Message}");
+                    }
+
+                    frameIndex++;
+                    
+                    // Only reset CCB for multi-CCB animations (animType==0)
+                    if (animType == 0)
+                    {
+                        currentCCB = null;
+                    }
+                }
+                else
+                {
+                    // Unknown chunk - skip it
+                    int dataSize = chunkDataSize - 8;
+                    if (dataSize > 0 && dataSize < data.Length)
+                    {
+                        stream.Seek(dataSize, SeekOrigin.Current);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                // Align to 4-byte boundary
+                while (stream.Position % 4 != 0 && stream.Position < stream.Length)
+                {
+                    stream.ReadByte();
+                }
+            }
+
+            if (verbose || framesExtracted > 0)
+            {
+                Console.WriteLine($"\n✓ Extracted {framesExtracted} of {frameIndex} frames from ANIM file");
+            }
+            
+            return framesExtracted;
+        }
+
+        /// <summary>
         /// Convenience method that unpacks a CEL file and saves it directly to PNG
         /// </summary>
         /// <param name="celFilePath">Path to the CEL file</param>
@@ -1901,7 +2168,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
             try
             {
-                SaveCelImage(celData, outputPath, palette);
+                SaveCelImage(celData, outputPath, palette ?? celData.Palette);
                 if (verbose) Console.WriteLine($"Successfully saved CEL image to: {outputPath}");
                 return true;
             }
