@@ -38,78 +38,78 @@ using ExtractCLUT.Games.ThreeDO;
 
 var cel = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output\JANMJHDR\JANMJHDR_6.bin";
 var celPng = Path.ChangeExtension(cel, ".png");
-CelUnpacker.UnpackAndSaveCelFile(cel, celPng);
+CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
 
-var joinFile = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\ZStream";
-using var joinReader = new BinaryReader(File.OpenRead(joinFile));
-var joinOutputDir = Path.Combine(Path.GetDirectoryName(joinFile)!, "join_output");
-Directory.CreateDirectory(joinOutputDir);
+// var joinFile = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\ZStream";
+// using var joinReader = new BinaryReader(File.OpenRead(joinFile));
+// var joinOutputDir = Path.Combine(Path.GetDirectoryName(joinFile)!, "join_output");
+// Directory.CreateDirectory(joinOutputDir);
 
-var fileTypeCounts = new Dictionary<string, int>();
-var magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
-while (joinReader.BaseStream.Position < joinReader.BaseStream.Length)
-{
-	var blockLength = joinReader.ReadBigEndianInt32();
-	switch (magic)
-	{
-		case "JOIN":
-			{
-				joinReader.ReadBytes(8);
-				var blockType = Encoding.ASCII.GetString(joinReader.ReadBytes(8));
-				joinReader.ReadBytes(0x10);
-				var blockData = joinReader.ReadBytes(blockLength - 0x28);
-				var outputFileName = $"{blockType.Trim()}_{(fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0)}.bin";
-				fileTypeCounts[blockType] = (fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0) + 1;
-				var outputFolder = Path.Combine(joinOutputDir, blockType.Trim());
-				Directory.CreateDirectory(outputFolder);
-				var outputFilePath = Path.Combine(outputFolder, outputFileName);
-				File.WriteAllBytes(outputFilePath, blockData);
-				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
-			}
-			break;
-		case "EZFL":
-		case "FILM":
-		case "SNDS":
-			{
-				joinReader.ReadBytes(8);
-				var ezflMagic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
-				joinReader.BaseStream.Seek(-4, SeekOrigin.Current);
-				var ezflData = joinReader.ReadBytes(blockLength - 0x10);
-				var outputFileName = $"{ezflMagic}_{(fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0)}.bin";
-				fileTypeCounts[ezflMagic] = (fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0) + 1;
-				var outputFolder = Path.Combine(joinOutputDir, ezflMagic);
-				Directory.CreateDirectory(outputFolder);
-				var outputFilePath = Path.Combine(outputFolder, outputFileName);
-				File.WriteAllBytes(outputFilePath, ezflData);
-				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
-			}
-			break;
-		case "CTRL":
-		case "FILL":
-		default:
-			{
-				Console.WriteLine($"Skipping block with magic: {magic}");
-				joinReader.ReadBytes(blockLength - 8);
-				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
-			}
-			break;
-	}
-}
+// var fileTypeCounts = new Dictionary<string, int>();
+// var magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
+// while (joinReader.BaseStream.Position < joinReader.BaseStream.Length)
+// {
+// 	var blockLength = joinReader.ReadBigEndianInt32();
+// 	switch (magic)
+// 	{
+// 		case "JOIN":
+// 			{
+// 				joinReader.ReadBytes(8);
+// 				var blockType = Encoding.ASCII.GetString(joinReader.ReadBytes(8));
+// 				joinReader.ReadBytes(0x10);
+// 				var blockData = joinReader.ReadBytes(blockLength - 0x28);
+// 				var outputFileName = $"{blockType.Trim()}_{(fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0)}.bin";
+// 				fileTypeCounts[blockType] = (fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0) + 1;
+// 				var outputFolder = Path.Combine(joinOutputDir, blockType.Trim());
+// 				Directory.CreateDirectory(outputFolder);
+// 				var outputFilePath = Path.Combine(outputFolder, outputFileName);
+// 				File.WriteAllBytes(outputFilePath, blockData);
+// 				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
+// 			}
+// 			break;
+// 		case "EZFL":
+// 		case "FILM":
+// 		case "SNDS":
+// 			{
+// 				joinReader.ReadBytes(8);
+// 				var ezflMagic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
+// 				joinReader.BaseStream.Seek(-4, SeekOrigin.Current);
+// 				var ezflData = joinReader.ReadBytes(blockLength - 0x10);
+// 				var outputFileName = $"{ezflMagic}_{(fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0)}.bin";
+// 				fileTypeCounts[ezflMagic] = (fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0) + 1;
+// 				var outputFolder = Path.Combine(joinOutputDir, ezflMagic);
+// 				Directory.CreateDirectory(outputFolder);
+// 				var outputFilePath = Path.Combine(outputFolder, outputFileName);
+// 				File.WriteAllBytes(outputFilePath, ezflData);
+// 				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
+// 			}
+// 			break;
+// 		case "CTRL":
+// 		case "FILL":
+// 		default:
+// 			{
+// 				Console.WriteLine($"Skipping block with magic: {magic}");
+// 				joinReader.ReadBytes(blockLength - 8);
+// 				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
+// 			}
+// 			break;
+// 	}
+// }
 
-var celDir = @"C:\Dev\Gaming\3do\Games\Killing Time\StorageTuner";
-var celFiles = Directory.GetFiles(celDir, "*", SearchOption.TopDirectoryOnly);
-foreach (var celFile in celFiles)
-{
-	var outputPng = Path.ChangeExtension(celFile, ".png");
-	try
-	{
-		CelUnpacker.UnpackAndSaveCelFile(celFile, outputPng);
-	}
-	catch (Exception ex)
-	{
-		Console.WriteLine($"Error processing {Path.GetFileName(celFile)}: {ex.Message}");
-	}
-}
+// var celDir = @"C:\Dev\Gaming\3do\Games\Killing Time\StorageTuner";
+// var celFiles = Directory.GetFiles(celDir, "*", SearchOption.TopDirectoryOnly);
+// foreach (var celFile in celFiles)
+// {
+// 	var outputPng = Path.ChangeExtension(celFile, ".png");
+// 	try
+// 	{
+// 		CelUnpacker.UnpackAndSaveCelFile(celFile, outputPng);
+// 	}
+// 	catch (Exception ex)
+// 	{
+// 		Console.WriteLine($"Error processing {Path.GetFileName(celFile)}: {ex.Message}");
+// 	}
+// }
 
 // var animFileDir = @"C:\Dev\Gaming\3do\Games\Jurassic Park Interactive\JPI Drive\ART";
 // var animFiles = Directory.GetFiles(animFileDir, "*.anim", SearchOption.AllDirectories);

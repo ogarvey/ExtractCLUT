@@ -969,10 +969,477 @@ namespace ExtractCLUT.Games.ThreeDO
             }
 
             byte[] data = File.ReadAllBytes(celFile);
-            return UnpackCelFile_FromBytes(data, verbose, bitsPerPixel, skipUncompSize);
+            var results = UnpackCelFile_FromBytes_Multiple(data, verbose, bitsPerPixel, skipUncompSize);
+            return results.Count > 0 ? results[0] : null;
         }
 
         /// <summary>
+        /// Reads a CEL file and extracts all PDAT chunks as separate images.
+        /// Some CEL files contain multiple PDAT chunks that should be extracted separately.
+        /// </summary>
+        /// <param name="celFile">Full path to the CEL file</param>
+        /// <param name="verbose">If true, displays CCB header information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
+        /// <returns>List of unpacked CEL image data (one per PDAT chunk)</returns>
+        public static List<CelImageData> UnpackCelFileMultiple(string celFile, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        {
+            if (!File.Exists(celFile))
+            {
+                Console.WriteLine($"File not found: {celFile}");
+                return new List<CelImageData>();
+            }
+
+            byte[] data = File.ReadAllBytes(celFile);
+            return UnpackCelFile_FromBytes_Multiple(data, verbose, bitsPerPixel, skipUncompSize);
+        }
+
+        /// <summary>
+        /// Parses CEL data from a byte array (CCB header + PDAT chunks) and automatically unpacks all PDAT chunks as separate images.
+        /// This is useful for CEL files containing multiple PDAT chunks that should be extracted separately.
+        /// </summary>
+        /// <param name="data">CEL data bytes (must start with CCB or PDAT chunk)</param>
+        /// <param name="verbose">If true, displays CCB header information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
+        /// <returns>List of unpacked CEL image data (one per PDAT chunk)</returns>
+        private static List<CelImageData> UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        {
+            var results = new List<CelImageData>();
+
+            if (data.Length < 0x20)
+            {
+                Console.WriteLine($"File too small to contain a CCB header (minimum 32 bytes, got {data.Length})");
+                return results;
+            }
+
+            // Use chunk-based parsing with BinaryReader
+            using var stream = new MemoryStream(data);
+            using var reader = new BinaryReader(stream);
+
+            List<Color> palette = new List<Color>();
+            List<byte[]> pdatChunks = new List<byte[]>();
+            int ccbWidth = 0, ccbHeight = 0;
+            uint ccbFlags = 0;
+            uint pre0 = 0, pre1 = 0;
+
+            // Parse all chunks until end of file
+            while (stream.Position < data.Length - 8) // Need at least 8 bytes for magic + size
+            {
+                // Read magic bytes (4 bytes)
+                long chunkStart = stream.Position;
+                byte[] magic = reader.ReadBytes(4);
+
+                if (magic.Length < 4) break; // End of file
+
+                string magicStr = System.Text.Encoding.ASCII.GetString(magic);
+
+                // Read chunk size (4 bytes, big-endian)
+                uint chunkSize = ReadBigEndianUInt32(data, (int)stream.Position);
+                stream.Position += 4;
+
+                if (verbose)
+                {
+                    Console.WriteLine($"Found chunk '{magicStr}' at offset 0x{chunkStart:X}, size: {chunkSize} bytes");
+                }
+
+                if (magicStr == "CCB ")
+                {
+                    // Process CCB chunk - read width and height from fixed offsets
+                    if (chunkSize < 0x50)
+                    {
+                        Console.WriteLine($"CCB chunk too small: {chunkSize} bytes (expected at least 80)");
+                        return results;
+                    }
+
+                    long ccbDataStart = stream.Position;
+
+                    // Read CCB header fields
+                    stream.Position = ccbDataStart + 0x04; // Skip version field (4 bytes)
+                    ccbFlags = ReadBigEndianUInt32(data, (int)stream.Position);
+
+                    // Skip to PRE0 and PRE1 (offsets 0x38 and 0x3C in CCB data, absolute 0x40 and 0x44)
+                    stream.Position = ccbDataStart + 0x38;
+                    pre0 = ReadBigEndianUInt32(data, (int)stream.Position);
+                    stream.Position = ccbDataStart + 0x3C;
+                    pre1 = ReadBigEndianUInt32(data, (int)stream.Position);
+
+                    // Read width and height from fixed file offsets 0x48 and 0x4C as user specified
+                    // These are relative to file start, not CCB data start
+                    ccbWidth = ReadBigEndianInt32(data, 0x48);
+                    ccbHeight = ReadBigEndianInt32(data, 0x4C);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"CCB: Width={ccbWidth}, Height={ccbHeight}, Flags=0x{ccbFlags:X8}");
+                        Console.WriteLine($"CCB: PRE0=0x{pre0:X8}, PRE1=0x{pre1:X8}");
+                    }
+
+                    // Skip past the entire CCB chunk
+                    stream.Position = chunkStart + chunkSize;
+                }
+                else if (magicStr == "PLUT")
+                {
+                    // Process PLUT chunk - extract palette data
+                    uint plutDataSize = chunkSize - 12; // Subtract magic (4) + size (4) + entries count (4)
+
+                    // Skip entries count (4 bytes)
+                    stream.Position += 4;
+
+                    // Read palette data
+                    byte[] plutData = reader.ReadBytes((int)plutDataSize);
+                    palette = ExtractPaletteFromPLUT(plutData, verbose);
+
+                    // Skip to next chunk (should already be at correct position)
+                }
+                else if (magicStr == "PDAT")
+                {
+                    // Process PDAT chunk - collect pixel data
+                    uint pdatDataSize = chunkSize - 8; // Subtract magic (4) + size (4)
+                    byte[] pixelData = reader.ReadBytes((int)pdatDataSize);
+                    pdatChunks.Add(pixelData);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"PDAT #{pdatChunks.Count}: Extracted {pixelData.Length} bytes of pixel data");
+                    }
+
+                    // Skip to next chunk (should already be at correct position)
+                }
+                else
+                {
+                    // Unknown chunk - skip using its size
+                    uint skipSize = chunkSize - 8; // Subtract magic (4) + size (4) already read
+                    stream.Position += skipSize;
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"Skipping unknown chunk '{magicStr}' ({skipSize} bytes)");
+                    }
+                }
+            }
+
+            // Check if we have a valid CCB chunk
+            if (ccbWidth <= 0 || ccbHeight <= 0)
+            {
+                Console.WriteLine($"No valid CCB chunk found or invalid dimensions (width={ccbWidth}, height={ccbHeight})");
+                return results;
+            }
+
+            // If we only have palette data (no pixel data), return palette-only result
+            if (pdatChunks.Count == 0 && palette.Count > 0)
+            {
+                if (verbose)
+                {
+                    Console.WriteLine($"File contains palette-only data with {palette.Count} colors");
+                }
+
+                results.Add(new CelImageData
+                {
+                    Width = 0,
+                    Height = 0,
+                    BitsPerPixel = 0,
+                    PixelData = Array.Empty<byte>(),
+                    Palette = palette
+                });
+                return results;
+            }
+
+            // If we have no pixel data, return empty
+            if (pdatChunks.Count == 0)
+            {
+                Console.WriteLine("No pixel data found in file");
+                return results;
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine($"\n========================================");
+                Console.WriteLine($"Processing {pdatChunks.Count} PDAT chunk(s)");
+                Console.WriteLine($"========================================");
+            }
+
+            // Process each PDAT chunk separately
+            for (int pdatIndex = 0; pdatIndex < pdatChunks.Count; pdatIndex++)
+            {
+                byte[] pixelData = pdatChunks[pdatIndex];
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\n--- Processing PDAT chunk #{pdatIndex + 1} ---");
+                    Console.WriteLine($"CCB FLAGS: 0x{ccbFlags:X8}");
+                    Console.WriteLine($"PACKED: {((ccbFlags & 0x00000200) != 0)}");
+                    Console.WriteLine($"CCBPRE: {((ccbFlags & 0x00400000) != 0)}");
+                    Console.WriteLine($"PRE0: 0x{pre0:X8}, PRE1: 0x{pre1:X8}");
+                    Console.WriteLine($"Width: {ccbWidth}, Height: {ccbHeight}");
+                    Console.WriteLine($"Pixel data size: {pixelData.Length} bytes");
+                }
+
+                // Process this PDAT chunk using the shared CCB header data
+                var result = ProcessSinglePDAT(pixelData, ccbWidth, ccbHeight, ccbFlags, pre0, pre1, bitsPerPixel, skipUncompSize, verbose);
+                
+                if (result != null)
+                {
+                    // Add palette data to the result if we have it
+                    if (palette.Count > 0)
+                    {
+                        result.Palette = palette;
+                    }
+                    results.Add(result);
+                }
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine($"\nSuccessfully processed {results.Count} of {pdatChunks.Count} PDAT chunks");
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Processes a single PDAT chunk with CCB header information.
+        /// Extracted as helper method to be reused for multiple PDAT chunks.
+        /// </summary>
+        private static CelImageData? ProcessSinglePDAT(byte[] pixelData, int ccbWidth, int ccbHeight, uint ccbFlags, uint pre0, uint pre1, int bitsPerPixel, bool skipUncompSize, bool verbose)
+        {
+            // Detect format from FLAGS and PRE0/PRE1
+            bool isCoded = true;
+            bool isPacked = false;
+            int bpp = bitsPerPixel; // Use override if provided
+
+            // Check CCBPRE flag to determine where preamble is located
+            bool ccbpreFlag = (ccbFlags & 0x00400000) != 0; // CCBPRE flag - bit 22
+
+            if (ccbpreFlag && pre0 != 0)
+            {
+                // CCBPRE=1: Preamble is in CCB (PRE0/PRE1 fields)
+                // Pixel data starts immediately in PDAT
+                if (verbose)
+                {
+                    Console.WriteLine($"CCBPRE=1: Preamble in CCB, pixel data starts at PDAT offset 0");
+                }
+
+                bool linear = (pre0 & 0x10) != 0;    // Bit 4: 1 = linear (uncoded), 0 = coded
+                bool packed = (pre0 & 0x80) != 0;    // Bit 7: 1 = packed, 0 = unpacked
+                isCoded = !linear;
+                isPacked = packed;
+
+                if (verbose)
+                {
+                    Console.WriteLine($"Format detected from CCB PRE0:");
+                    Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
+                    Console.WriteLine($"  Packed (bit 7): {packed}");
+                }
+            }
+            else if (!ccbpreFlag && pixelData != null && pixelData.Length >= 4)
+            {
+                // CCBPRE=0: Preamble is at the beginning of PDAT
+                // Read PRE0 from first 4 bytes of pixel data
+                uint pdatPre0 = ReadBigEndianUInt32(pixelData, 0);
+
+                bool linear = (pdatPre0 & 0x10) != 0;    // Bit 4: 1 = linear (uncoded), 0 = coded
+                bool packed = (pdatPre0 & 0x80) != 0;    // Bit 7: 1 = packed, 0 = unpacked
+                isCoded = !linear;
+                isPacked = packed;
+
+                // IMPORTANT: Check if CCB FLAGS PACKED bit overrides PRE0 bit 7 BEFORE calculating preamble size
+                if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
+                {
+                    isPacked = true;
+                }
+
+                // Determine how many preamble bytes to skip based on FINAL isPacked value (after CCB override)
+                int preambleBytes = isPacked ? 4 : 8; // Packed=4 bytes (PRE0 only), Unpacked=8 bytes (PRE0+PRE1)
+
+                if (verbose)
+                {
+                    Console.WriteLine($"CCBPRE=0: Preamble at start of PDAT");
+                    Console.WriteLine($"  PRE0 from PDAT: 0x{pdatPre0:X8}");
+                    Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
+                    Console.WriteLine($"  Packed (bit 7): {packed}");
+                    if ((ccbFlags & 0x00000200) != 0)
+                    {
+                        Console.WriteLine($"  PACKED flag in CCB FLAGS overrides PRE0 bit 7 -> isPacked=true");
+                    }
+                    Console.WriteLine($"  Skipping {preambleBytes} preamble bytes from PDAT");
+                }
+
+                // Skip the preamble bytes - create new array without them
+                byte[] actualPixelData = new byte[pixelData.Length - preambleBytes];
+                Array.Copy(pixelData, preambleBytes, actualPixelData, 0, actualPixelData.Length);
+                pixelData = actualPixelData;
+
+                // Use PDAT's PRE0 for BPP detection
+                pre0 = pdatPre0;
+
+                if (verbose)
+                {
+                    Console.WriteLine($"  Pixel data size after skipping preamble: {pixelData.Length} bytes");
+                }
+            }
+            else if ((ccbFlags & 0x00000200) != 0) // PACKED flag in CCB FLAGS (only if CCBPRE=1)
+            {
+                // CCBPRE=1: Check PACKED flag from CCB FLAGS word
+                isPacked = true;
+                if (verbose)
+                {
+                    Console.WriteLine($"PACKED flag set in CCB FLAGS");
+                }
+            }
+
+            // Auto-detect BPP if not specified
+            if (bpp == 0 && pre0 != 0)
+            {
+                // PRE0 bits 2-0 encode BPP as: 0=default, 1=1bpp, 2=2bpp, 3=4bpp, 4=6bpp, 5=8bpp, 6=16bpp
+                int bppCode = (int)(pre0 & 0x07);
+                int[] bppMap = { 0, 1, 2, 4, 6, 8, 16 };
+
+                if (bppCode > 0 && bppCode < bppMap.Length)
+                {
+                    bpp = bppMap[bppCode];
+                    Console.WriteLine($"[PRE0={pre0:X8}] BPP code {bppCode} -> {bpp} bpp");
+                }
+                else
+                {
+                    bpp = 6; // Default to 6bpp
+                    Console.WriteLine($"[PRE0={pre0:X8}] Unknown BPP code {bppCode}, defaulting to {bpp} bpp");
+                }
+            }
+
+            if (bpp == 0)
+            {
+                bpp = 6; // Safe default
+            }
+
+            // Heuristic: Validate packed/unpacked flag against actual file size
+            if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
+            {
+                int bitsPerRow = ccbWidth * bpp;
+                int bytesPerRow = ((bitsPerRow + 31) / 32) * 4;
+                int expectedUnpackedSize = ccbHeight * bytesPerRow;
+                int actualDataSize = pixelData.Length;
+                int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\n  File size analysis:");
+                    Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
+                    Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
+                    Console.WriteLine($"    Actual size: {actualDataSize} bytes");
+                }
+
+                if (!isPacked && actualDataSize < expectedUnpackedSize * 0.75)
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
+                    }
+                    isPacked = true;
+                }
+                else if (isPacked && (actualDataSize == expectedUnpackedSize || 
+                                      actualDataSize == simpleUnpackedSize ||
+                                      Math.Abs(actualDataSize - expectedUnpackedSize) < 100))
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
+                    }
+                    isPacked = false;
+                }
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine($"\nAuto-detected parameters:");
+                Console.WriteLine($"  Format: {(isCoded ? "Coded" : "Uncoded")} {(isPacked ? "Packed" : "Unpacked")}");
+                Console.WriteLine($"  Bits per pixel: {bpp}");
+                Console.WriteLine($"  CCB Width: {ccbWidth}");
+                Console.WriteLine($"  CCB Height: {ccbHeight}");
+            }
+
+            try
+            {
+                // Unpack the pixel data using the detected format
+                CelImageData result;
+
+                // Route to the appropriate unpacking method based on format
+                if (isCoded && isPacked)
+                {
+                    if (ccbWidth <= 0 || ccbHeight <= 0)
+                    {
+                        result = UnpackCodedPackedCelData(pixelData, bpp, verbose: verbose);
+                    }
+                    else
+                    {
+                        result = UnpackCodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose, skipUncompSize: skipUncompSize);
+                    }
+                }
+                else if (isCoded && !isPacked)
+                {
+                    if (ccbWidth <= 0 || ccbHeight <= 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Coded unpacked format requires valid dimensions (width={ccbWidth}, height={ccbHeight})");
+                    }
+                    result = UnpackCodedUnpackedCelData(pixelData, ccbWidth, ccbHeight, bpp);
+                }
+                else if (!isCoded && isPacked)
+                {
+                    if (ccbWidth <= 0 || ccbHeight <= 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Uncoded packed format requires valid dimensions (width={ccbWidth}, height={ccbHeight})");
+                    }
+                    result = UnpackUncodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose);
+                }
+                else
+                {
+                    if (ccbWidth <= 0 || ccbHeight <= 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Uncoded unpacked format requires valid dimensions (width={ccbWidth}, height={ccbHeight})");
+                    }
+                    result = UnpackUncodedUnpackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose);
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\nUnpacked image:");
+                    Console.WriteLine($"  Width: {result.Width}");
+                    Console.WriteLine($"  Height: {result.Height}");
+                    Console.WriteLine($"  BPP: {result.BitsPerPixel}");
+                    Console.WriteLine($"  Pixel data size: {result.PixelData.Length} bytes");
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error unpacking PDAT: {ex.Message}");
+                if (verbose)
+                {
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Parses CEL data from a byte array (CCB header + PDAT chunks) and automatically unpacks the pixel data.
+        /// This is useful for processing CEL data embedded in other file formats (like ANIM files).
+        /// Returns only the first PDAT chunk if multiple are present.
+        /// </summary>
+        /// <param name="data">CEL data bytes (must start with CCB or PDAT chunk)</param>
+        /// <param name="verbose">If true, displays CCB header information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
+        /// <returns>Unpacked CEL image data with dimensions and pixel data</returns>
+        private static CelImageData? UnpackCelFile_FromBytes(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        {
+            var results = UnpackCelFile_FromBytes_Multiple(data, verbose, bitsPerPixel, skipUncompSize);
+            return results.Count > 0 ? results[0] : null;
+        }
+
+        /// <summary>
+        /// LEGACY METHOD - Kept for compatibility
         /// Parses CEL data from a byte array (CCB header + PDAT chunks) and automatically unpacks the pixel data.
         /// This is useful for processing CEL data embedded in other file formats (like ANIM files).
         /// </summary>
@@ -980,7 +1447,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="verbose">If true, displays CCB header information</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <returns>Unpacked CEL image data with dimensions and pixel data</returns>
-        private static CelImageData? UnpackCelFile_FromBytes(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        private static CelImageData? UnpackCelFile_FromBytes_Legacy(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
         {
 
             if (data.Length < 0x20)
@@ -2149,18 +2616,19 @@ namespace ExtractCLUT.Games.ThreeDO
         }
 
         /// <summary>
-        /// Convenience method that unpacks a CEL file and saves it directly to PNG
+        /// Convenience method that unpacks a CEL file and saves it directly to PNG.
+        /// If the file contains multiple PDAT chunks, saves them as separate numbered files.
         /// </summary>
         /// <param name="celFilePath">Path to the CEL file</param>
-        /// <param name="outputPath">Path where to save the PNG file</param>
+        /// <param name="outputPath">Path where to save the PNG file (or base name for multiple files)</param>
         /// <param name="palette">Color palette to use for rendering</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <param name="verbose">If true, displays diagnostic information</param>
         /// <returns>True if successful, false if failed</returns>
         public static bool UnpackAndSaveCelFile(string celFilePath, string outputPath, List<Color>? palette = null, int bitsPerPixel = 0, bool verbose = false)
         {
-            var celData = UnpackCelFile(celFilePath, verbose, bitsPerPixel);
-            if (celData == null)
+            var celDataList = UnpackCelFileMultiple(celFilePath, verbose, bitsPerPixel);
+            if (celDataList.Count == 0)
             {
                 if (verbose) Console.WriteLine($"Failed to unpack CEL file: {celFilePath}");
                 return false;
@@ -2168,8 +2636,27 @@ namespace ExtractCLUT.Games.ThreeDO
 
             try
             {
-                SaveCelImage(celData, outputPath, palette ?? celData.Palette);
-                if (verbose) Console.WriteLine($"Successfully saved CEL image to: {outputPath}");
+                if (celDataList.Count == 1)
+                {
+                    // Single PDAT - save with original filename
+                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette);
+                    if (verbose) Console.WriteLine($"Successfully saved CEL image to: {outputPath}");
+                }
+                else
+                {
+                    // Multiple PDATs - save with numbered suffixes
+                    string directory = Path.GetDirectoryName(outputPath) ?? "";
+                    string fileNameWithoutExt = Path.GetFileNameWithoutExtension(outputPath);
+                    string extension = Path.GetExtension(outputPath);
+
+                    for (int i = 0; i < celDataList.Count; i++)
+                    {
+                        string numberedPath = Path.Combine(directory, $"{fileNameWithoutExt}_{i:D4}{extension}");
+                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette);
+                        if (verbose) Console.WriteLine($"Successfully saved CEL image #{i + 1} to: {numberedPath}");
+                    }
+                }
+                
                 return true;
             }
             catch (Exception ex)
