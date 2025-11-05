@@ -6,7 +6,6 @@ using ExtractCLUT.Games.PC.Delphine;
 using ExtractCLUT.Games.PC.TSage;
 using ExtractCLUT.Helpers;
 using ExtractCLUT.Games.PC.AniMagic;
-using System.Drawing;
 using ExtractCLUT.Games.Sega.Saturn;
 using ExtractCLUT.Games.PC.TLJ;
 using ExtractCLUT.Games.PC;
@@ -19,11 +18,10 @@ using ExtractCLUT.Games.PC.Prince;
 using ExtractCLUT.Games.PC.JackOrlando;
 using ExtractCLUT.Games.Generic.ScummVM.Decompression;
 using OGLibCDi.Models;
-using Rectangle = System.Drawing.Rectangle;
+using Rectangle = SixLabors.ImageSharp.Rectangle;
 using SixLabors.ImageSharp;
 using ExtractCLUT.Games.PC.Mario.TMD;
 using SixLabors.ImageSharp.PixelFormats;
-using System.Drawing.Imaging;
 using ExtractCLUT.Games.PC.Bubsy;
 using Color = SixLabors.ImageSharp.Color;
 using ExtractCLUT.Games.PC.MADE;
@@ -35,16 +33,90 @@ using Image = SixLabors.ImageSharp.Image;
 using SixLabors.ImageSharp.Processing;
 using Point = SixLabors.ImageSharp.Point;
 using ExtractCLUT.Games.ThreeDO;
+using ExtractCLUT.Games.ThreeDO.WotW;
+using FormatHelper = ExtractCLUT.Games.PC.Mario.TMD.FormatHelper;
 
-var cel = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output\JANMJHDR\JANMJHDR_6.bin";
-var celPng = Path.ChangeExtension(cel, ".png");
-CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
+var testBin = @"C:\Dev\Gaming\PC\Dos\Games\Mario's Time Machine Deluxe\L04\JOANZ.ANX";
+var testData = File.ReadAllBytes(testBin);
+var paramTable = testData.Skip(0xC).Take(0x200).ToArray();
+var ushortParamTable = new ushort[0x200 / 2];
+for (int i = 0; i < ushortParamTable.Length; i++)
+{
+	ushortParamTable[i] = BitConverter.ToUInt16(paramTable, i * 2);
+}
+var frameData = testData.Skip(0x680).Take(0x1b8).ToArray();
+var decompressedTest = FormatHelper.DecompressAnxType3(frameData, 0xF50, ushortParamTable);
+File.WriteAllBytes(Path.ChangeExtension(testBin, ".decompressedType3"), decompressedTest);
+
+var anxDataFile = @"C:\Dev\Gaming\PC\Dos\Games\Mario's Time Machine Deluxe\L04\L04BATTL.ANX";
+var anxPalFile = @"C:\Dev\Gaming\PC\Dos\Games\Mario's Time Machine Deluxe\L04\JOANS.ANX";
+var anxPalData = File.ReadAllBytes(anxPalFile).Skip(0x4).Take(0x400).ToArray();
+var anxPal = ColorHelper.ConvertBytesToArgbIS(anxPalData);
+
+using var anxReader = new BinaryReader(File.OpenRead(anxDataFile));
+var fileCount = Math.Abs(anxReader.ReadInt16());
+var compressionFlag = anxReader.ReadByte();
+if (compressionFlag == 0x03)
+{
+	Console.WriteLine("Unsupported ANX archive.");
+	return;
+}
+
+var offsets = new List<uint>();
+var sizes = new List<uint>();
+
+anxReader.BaseStream.Seek(0x404, SeekOrigin.Begin);
+
+for (int i = 0; i < fileCount; i++)
+{
+	offsets.Add(anxReader.ReadUInt32());
+}
+
+for (int i = 0; i < fileCount; i++)
+{
+	sizes.Add(anxReader.ReadUInt32());
+}
+
+var basePosition = anxReader.BaseStream.Position;
+Console.WriteLine($"Found {fileCount} files in ANX archive. CurrentPos={anxReader.BaseStream.Position:X8}");
+var outputDir = Path.Combine(Path.GetDirectoryName(anxDataFile)!, $"{Path.GetFileNameWithoutExtension(anxDataFile)}_extracted");
+Directory.CreateDirectory(outputDir);
+for (int i = 0; i < fileCount; i++)
+{
+	anxReader.BaseStream.Seek(basePosition + offsets[i], SeekOrigin.Begin);
+	anxReader.ReadBytes(0x10);
+	var paddedWidth = anxReader.ReadInt16() + 1;
+	anxReader.ReadBytes(0x12);
+	var width = anxReader.ReadInt16();
+	var height = anxReader.ReadInt16();
+	var imageData = anxReader.ReadBytes((int)sizes[i] - 0x28);
+	var decompressedData = FormatHelper.DecompressAnx(imageData);
+	File.WriteAllBytes(Path.Combine(outputDir, $"{i:D4}.raw3"), decompressedData);
+	paddedWidth = (paddedWidth + 3) & ~3;
+	var initialImage = ImageFormatHelper.GenerateIMClutImage(anxPal, decompressedData, paddedWidth, height, true);
+	// crop to original width/height
+	initialImage.Mutate(x => x.Crop(new Rectangle(0, 0, width, height)));
+	initialImage.Mutate(x => x.Flip(FlipMode.Vertical));
+	var outputPng = Path.Combine(outputDir, $"{i:D4}.png");
+	initialImage.Save(outputPng);
+}
+
+// Example 1: Extract CEL file with multiple PDAT chunks
+// var cel = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output\JANMJHDR\JANMJHDR_6.bin";
+// var celPng = Path.ChangeExtension(cel, ".png");
+// CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
+
+// Example 2: Merge CEL file with headerless file containing additional PDAT chunks
+// var celFileWithHeader = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output_new\JANMJHDR\33_JANMJHDR_10.bin";
+// var headerlessFile = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output_new\JANMJDAT\34_JANMJDAT_1.bin";
+// var mergedOutputPath = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\join_output_new\JANM\33_output.png";
+// CelUnpacker.UnpackAndSaveCelFileWithAppendedChunks(celFileWithHeader, headerlessFile, mergedOutputPath, verbose: true);
 
 // var joinFile = @"C:\Dev\Gaming\3do\Games\Killing Time\Stream\ZStream";
 // using var joinReader = new BinaryReader(File.OpenRead(joinFile));
-// var joinOutputDir = Path.Combine(Path.GetDirectoryName(joinFile)!, "join_output");
+// var joinOutputDir = Path.Combine(Path.GetDirectoryName(joinFile)!, "join_output_new");
 // Directory.CreateDirectory(joinOutputDir);
-
+// var fileIndexOverall = 0;
 // var fileTypeCounts = new Dictionary<string, int>();
 // var magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
 // while (joinReader.BaseStream.Position < joinReader.BaseStream.Length)
@@ -54,11 +126,16 @@ CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
 // 	{
 // 		case "JOIN":
 // 			{
-// 				joinReader.ReadBytes(8);
+// 				var blockFrame = joinReader.ReadBigEndianInt32();
+// 				var blockGroup = joinReader.ReadBigEndianInt32();
 // 				var blockType = Encoding.ASCII.GetString(joinReader.ReadBytes(8));
-// 				joinReader.ReadBytes(0x10);
-// 				var blockData = joinReader.ReadBytes(blockLength - 0x28);
-// 				var outputFileName = $"{blockType.Trim()}_{(fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0)}.bin";
+// 				joinReader.ReadBytes(0x4);
+// 				if (blockType.Contains("HDR"))
+// 				{
+// 					joinReader.ReadBytes(0xC);
+// 				}
+// 				var blockData = joinReader.ReadBytes(blockLength - (blockType.Contains("HDR") ? 0x28 : 0x1c));
+// 				var outputFileName = $"{fileIndexOverall++}_{blockType.Trim()}_{(fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0)}.bin";
 // 				fileTypeCounts[blockType] = (fileTypeCounts.ContainsKey(blockType) ? fileTypeCounts[blockType] : 0) + 1;
 // 				var outputFolder = Path.Combine(joinOutputDir, blockType.Trim());
 // 				Directory.CreateDirectory(outputFolder);
@@ -75,7 +152,7 @@ CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
 // 				var ezflMagic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
 // 				joinReader.BaseStream.Seek(-4, SeekOrigin.Current);
 // 				var ezflData = joinReader.ReadBytes(blockLength - 0x10);
-// 				var outputFileName = $"{ezflMagic}_{(fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0)}.bin";
+// 				var outputFileName = $"{fileIndexOverall++}_{ezflMagic}_{(fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0)}.bin";
 // 				fileTypeCounts[ezflMagic] = (fileTypeCounts.ContainsKey(ezflMagic) ? fileTypeCounts[ezflMagic] : 0) + 1;
 // 				var outputFolder = Path.Combine(joinOutputDir, ezflMagic);
 // 				Directory.CreateDirectory(outputFolder);
@@ -93,6 +170,53 @@ CelUnpacker.UnpackAndSaveCelFile(cel, celPng, verbose: true);
 // 				magic = Encoding.ASCII.GetString(joinReader.ReadBytes(4));
 // 			}
 // 			break;
+// 	}
+// }
+
+
+// var hCell = @"C:\Dev\Gaming\3do\Games\WoW\CA0\Parts.caf";
+// var hCellPng = Path.ChangeExtension(hCell, ".png");
+// ParseHeaderlessCelBruteForce(hCell);
+
+// var ardFileDir = @"C:\Dev\Gaming\3do\Games\WoW\CA1";
+// var ardFiles = Directory.GetFiles(ardFileDir, "*.ard", SearchOption.AllDirectories);
+
+// foreach (var ardFile in ardFiles)
+// {
+// 	using var ardReader = new BinaryReader(File.OpenRead(ardFile));
+// 	ardReader.BaseStream.Seek(0xF7, SeekOrigin.Begin);
+// 	var entryCount = ardReader.ReadByte();
+// 	var entries = new List<ArdEntry>();
+
+// 	for (int i = 0; i < entryCount; i++)
+// 	{
+// 		var entry = new ArdEntry
+// 		{
+// 			Unk1 = ardReader.ReadByte(),
+// 			Unk2 = ardReader.ReadByte(),
+// 			Unk3 = ardReader.ReadByte(),
+// 			Unk4 = ardReader.ReadByte(),
+// 			StageId = ardReader.ReadByte(),
+// 			ImageIndex = ardReader.ReadByte(),
+// 			Unk5 = ardReader.ReadByte(),
+// 			Unk6 = ardReader.ReadByte(),
+// 			Width = ardReader.ReadBigEndianUInt16(),
+// 			Height = ardReader.ReadBigEndianUInt16(),
+// 			OffsetX = ardReader.ReadBigEndianInt16(),
+// 			Unk7 = ardReader.ReadBigEndianInt16(),
+// 			OffsetY = ardReader.ReadBigEndianInt16(),
+// 			Unk8 = ardReader.ReadBigEndianInt16(),
+// 			UnkRemainder = ardReader.ReadBytes(28)
+// 		};
+// 		entries.Add(entry);
+// 		Console.WriteLine($"Entry {i}: StageId={entry.StageId}, ImageIndex={entry.ImageIndex}, Width={entry.Width}, Height={entry.Height}, OffsetX={entry.OffsetX}, Unk7={entry.Unk7}, OffsetY={entry.OffsetY}, Unk8={entry.Unk8}");
+// 		// write UnkRemainder array to console as hex
+// 		var hexString = "";
+// 		foreach (var b in entry.UnkRemainder)
+// 		{
+// 			hexString += b.ToString("X2") + " ";
+// 		}
+// 		Console.WriteLine($"Entry {i}: Remainder={hexString}");
 // 	}
 // }
 
@@ -470,7 +594,7 @@ void ParseHeaderlessCel(string celFile, int bpp = 6)
 }
 
 // Enhanced headerless CEL parser with brute-force format detection
-void ParseHeaderlessCelBruteForce(string celFile)
+void ParseHeaderlessCelBruteForce(string celFile, int width =0, int height=0)
 {
 	Console.WriteLine($"\n{new string('=', 70)}");
 	Console.WriteLine($"Processing headerless CEL: {Path.GetFileName(celFile)}");
@@ -566,14 +690,19 @@ void ParseHeaderlessCelBruteForce(string celFile)
 		("Coded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 8, verbose: false))),
 		("Coded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 16, verbose: false))),
 		// Coded Unpacked (most common) - no brute-force for now
-		// ("Coded_Unpacked_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 6, verbose: false))),
-		// ("Coded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 8, verbose: false))),
-		// ("Coded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, 16, verbose: false))),
-		
+		("Coded_Unpacked_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 6))),
+		("Coded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 8))),
+		("Coded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 16))),
+
 		// Coded Packed (least common)
 		("Coded_Packed_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 4, verbose: false))),
 		("Coded_Packed_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 2, verbose: false))),
 		("Coded_Packed_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 1, verbose: false))),
+
+		// Coded Unpacked (least common) - no brute-force for now
+		("Coded_Unpacked_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 4))),
+		("Coded_Unpacked_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 2))),
+		("Coded_Unpacked_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 1))),
 		
 		// Uncoded Packed (less common)
 		("Uncoded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 16))),
