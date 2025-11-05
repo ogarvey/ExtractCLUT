@@ -2616,6 +2616,141 @@ namespace ExtractCLUT.Games.ThreeDO
         }
 
         /// <summary>
+        /// Merges a CEL file with additional chunks from a headerless file and processes them together.
+        /// The headerless file is scanned for PDAT magic, and data from that point onward is appended to the CEL file.
+        /// This is useful for CEL files where PDAT chunks are split across multiple files.
+        /// </summary>
+        /// <param name="celFilePath">Path to the main CEL file (contains CCB header and possibly some chunks)</param>
+        /// <param name="headerlessFilePath">Path to the headerless file containing additional PDAT/PLUT chunks</param>
+        /// <param name="verbose">If true, displays diagnostic information</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel</param>
+        /// <returns>List of unpacked CEL image data (one per PDAT chunk from both files combined)</returns>
+        public static List<CelImageData> UnpackCelFileWithAppendedChunks(string celFilePath, string headerlessFilePath, bool verbose = false, int bitsPerPixel = 0)
+        {
+            if (!File.Exists(celFilePath))
+            {
+                Console.WriteLine($"CEL file not found: {celFilePath}");
+                return new List<CelImageData>();
+            }
+
+            if (!File.Exists(headerlessFilePath))
+            {
+                Console.WriteLine($"Headerless file not found: {headerlessFilePath}");
+                return new List<CelImageData>();
+            }
+
+            if (verbose)
+            {
+                Console.WriteLine($"\n========================================");
+                Console.WriteLine($"Merging CEL file with headerless chunks");
+                Console.WriteLine($"========================================");
+                Console.WriteLine($"CEL file: {Path.GetFileName(celFilePath)}");
+                Console.WriteLine($"Headerless file: {Path.GetFileName(headerlessFilePath)}");
+            }
+
+            // Read the main CEL file
+            byte[] celData = File.ReadAllBytes(celFilePath);
+
+            // Read the headerless file and find PDAT magic
+            byte[] headerlessData = File.ReadAllBytes(headerlessFilePath);
+
+            // Create merged data: CEL file + headerless file from PDAT offset
+            byte[] mergedData = new byte[celData.Length + headerlessData.Length];
+            
+            Array.Copy(celData, 0, mergedData, 0, celData.Length);
+            Array.Copy(headerlessData, 0, mergedData, celData.Length, headerlessData.Length);
+
+            if (verbose)
+            {
+                Console.WriteLine($"CEL file size: {celData.Length} bytes");
+                Console.WriteLine($"Appending {headerlessData.Length} bytes from headerless file");
+                Console.WriteLine($"Merged data size: {mergedData.Length} bytes");
+            }
+
+            if (verbose)
+            {
+                File.WriteAllBytes(Path.Combine(Path.ChangeExtension(celFilePath, ".merged.cel")), mergedData);
+            }
+            // Process the merged data
+            return UnpackCelFile_FromBytes_Multiple(mergedData, verbose, bitsPerPixel);
+        }
+
+        /// <summary>
+        /// Merges a CEL file with additional chunks from a headerless file and saves all resulting images.
+        /// </summary>
+        /// <param name="celFilePath">Path to the main CEL file</param>
+        /// <param name="headerlessFilePath">Path to the headerless file containing additional chunks</param>
+        /// <param name="outputPath">Base path for output PNG files</param>
+        /// <param name="palette">Optional palette to use for rendering</param>
+        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel</param>
+        /// <param name="verbose">If true, displays diagnostic information</param>
+        /// <returns>True if successful, false if failed</returns>
+        public static bool UnpackAndSaveCelFileWithAppendedChunks(string celFilePath, string headerlessFilePath, string outputPath, List<Color>? palette = null, int bitsPerPixel = 0, bool verbose = false)
+        {
+            var celDataList = UnpackCelFileWithAppendedChunks(celFilePath, headerlessFilePath, verbose, bitsPerPixel);
+            
+            if (celDataList.Count == 0)
+            {
+                if (verbose) Console.WriteLine($"Failed to unpack merged CEL data");
+                return false;
+            }
+
+            try
+            {
+                if (celDataList.Count == 1)
+                {
+                    // Single PDAT - save with original filename
+                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette);
+                    if (verbose) Console.WriteLine($"Successfully saved merged CEL image to: {outputPath}");
+                }
+                else
+                {
+                    // Multiple PDATs - save with numbered suffixes
+                    string directory = Path.GetDirectoryName(outputPath) ?? "";
+                    string fileNameWithoutExt = Path.GetFileNameWithoutExtension(outputPath);
+                    string extension = Path.GetExtension(outputPath);
+
+                    for (int i = 0; i < celDataList.Count; i++)
+                    {
+                        string numberedPath = Path.Combine(directory, $"{fileNameWithoutExt}_{i:D4}{extension}");
+                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette);
+                        if (verbose) Console.WriteLine($"Successfully saved merged CEL image #{i + 1} to: {numberedPath}");
+                    }
+                }
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (verbose) Console.WriteLine($"Failed to save merged CEL images: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Finds the first occurrence of PDAT magic ("PDAT") in a byte array.
+        /// </summary>
+        /// <param name="data">Byte array to search</param>
+        /// <returns>Offset of PDAT magic, or -1 if not found</returns>
+        private static int FindPDATMagic(byte[] data)
+        {
+            byte[] pdatMagic = { (byte)'P', (byte)'D', (byte)'A', (byte)'T' };
+            
+            for (int i = 0; i <= data.Length - 4; i++)
+            {
+                if (data[i] == pdatMagic[0] &&
+                    data[i + 1] == pdatMagic[1] &&
+                    data[i + 2] == pdatMagic[2] &&
+                    data[i + 3] == pdatMagic[3])
+                {
+                    return i;
+                }
+            }
+            
+            return -1;
+        }
+
+        /// <summary>
         /// Convenience method that unpacks a CEL file and saves it directly to PNG.
         /// If the file contains multiple PDAT chunks, saves them as separate numbered files.
         /// </summary>
