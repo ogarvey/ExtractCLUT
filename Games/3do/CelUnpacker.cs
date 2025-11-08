@@ -43,8 +43,13 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="bitsPerPixel">Bits per pixel (1, 2, 4, 6, 8, or 16)</param>
         /// <param name="verbose">Enable detailed packet logging</param>
         /// <returns>Unpacked pixel data with dimensions</returns>
-        public static CelImageData UnpackCodedPackedWithDimensions(byte[] packedData, int width, int height, int bitsPerPixel = 8, bool verbose = false, bool skipUncompSize = false)
+        public static CelImageData UnpackCodedPackedWithDimensions(byte[] packedData, int width, int height, int bitsPerPixel = 8, bool verbose = false, bool skipUncompSize = false, uint ccbFlags = 0)
         {
+            // Extract CCB flags
+            bool bgndFlag = (ccbFlags & 0x00000020) != 0; // BGND flag - bit 5
+            bool noblkFlag = (ccbFlags & 0x00000010) != 0; // NOBLK flag - bit 4
+            byte plutaValue = (byte)((ccbFlags >> 1) & 0x07); // PLUTA bits 3-1
+
             if (verbose)
             {
                 Console.WriteLine($"\n[VERBOSE] UnpackCodedPackedWithDimensions called:");
@@ -52,6 +57,9 @@ namespace ExtractCLUT.Games.ThreeDO
                 Console.WriteLine($"  Height: {height}");
                 Console.WriteLine($"  BitsPerPixel: {bitsPerPixel}");
                 Console.WriteLine($"  Data size: {packedData.Length} bytes");
+                Console.WriteLine($"  BGND: {bgndFlag} (000 = {(bgndFlag ? "RGB value" : "transparent")})");
+                Console.WriteLine($"  NOBLK: {noblkFlag} (000 output = {(noblkFlag ? "000" : "100")})");
+                Console.WriteLine($"  PLUTA: 0x{plutaValue:X} (high bits for <5bpp pixels)");
             }
 
             // Skip the first 4 bytes which appear to be a preamble/header in PDAT chunks
@@ -149,11 +157,37 @@ namespace ExtractCLUT.Games.ThreeDO
                                     }
                                     else
                                     {
-                                        WritePixel(unpackedData, outputOffset, pixelValue, bitsPerPixel);
+                                        // Apply PLUTA for pixels with < 5 bits per pixel
+                                        if (bitsPerPixel < 5)
+                                        {
+                                            // Pad high bits with PLUTA value
+                                            int shiftAmount = 5 - bitsPerPixel;
+                                            pixelValue = (plutaValue << bitsPerPixel) | pixelValue;
+                                        }
+                                        
+                                        // Check BGND flag for 000 values
+                                        if (pixelValue == 0 && !bgndFlag)
+                                        {
+                                            // BGND=0: treat 000 as transparent
+                                            unpackedData[outputOffset++] = 0;
+                                            transparencyMask[maskOffset] = true;
+                                        }
+                                        else
+                                        {
+                                            // Apply NOBLK flag for 000 values
+                                            if (pixelValue == 0 && !noblkFlag)
+                                            {
+                                                // NOBLK=0: write 000 as 100 (darken to prevent pure black)
+                                                pixelValue = 1;
+                                            }
+                                            
+                                            WritePixel(unpackedData, outputOffset, pixelValue, bitsPerPixel);
+                                            transparencyMask[maskOffset] = false;
+                                        }
                                         outputOffset += bytesPerPixel;
                                     }
 
-                                    transparencyMask[maskOffset++] = false;
+                                    maskOffset++;
                                     pixelsInRow++;
                                 }
                             }
@@ -178,6 +212,8 @@ namespace ExtractCLUT.Games.ThreeDO
                                 int pixelValue = bitReader.ReadBits(bitsPerPixel);
 
                                 int plutIndex, amv;
+                                bool isTransparent = false;
+                                
                                 if (bitsPerPixel == 8)
                                 {
                                     plutIndex = pixelValue & 0x1F;
@@ -185,6 +221,25 @@ namespace ExtractCLUT.Games.ThreeDO
                                 }
                                 else
                                 {
+                                    // Apply PLUTA for pixels with < 5 bits per pixel
+                                    if (bitsPerPixel < 5)
+                                    {
+                                        int shiftAmount = 5 - bitsPerPixel;
+                                        pixelValue = (plutaValue << bitsPerPixel) | pixelValue;
+                                    }
+                                    
+                                    // Check BGND flag for 000 values
+                                    if (pixelValue == 0 && !bgndFlag)
+                                    {
+                                        // BGND=0: treat 000 as transparent
+                                        isTransparent = true;
+                                    }
+                                    else if (pixelValue == 0 && !noblkFlag)
+                                    {
+                                        // NOBLK=0: write 000 as 100
+                                        pixelValue = 1;
+                                    }
+                                    
                                     plutIndex = pixelValue;
                                     amv = 0;
                                 }
@@ -195,14 +250,24 @@ namespace ExtractCLUT.Games.ThreeDO
                                     {
                                         unpackedData[outputOffset++] = (byte)plutIndex;
                                         if (amvData != null) amvData[maskOffset] = (byte)amv;
+                                        transparencyMask[maskOffset] = false;
                                     }
                                     else
                                     {
-                                        WritePixel(unpackedData, outputOffset, plutIndex, bitsPerPixel);
+                                        if (isTransparent)
+                                        {
+                                            unpackedData[outputOffset++] = 0;
+                                            transparencyMask[maskOffset] = true;
+                                        }
+                                        else
+                                        {
+                                            WritePixel(unpackedData, outputOffset, plutIndex, bitsPerPixel);
+                                            transparencyMask[maskOffset] = false;
+                                        }
                                         outputOffset += bytesPerPixel;
                                     }
 
-                                    transparencyMask[maskOffset++] = false;
+                                    maskOffset++;
                                     pixelsInRow++;
                                 }
                             }
@@ -214,13 +279,24 @@ namespace ExtractCLUT.Games.ThreeDO
                 bitReader.SeekToWord(nextRowWord);
             }
 
+            // Check if there are any actual transparent pixels
+            bool hasTransparency = false;
+            for (int i = 0; i < transparencyMask.Length; i++)
+            {
+                if (transparencyMask[i])
+                {
+                    hasTransparency = true;
+                    break;
+                }
+            }
+
             return new CelImageData
             {
                 Width = width,
                 Height = height,
                 BitsPerPixel = bitsPerPixel,
                 PixelData = unpackedData,
-                TransparencyMask = transparencyMask,
+                TransparencyMask = hasTransparency ? transparencyMask : null,
                 AlternateMultiplyValues = amvData
             };
         }
@@ -374,13 +450,24 @@ namespace ExtractCLUT.Games.ThreeDO
 
             }
 
+            // Check if there are any actual transparent pixels
+            bool hasTransparency = false;
+            for (int i = 0; i < transparencyMask.Length; i++)
+            {
+                if (transparencyMask[i])
+                {
+                    hasTransparency = true;
+                    break;
+                }
+            }
+
             return new CelImageData
             {
                 Width = width,
                 Height = height,
                 BitsPerPixel = 32, // RGBA32 output
                 PixelData = unpackedData,
-                TransparencyMask = transparencyMask
+                TransparencyMask = hasTransparency ? transparencyMask : null
             };
         }
 
@@ -1478,7 +1565,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     }
                     else
                     {
-                        result = UnpackCodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose, skipUncompSize: skipUncompSize);
+                        result = UnpackCodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose, skipUncompSize: skipUncompSize, ccbFlags: ccbFlags);
                     }
                 }
                 else if (isCoded && !isPacked)
@@ -1901,7 +1988,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     }
                     else
                     {
-                        result = UnpackCodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose, skipUncompSize: skipUncompSize);
+                        result = UnpackCodedPackedWithDimensions(pixelData, ccbWidth, ccbHeight, bpp, verbose: verbose, skipUncompSize: skipUncompSize, ccbFlags: ccbFlags);
                     }
                 }
                 else if (isCoded && !isPacked)
@@ -2486,7 +2573,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 else if (celOutput.BitsPerPixel < 8)
                 {
                     // For sub-byte formats (1, 2, 4, 6 bpp), data is already clean palette indices
-                    image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height);
+                    image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height, true);
                 }
                 else // 16bpp
                 {
@@ -2506,7 +2593,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="verbose">If true, displays diagnostic information</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel. If 0, auto-detect.</param>
         /// <returns>Number of frames extracted, or -1 on error</returns>
-        public static int UnpackAnimFile(string animFile, string outputDir, bool verbose = false, int bitsPerPixel = 0)
+        public static int UnpackAnimFile(string animFile, string outputDir, bool verbose = false, int bitsPerPixel = 0, bool noLoopRecords = false)
         {
             if (!File.Exists(animFile))
             {
@@ -2561,7 +2648,13 @@ namespace ExtractCLUT.Games.ThreeDO
             // Note: AnimChunk structure has loop[1] meaning at least 1 loop record exists
             // even when numLoops is 0, so we need to read max(1, numLoops) records
             int loopRecordsToSkip = Math.Max(1, numLoops);
-            stream.Seek(32 + (loopRecordsToSkip * 16), SeekOrigin.Begin);
+            if (!noLoopRecords)
+            {
+                stream.Seek(32 + (loopRecordsToSkip * 16), SeekOrigin.Begin);
+            } else
+            {
+                stream.Seek(32, SeekOrigin.Begin);
+            }
             
             if (verbose && numLoops == 0)
             {
