@@ -1328,6 +1328,16 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
                     Console.WriteLine($"  Packed (bit 7): {packed}");
                 }
+                
+                // Check CCB FLAGS PACKED bit - it can override PRE0 bit 7
+                if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
+                {
+                    isPacked = true;
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  PACKED flag in CCB FLAGS overrides PRE0 bit 7 -> isPacked=true");
+                    }
+                }
             }
             else if (!ccbpreFlag && pixelData != null && pixelData.Length >= 4)
             {
@@ -1410,40 +1420,40 @@ namespace ExtractCLUT.Games.ThreeDO
             }
 
             // Heuristic: Validate packed/unpacked flag against actual file size
-            if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
-            {
-                int bitsPerRow = ccbWidth * bpp;
-                int bytesPerRow = ((bitsPerRow + 31) / 32) * 4;
-                int expectedUnpackedSize = ccbHeight * bytesPerRow;
-                int actualDataSize = pixelData.Length;
-                int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
+            // if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
+            // {
+            //     int bitsPerRow = ccbWidth * bpp;
+            //     int bytesPerRow = ((bitsPerRow + 31) / 32) * 4;
+            //     int expectedUnpackedSize = ccbHeight * bytesPerRow;
+            //     int actualDataSize = pixelData.Length;
+            //     int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
 
-                if (verbose)
-                {
-                    Console.WriteLine($"\n  File size analysis:");
-                    Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
-                    Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
-                    Console.WriteLine($"    Actual size: {actualDataSize} bytes");
-                }
+            //     if (verbose)
+            //     {
+            //         Console.WriteLine($"\n  File size analysis:");
+            //         Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
+            //         Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
+            //         Console.WriteLine($"    Actual size: {actualDataSize} bytes");
+            //     }
 
-                if (!isPacked && actualDataSize < expectedUnpackedSize * 0.75)
-                {
-                    if (verbose)
-                    {
-                        Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
-                    }
-                    isPacked = true;
-                }
-                else if (isPacked && (actualDataSize == expectedUnpackedSize || 
-                                      actualDataSize == simpleUnpackedSize ))
-                {
-                    if (verbose)
-                    {
-                        Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
-                    }
-                    isPacked = false;
-                }
-            }
+            //     if (!isPacked && actualDataSize < expectedUnpackedSize * 0.95)
+            //     {
+            //         if (verbose)
+            //         {
+            //             Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
+            //         }
+            //         isPacked = true;
+            //     }
+            //     else if (isPacked && (actualDataSize == expectedUnpackedSize || 
+            //                           actualDataSize == simpleUnpackedSize ))
+            //     {
+            //         if (verbose)
+            //         {
+            //             Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
+            //         }
+            //         isPacked = false;
+            //     }
+            // }
 
             if (verbose)
             {
@@ -1733,6 +1743,16 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"Format detected from CCB PRE0:");
                     Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
                     Console.WriteLine($"  Packed (bit 7): {packed}");
+                }
+                
+                // Check CCB FLAGS PACKED bit - it can override PRE0 bit 7
+                if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
+                {
+                    isPacked = true;
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  PACKED flag in CCB FLAGS overrides PRE0 bit 7 -> isPacked=true");
+                    }
                 }
             }
             else if (!ccbpreFlag && pixelData != null && pixelData.Length >= 4)
