@@ -1015,11 +1015,11 @@ namespace ExtractCLUT.Games.ThreeDO
             using var stream = new MemoryStream(data);
             using var reader = new BinaryReader(stream);
 
-            List<Color> palette = new List<Color>();
-            List<byte[]> pdatChunks = new List<byte[]>();
-            int ccbWidth = 0, ccbHeight = 0;
-            uint ccbFlags = 0;
-            uint pre0 = 0, pre1 = 0;
+            // Store all chunks in order, then match them up properly
+            var chunks = new List<(string type, int index, object data)>();
+            var ccbList = new List<(int width, int height, uint flags, uint pre0, uint pre1)>();
+            var pdatList = new List<byte[]>();
+            var plutList = new List<List<Color>>();
 
             // Parse all chunks until end of file
             while (stream.Position < data.Length - 8) // Need at least 8 bytes for magic + size
@@ -1054,23 +1054,27 @@ namespace ExtractCLUT.Games.ThreeDO
 
                     // Read CCB header fields
                     stream.Position = ccbDataStart + 0x04; // Skip version field (4 bytes)
-                    ccbFlags = ReadBigEndianUInt32(data, (int)stream.Position);
+                    uint ccbFlags = ReadBigEndianUInt32(data, (int)stream.Position);
 
-                    // Skip to PRE0 and PRE1 (offsets 0x38 and 0x3C in CCB data, absolute 0x40 and 0x44)
+                    // Skip to PRE0 and PRE1 (offsets 0x38 and 0x3C in CCB data)
                     stream.Position = ccbDataStart + 0x38;
-                    pre0 = ReadBigEndianUInt32(data, (int)stream.Position);
+                    uint pre0 = ReadBigEndianUInt32(data, (int)stream.Position);
                     stream.Position = ccbDataStart + 0x3C;
-                    pre1 = ReadBigEndianUInt32(data, (int)stream.Position);
+                    uint pre1 = ReadBigEndianUInt32(data, (int)stream.Position);
 
-                    // Read width and height from fixed file offsets 0x48 and 0x4C as user specified
-                    // These are relative to file start, not CCB data start
-                    ccbWidth = ReadBigEndianInt32(data, 0x48);
-                    ccbHeight = ReadBigEndianInt32(data, 0x4C);
+                    // Read width and height from CCB data (offsets 0x40 and 0x44 in CCB data)
+                    int ccbWidth = ReadBigEndianInt32(data, (int)ccbDataStart + 0x40);
+                    int ccbHeight = ReadBigEndianInt32(data, (int)ccbDataStart + 0x44);
+
+                    // Store CCB data
+                    int ccbIndex = ccbList.Count;
+                    ccbList.Add((ccbWidth, ccbHeight, ccbFlags, pre0, pre1));
+                    chunks.Add(("CCB", ccbIndex, null!));
 
                     if (verbose)
                     {
-                        Console.WriteLine($"CCB: Width={ccbWidth}, Height={ccbHeight}, Flags=0x{ccbFlags:X8}");
-                        Console.WriteLine($"CCB: PRE0=0x{pre0:X8}, PRE1=0x{pre1:X8}");
+                        Console.WriteLine($"CCB #{ccbIndex + 1}: Width={ccbWidth}, Height={ccbHeight}, Flags=0x{ccbFlags:X8}");
+                        Console.WriteLine($"CCB #{ccbIndex + 1}: PRE0=0x{pre0:X8}, PRE1=0x{pre1:X8}");
                     }
 
                     // Skip past the entire CCB chunk
@@ -1084,22 +1088,34 @@ namespace ExtractCLUT.Games.ThreeDO
                     // Skip entries count (4 bytes)
                     stream.Position += 4;
 
-                    // Read palette data
+                    // Read palette data and store
                     byte[] plutData = reader.ReadBytes((int)plutDataSize);
-                    palette = ExtractPaletteFromPLUT(plutData, verbose);
+                    List<Color> palette = ExtractPaletteFromPLUT(plutData, verbose);
+                    
+                    int plutIndex = plutList.Count;
+                    plutList.Add(palette);
+                    chunks.Add(("PLUT", plutIndex, null!));
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"PLUT #{plutIndex + 1}: {palette.Count} colors");
+                    }
 
                     // Skip to next chunk (should already be at correct position)
                 }
                 else if (magicStr == "PDAT")
                 {
-                    // Process PDAT chunk - collect pixel data
+                    // Process PDAT chunk - just store the pixel data for now
                     uint pdatDataSize = chunkSize - 8; // Subtract magic (4) + size (4)
                     byte[] pixelData = reader.ReadBytes((int)pdatDataSize);
-                    pdatChunks.Add(pixelData);
+                    
+                    int pdatIndex = pdatList.Count;
+                    pdatList.Add(pixelData);
+                    chunks.Add(("PDAT", pdatIndex, null!));
 
                     if (verbose)
                     {
-                        Console.WriteLine($"PDAT #{pdatChunks.Count}: Extracted {pixelData.Length} bytes of pixel data");
+                        Console.WriteLine($"PDAT #{pdatIndex + 1}: {pixelData.Length} bytes");
                     }
 
                     // Skip to next chunk (should already be at correct position)
@@ -1122,34 +1138,104 @@ namespace ExtractCLUT.Games.ThreeDO
                 }
             }
 
-            // Check if we have a valid CCB chunk
-            if (ccbWidth <= 0 || ccbHeight <= 0)
+            // Now match up chunks: For each PDAT, find its preceding CCB and following/preceding PLUT
+            var pdatGroups = new List<(byte[] pixelData, int width, int height, uint flags, uint pre0, uint pre1, List<Color> palette)>();
+            
+            for (int i = 0; i < chunks.Count; i++)
             {
-                Console.WriteLine($"No valid CCB chunk found or invalid dimensions (width={ccbWidth}, height={ccbHeight})");
-                return results;
+                if (chunks[i].type == "PDAT")
+                {
+                    int pdatIdx = chunks[i].index;
+                    byte[] pixelData = pdatList[pdatIdx];
+                    
+                    // Find the most recent CCB before this PDAT
+                    int ccbIdx = -1;
+                    for (int j = i - 1; j >= 0; j--)
+                    {
+                        if (chunks[j].type == "CCB")
+                        {
+                            ccbIdx = chunks[j].index;
+                            break;
+                        }
+                    }
+                    
+                    if (ccbIdx == -1)
+                    {
+                        Console.WriteLine($"Warning: PDAT #{pdatIdx + 1} has no preceding CCB chunk, skipping");
+                        continue;
+                    }
+                    
+                    // Find the nearest PLUT (check after first, then before)
+                    int plutIdx = -1;
+                    // Check forward first (for CCB → PDAT → PLUT pattern)
+                    for (int j = i + 1; j < chunks.Count; j++)
+                    {
+                        if (chunks[j].type == "PLUT")
+                        {
+                            plutIdx = chunks[j].index;
+                            break;
+                        }
+                        // Stop if we hit another CCB or PDAT
+                        if (chunks[j].type == "CCB" || chunks[j].type == "PDAT")
+                            break;
+                    }
+                    
+                    // If not found forward, check backward (for CCB → PLUT → PDAT pattern)
+                    if (plutIdx == -1)
+                    {
+                        for (int j = i - 1; j >= 0; j--)
+                        {
+                            if (chunks[j].type == "PLUT")
+                            {
+                            plutIdx = chunks[j].index;
+                                break;
+                            }
+                            // Stop if we hit a CCB that's not our own
+                            if (chunks[j].type == "CCB" && chunks[j].index != ccbIdx)
+                                break;
+                        }
+                    }
+                    
+                    var ccb = ccbList[ccbIdx];
+                    List<Color> palette = plutIdx >= 0 ? plutList[plutIdx] : new List<Color>();
+                    
+                    pdatGroups.Add((pixelData, ccb.width, ccb.height, ccb.flags, ccb.pre0, ccb.pre1, palette));
+                    
+                    if (verbose)
+                    {
+                        Console.WriteLine($"Matched: CCB #{ccbIdx + 1} + PDAT #{pdatIdx + 1} + PLUT #{(plutIdx >= 0 ? (plutIdx + 1).ToString() : "none")} = {ccb.width}x{ccb.height}, {palette.Count} colors");
+                    }
+                }
             }
 
-            // If we only have palette data (no pixel data), return palette-only result
-            if (pdatChunks.Count == 0 && palette.Count > 0)
+            // Check if we have any valid data to process
+            if (ccbList.Count == 0 && pdatGroups.Count == 0)
             {
-                if (verbose)
+                // No CCB and no PDAT groups - check if we have palette-only data
+                if (plutList.Count > 0)
                 {
-                    Console.WriteLine($"File contains palette-only data with {palette.Count} colors");
-                }
+                    if (verbose)
+                    {
+                        Console.WriteLine($"File contains palette-only data with {plutList[0].Count} colors");
+                    }
 
-                results.Add(new CelImageData
-                {
-                    Width = 0,
-                    Height = 0,
-                    BitsPerPixel = 0,
-                    PixelData = Array.Empty<byte>(),
-                    Palette = palette
-                });
+                    results.Add(new CelImageData
+                    {
+                        Width = 0,
+                        Height = 0,
+                        BitsPerPixel = 0,
+                        PixelData = Array.Empty<byte>(),
+                        Palette = plutList[0]
+                    });
+                    return results;
+                }
+                
+                Console.WriteLine("No valid CCB chunk or PDAT data found in file");
                 return results;
             }
 
             // If we have no pixel data, return empty
-            if (pdatChunks.Count == 0)
+            if (pdatGroups.Count == 0)
             {
                 Console.WriteLine("No pixel data found in file");
                 return results;
@@ -1158,28 +1244,36 @@ namespace ExtractCLUT.Games.ThreeDO
             if (verbose)
             {
                 Console.WriteLine($"\n========================================");
-                Console.WriteLine($"Processing {pdatChunks.Count} PDAT chunk(s)");
+                Console.WriteLine($"Processing {pdatGroups.Count} PDAT chunk(s)");
                 Console.WriteLine($"========================================");
             }
 
-            // Process each PDAT chunk separately
-            for (int pdatIndex = 0; pdatIndex < pdatChunks.Count; pdatIndex++)
+            // Process each PDAT chunk separately with its associated CCB and palette
+            for (int pdatIndex = 0; pdatIndex < pdatGroups.Count; pdatIndex++)
             {
-                byte[] pixelData = pdatChunks[pdatIndex];
+                var group = pdatGroups[pdatIndex];
+                byte[] pixelData = group.pixelData;
+                int width = group.width;
+                int height = group.height;
+                uint flags = group.flags;
+                uint pre0 = group.pre0;
+                uint pre1 = group.pre1;
+                List<Color> palette = group.palette;
 
                 if (verbose)
                 {
                     Console.WriteLine($"\n--- Processing PDAT chunk #{pdatIndex + 1} ---");
-                    Console.WriteLine($"CCB FLAGS: 0x{ccbFlags:X8}");
-                    Console.WriteLine($"PACKED: {((ccbFlags & 0x00000200) != 0)}");
-                    Console.WriteLine($"CCBPRE: {((ccbFlags & 0x00400000) != 0)}");
+                    Console.WriteLine($"CCB FLAGS: 0x{flags:X8}");
+                    Console.WriteLine($"PACKED: {((flags & 0x00000200) != 0)}");
+                    Console.WriteLine($"CCBPRE: {((flags & 0x00400000) != 0)}");
                     Console.WriteLine($"PRE0: 0x{pre0:X8}, PRE1: 0x{pre1:X8}");
-                    Console.WriteLine($"Width: {ccbWidth}, Height: {ccbHeight}");
+                    Console.WriteLine($"Width: {width}, Height: {height}");
                     Console.WriteLine($"Pixel data size: {pixelData.Length} bytes");
+                    Console.WriteLine($"Palette colors: {palette.Count}");
                 }
 
-                // Process this PDAT chunk using the shared CCB header data
-                var result = ProcessSinglePDAT(pixelData, ccbWidth, ccbHeight, ccbFlags, pre0, pre1, bitsPerPixel, skipUncompSize, verbose);
+                // Process this PDAT chunk using its associated CCB header data
+                var result = ProcessSinglePDAT(pixelData, width, height, flags, pre0, pre1, bitsPerPixel, skipUncompSize, verbose);
                 
                 if (result != null)
                 {
@@ -1194,7 +1288,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
             if (verbose)
             {
-                Console.WriteLine($"\nSuccessfully processed {results.Count} of {pdatChunks.Count} PDAT chunks");
+                Console.WriteLine($"\nSuccessfully processed {results.Count} of {pdatGroups.Count} PDAT chunks");
             }
 
             return results;
@@ -1341,8 +1435,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     isPacked = true;
                 }
                 else if (isPacked && (actualDataSize == expectedUnpackedSize || 
-                                      actualDataSize == simpleUnpackedSize ||
-                                      Math.Abs(actualDataSize - expectedUnpackedSize) < 100))
+                                      actualDataSize == simpleUnpackedSize ))
                 {
                     if (verbose)
                     {
@@ -1420,10 +1513,7 @@ namespace ExtractCLUT.Games.ThreeDO
             catch (Exception ex)
             {
                 Console.WriteLine($"Error unpacking PDAT: {ex.Message}");
-                if (verbose)
-                {
-                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                }
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 return null;
             }
         }
