@@ -45,11 +45,6 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <returns>Unpacked pixel data with dimensions</returns>
         public static CelImageData UnpackCodedPackedWithDimensions(byte[] packedData, int width, int height, int bitsPerPixel = 8, bool verbose = false, bool skipUncompSize = false, uint ccbFlags = 0)
         {
-            // Extract CCB flags
-            bool bgndFlag = (ccbFlags & 0x00000020) != 0; // BGND flag - bit 5
-            bool noblkFlag = (ccbFlags & 0x00000010) != 0; // NOBLK flag - bit 4
-            byte plutaValue = (byte)((ccbFlags >> 1) & 0x07); // PLUTA bits 3-1
-
             if (verbose)
             {
                 Console.WriteLine($"\n[VERBOSE] UnpackCodedPackedWithDimensions called:");
@@ -57,9 +52,6 @@ namespace ExtractCLUT.Games.ThreeDO
                 Console.WriteLine($"  Height: {height}");
                 Console.WriteLine($"  BitsPerPixel: {bitsPerPixel}");
                 Console.WriteLine($"  Data size: {packedData.Length} bytes");
-                Console.WriteLine($"  BGND: {bgndFlag} (000 = {(bgndFlag ? "RGB value" : "transparent")})");
-                Console.WriteLine($"  NOBLK: {noblkFlag} (000 output = {(noblkFlag ? "000" : "100")})");
-                Console.WriteLine($"  PLUTA: 0x{plutaValue:X} (high bits for <5bpp pixels)");
             }
 
             // Skip the first 4 bytes which appear to be a preamble/header in PDAT chunks
@@ -157,37 +149,11 @@ namespace ExtractCLUT.Games.ThreeDO
                                     }
                                     else
                                     {
-                                        // Apply PLUTA for pixels with < 5 bits per pixel
-                                        if (bitsPerPixel < 5)
-                                        {
-                                            // Pad high bits with PLUTA value
-                                            int shiftAmount = 5 - bitsPerPixel;
-                                            pixelValue = (plutaValue << bitsPerPixel) | pixelValue;
-                                        }
-                                        
-                                        // Check BGND flag for 000 values
-                                        if (pixelValue == 0 && !bgndFlag)
-                                        {
-                                            // BGND=0: treat 000 as transparent
-                                            unpackedData[outputOffset++] = 0;
-                                            transparencyMask[maskOffset] = true;
-                                        }
-                                        else
-                                        {
-                                            // Apply NOBLK flag for 000 values
-                                            if (pixelValue == 0 && !noblkFlag)
-                                            {
-                                                // NOBLK=0: write 000 as 100 (darken to prevent pure black)
-                                                pixelValue = 1;
-                                            }
-                                            
-                                            WritePixel(unpackedData, outputOffset, pixelValue, bitsPerPixel);
-                                            transparencyMask[maskOffset] = false;
-                                        }
+                                        WritePixel(unpackedData, outputOffset, pixelValue, bitsPerPixel);
                                         outputOffset += bytesPerPixel;
                                     }
 
-                                    maskOffset++;
+                                    transparencyMask[maskOffset++] = false;
                                     pixelsInRow++;
                                 }
                             }
@@ -212,8 +178,6 @@ namespace ExtractCLUT.Games.ThreeDO
                                 int pixelValue = bitReader.ReadBits(bitsPerPixel);
 
                                 int plutIndex, amv;
-                                bool isTransparent = false;
-                                
                                 if (bitsPerPixel == 8)
                                 {
                                     plutIndex = pixelValue & 0x1F;
@@ -221,25 +185,6 @@ namespace ExtractCLUT.Games.ThreeDO
                                 }
                                 else
                                 {
-                                    // Apply PLUTA for pixels with < 5 bits per pixel
-                                    if (bitsPerPixel < 5)
-                                    {
-                                        int shiftAmount = 5 - bitsPerPixel;
-                                        pixelValue = (plutaValue << bitsPerPixel) | pixelValue;
-                                    }
-                                    
-                                    // Check BGND flag for 000 values
-                                    if (pixelValue == 0 && !bgndFlag)
-                                    {
-                                        // BGND=0: treat 000 as transparent
-                                        isTransparent = true;
-                                    }
-                                    else if (pixelValue == 0 && !noblkFlag)
-                                    {
-                                        // NOBLK=0: write 000 as 100
-                                        pixelValue = 1;
-                                    }
-                                    
                                     plutIndex = pixelValue;
                                     amv = 0;
                                 }
@@ -250,24 +195,14 @@ namespace ExtractCLUT.Games.ThreeDO
                                     {
                                         unpackedData[outputOffset++] = (byte)plutIndex;
                                         if (amvData != null) amvData[maskOffset] = (byte)amv;
-                                        transparencyMask[maskOffset] = false;
                                     }
                                     else
                                     {
-                                        if (isTransparent)
-                                        {
-                                            unpackedData[outputOffset++] = 0;
-                                            transparencyMask[maskOffset] = true;
-                                        }
-                                        else
-                                        {
-                                            WritePixel(unpackedData, outputOffset, plutIndex, bitsPerPixel);
-                                            transparencyMask[maskOffset] = false;
-                                        }
+                                        WritePixel(unpackedData, outputOffset, plutIndex, bitsPerPixel);
                                         outputOffset += bytesPerPixel;
                                     }
 
-                                    maskOffset++;
+                                    transparencyMask[maskOffset++] = false;
                                     pixelsInRow++;
                                 }
                             }
@@ -1605,6 +1540,9 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Pixel data size: {result.PixelData.Length} bytes");
                 }
 
+                // Store CCB flags in result for later use in rendering (especially for PLUT 000 transparency)
+                result.CcbFlags = ccbFlags;
+
                 return result;
             }
             catch (Exception ex)
@@ -2334,7 +2272,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// Bit-level reader for packed CEL data
         /// Reads bits MSB-first as per 3DO specification
         /// </summary>
-        private class BitReader
+        public class BitReader
         {
             private readonly byte[] data;
             private int bitPosition;
@@ -2429,7 +2367,8 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="celOutput">The unpacked CEL image data</param>
         /// <param name="outputPath">Path where to save the PNG file</param>
         /// <param name="palette">Color palette to use for rendering (optional for 32bpp RGBA data)</param>
-        public static void SaveCelImage(CelImageData celOutput, string outputPath, List<Color>? palette = null)
+        /// <param name="ccbFlags">CCB FLAGS word - used to check BGND flag for transparency handling</param>
+        public static void SaveCelImage(CelImageData celOutput, string outputPath, List<Color>? palette = null, uint ccbFlags = 0)
         {
             Image<Rgba32> image;
 
@@ -2523,11 +2462,21 @@ namespace ExtractCLUT.Games.ThreeDO
                             }
                             else
                             {
-                                // For 8bpp and lower, read single byte
-                                plutIndex = celOutput.PixelData[pixelIndex];
+                                // For 8bpp and lower, read single byte (mask to 5 bits for PLUT index)
+                                plutIndex = celOutput.PixelData[pixelIndex] & 0x1F;
                             }
 
                             baseColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
+                            
+                            // Check if PLUT entry is 000 (black RGB) - this indicates transparency
+                            // unless BGND flag is set (bit 5 of CCB FLAGS)
+                            bool bgndFlag = (ccbFlags & 0x00000020) != 0;
+                            if (!bgndFlag && baseColor.R == 0 && baseColor.G == 0 && baseColor.B == 0)
+                            {
+                                // PLUT entry is 000 and BGND is not set - treat as transparent
+                                image[x, y] = new Rgba32(0, 0, 0, 0);
+                                continue;
+                            }
                         }
 
                         // Apply AMV (Alternate Multiply Value) for brightness modulation if available
@@ -2559,25 +2508,50 @@ namespace ExtractCLUT.Games.ThreeDO
                     throw new ArgumentNullException(nameof(palette), "Palette is required for palette-indexed CEL images");
                 }
 
-                if (celOutput.BitsPerPixel == 8)
+                // Manual rendering to handle PLUT 000 transparency
+                image = new Image<Rgba32>(celOutput.Width, celOutput.Height);
+                bool bgndFlag = (ccbFlags & 0x00000020) != 0; // BGND flag - bit 5
+                
+                for (int y = 0; y < celOutput.Height; y++)
                 {
-                    // For 8bpp coded formats, pixel values contain both PLUT index and AMV
-                    // Format: [AMV:3][PLUT:5] - we need to extract the lower 5 bits (PLUT index)
-                    byte[] cleanedPixelData = new byte[celOutput.PixelData.Length];
-                    for (int i = 0; i < celOutput.PixelData.Length; i++)
+                    for (int x = 0; x < celOutput.Width; x++)
                     {
-                        cleanedPixelData[i] = (byte)(celOutput.PixelData[i] & 0x1F); // Extract lower 5 bits (PLUT index)
+                        int pixelIndex = y * celOutput.Width + x;
+                        int plutIndex;
+                        
+                        if (celOutput.BitsPerPixel == 8)
+                        {
+                            // For 8bpp coded: Extract lower 5 bits (PLUT index)
+                            plutIndex = celOutput.PixelData[pixelIndex] & 0x1F;
+                        }
+                        else if (celOutput.BitsPerPixel < 8)
+                        {
+                            // For sub-byte formats, data is already clean palette indices
+                            plutIndex = celOutput.PixelData[pixelIndex];
+                        }
+                        else // 16bpp
+                        {
+                            int byteOffset = pixelIndex * 2;
+                            plutIndex = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
+                        }
+                        
+                        // Get color from palette
+                        Color paletteColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
+                        Rgba32 rgba = paletteColor.ToPixel<Rgba32>();
+                        
+                        // Check if PLUT entry is 000 (black RGB) - this indicates transparency
+                        // unless BGND flag is set
+                        if (!bgndFlag && rgba.R == 0 && rgba.G == 0 && rgba.B == 0)
+                        {
+                            // PLUT entry is 000 and BGND is not set - treat as transparent
+                            image[x, y] = new Rgba32(0, 0, 0, 0);
+                        }
+                        else
+                        {
+                            // Opaque pixel
+                            image[x, y] = rgba;
+                        }
                     }
-                    image = ImageFormatHelper.GenerateIMClutImage(palette, cleanedPixelData, celOutput.Width, celOutput.Height);
-                }
-                else if (celOutput.BitsPerPixel < 8)
-                {
-                    // For sub-byte formats (1, 2, 4, 6 bpp), data is already clean palette indices
-                    image = ImageFormatHelper.GenerateIMClutImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height, true);
-                }
-                else // 16bpp
-                {
-                    image = ImageFormatHelper.GenerateIM16BitImage(palette, celOutput.PixelData, celOutput.Width, celOutput.Height);
                 }
             }
 
@@ -2697,12 +2671,36 @@ namespace ExtractCLUT.Games.ThreeDO
                         }
                     }
 
-                    // Extract dimensions for logging
-                    int width = ReadBigEndianInt32(currentCCB, 72);
-                    int height = ReadBigEndianInt32(currentCCB, 76);
-
                     if (verbose)
                     {
+                        // Extract CCB header fields for detailed logging
+                        // Note: CCB chunk size is 80 bytes total (including 8-byte header)
+                        // Actual CCB data is 72 bytes, offsets are relative to start of chunk (after magic+size)
+                        uint ccbFlags = (uint)ReadBigEndianInt32(currentCCB, 8);
+                        int width = ReadBigEndianInt32(currentCCB, 72);
+                        int height = ReadBigEndianInt32(currentCCB, 76);
+
+                        Console.WriteLine($"  CCB for frame {frameIndex}:");
+                        Console.WriteLine($"    Dimensions: {width}x{height}");
+                        Console.WriteLine($"    FLAGS: 0x{ccbFlags:X8}");
+                        
+                        // Decode important flags
+                        bool skipFlag = (ccbFlags & 0x80000000) != 0;
+                        bool lastFlag = (ccbFlags & 0x40000000) != 0;
+                        bool ccbpreFlag = (ccbFlags & 0x00400000) != 0;
+                        bool packedFlag = (ccbFlags & 0x00000200) != 0;
+                        bool bgndFlag = (ccbFlags & 0x00000020) != 0;
+                        bool noblkFlag = (ccbFlags & 0x00000010) != 0;
+                        int plutaValue = (int)((ccbFlags >> 1) & 0x7);
+                        
+                        Console.WriteLine($"    SKIP={skipFlag}, LAST={lastFlag}, CCBPRE={ccbpreFlag}, PACKED={packedFlag}");
+                        Console.WriteLine($"    BGND={bgndFlag}, NOBLK={noblkFlag}, PLUTA={plutaValue}");
+                    }
+                    else
+                    {
+                        // Non-verbose: just show dimensions
+                        int width = ReadBigEndianInt32(currentCCB, 72);
+                        int height = ReadBigEndianInt32(currentCCB, 76);
                         Console.WriteLine($"  CCB for frame {frameIndex}: {width}x{height}");
                     }
                 }
@@ -2767,8 +2765,26 @@ namespace ExtractCLUT.Games.ThreeDO
                             // Use palette from CEL data if available, otherwise use current palette
                             var paletteToUse = celImageData.Palette ?? currentPalette;
 
-                            // Save the frame
-                            SaveCelImage(celImageData, frameOutputPath, paletteToUse);
+                            // Extract CCB flags for transparency handling
+                            uint ccbFlags = (uint)ReadBigEndianInt32(ccbToUse, 8);
+
+                            // Log transparency status
+                            if (verbose)
+                            {
+                                bool hasTransparencyMask = celImageData.TransparencyMask != null;
+                                int transparentPixels = 0;
+                                if (hasTransparencyMask && celImageData.TransparencyMask != null)
+                                {
+                                    transparentPixels = celImageData.TransparencyMask.Count(t => t);
+                                }
+                                int totalPixels = celImageData.Width * celImageData.Height;
+                                
+                                Console.WriteLine($"  Frame {frameIndex} transparency: Mask={hasTransparencyMask}, " +
+                                    $"Transparent pixels={transparentPixels}/{totalPixels} ({100.0 * transparentPixels / totalPixels:F1}%)");
+                            }
+
+                            // Save the frame with CCB flags for proper transparency handling
+                            SaveCelImage(celImageData, frameOutputPath, paletteToUse, ccbFlags);
                             
                             if (verbose)
                             {
@@ -3313,7 +3329,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
             try
             {
-                SaveCelImage(imagData, outputPath, palette ?? imagData.Palette);
+                SaveCelImage(imagData, outputPath, palette ?? imagData.Palette, imagData.CcbFlags);
                 if (verbose) Console.WriteLine($"Successfully saved IMAG image to: {outputPath}");
                 return true;
             }
@@ -3348,7 +3364,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 if (celDataList.Count == 1)
                 {
                     // Single PDAT - save with original filename
-                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette);
+                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette, celDataList[0].CcbFlags);
                     if (verbose) Console.WriteLine($"Successfully saved CEL image to: {outputPath}");
                 }
                 else
@@ -3361,7 +3377,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     for (int i = 0; i < celDataList.Count; i++)
                     {
                         string numberedPath = Path.Combine(directory, $"{fileNameWithoutExt}_{i:D4}{extension}");
-                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette);
+                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette, celDataList[i].CcbFlags);
                         if (verbose) Console.WriteLine($"Successfully saved CEL image #{i + 1} to: {numberedPath}");
                     }
                 }
@@ -3406,5 +3422,12 @@ namespace ExtractCLUT.Games.ThreeDO
         /// null for image files.
         /// </summary>
         public List<Color>? Palette { get; set; } = null;
+
+        /// <summary>
+        /// CCB FLAGS word value from the cel control block.
+        /// Contains control bits for transparency, packing, and rendering behavior.
+        /// Important for PLUT 000 transparency handling (BGND flag at bit 5).
+        /// </summary>
+        public uint CcbFlags { get; set; } = 0;
     }
 }

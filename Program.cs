@@ -37,14 +37,53 @@ using ExtractCLUT.Games.ThreeDO.WotW;
 using FormatHelper = ExtractCLUT.Games.PC.Mario.TMD.FormatHelper;
 
 
-var celDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\SubData\Player";
+// var lineCelsFile = @"C:\Dev\Gaming\3do\Games\Escape from Monster Manor\george.cels";
+// var lineCelsOut = Path.Combine(Path.GetDirectoryName(lineCelsFile)!, $"{Path.GetFileNameWithoutExtension(lineCelsFile)}_out");
+// var lineCelsPng = Path.Combine(lineCelsOut, $"{Path.GetFileNameWithoutExtension(lineCelsFile)}.png");
+// Directory.CreateDirectory(lineCelsOut);
+// CelUnpacker.UnpackAnimFile(lineCelsFile, lineCelsOut, verbose: true, noLoopRecords: true);
+
+
+// var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\ANIM";
+// var subFiles = Directory.GetFiles(subFileDir, "*.pak", SearchOption.TopDirectoryOnly);
+
+// foreach (var subfFile in subFiles)
+// {
+// 	using var subfReader = new BinaryReader(File.OpenRead(subfFile));
+// 	var magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
+// 	while (magic == "SUBF" && subfReader.BaseStream.Position < subfReader.BaseStream.Length)
+// 	{
+// 		var headerStart = subfReader.BaseStream.Position - 4;
+// 		var headerLength = subfReader.ReadBigEndianInt32();
+// 		var dataLength = subfReader.ReadBigEndianInt32();
+// 		var bytesToNextSubf = subfReader.ReadBigEndianInt32();
+// 		var name = subfReader.ReadNullTerminatedString();
+// 		// replace any invalid characters with _ (those outside the ascii 0-9a-zA-Z range) from the name
+// 		name = Path.GetFileName(name);
+// 		name = string.Concat(name.Select(c => (c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || c > 'z') ? '_' : c));
+
+// 		subfReader.BaseStream.Seek(headerStart + headerLength, SeekOrigin.Begin);
+// 		var data = subfReader.ReadBytes(dataLength);
+// 		var outputFile = Path.Combine(Path.GetDirectoryName(subfFile)!, Path.GetFileNameWithoutExtension(subfFile).Replace(".", "_"), name);
+// 		Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+// 		File.WriteAllBytes(outputFile, data);
+// 		subfReader.BaseStream.Seek(headerStart + headerLength + bytesToNextSubf, SeekOrigin.Begin);
+// 		if (subfReader.BaseStream.Position >= subfReader.BaseStream.Length)
+// 			break;
+// 		magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
+// 	}
+// }
+
+var celDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\ANIM";
 var celFiles = Directory.GetFiles(celDir, "*.*", SearchOption.AllDirectories);
+// make sure there are no .pak files
+celFiles = celFiles.Where(f => Path.GetExtension(f).ToLower() != ".pak").ToArray();
 
 foreach (var celFile in celFiles)
 {
 	var outputDir = Path.Combine(Path.GetDirectoryName(celFile)!, $"{Path.GetFileName(celFile).Replace(".", "_")}_output");
 	var outputPng = Path.Combine(outputDir, $"{Path.GetFileNameWithoutExtension(celFile)}.png");
-	Directory.CreateDirectory(outputDir);
+
 	try
 	{
 		//get first 4 bytes for magic
@@ -53,48 +92,25 @@ foreach (var celFile in celFiles)
 		switch (magic)
 		{
 			case "CCB ":
-				CelUnpacker.UnpackAndSaveCelFile(celFile, outputPng, verbose: false);
+				Directory.CreateDirectory(outputDir);
+				CelUnpacker.UnpackAndSaveCelFile(celFile, outputPng);
 				break;
 			case "ANIM":
-				CelUnpacker.UnpackAnimFile(celFile, outputDir);
+				Directory.CreateDirectory(outputDir);
+				CelUnpacker.UnpackAnimFile(celFile, outputDir, verbose: true, noLoopRecords: false);
 				break;
 			case "IMAG":
-				CelUnpacker.UnpackAndSaveImagFile(celFile, outputPng, palette: null, verbose: true);
+				Directory.CreateDirectory(outputDir);
+				CelUnpacker.UnpackAndSaveImagFile(celFile, outputPng, palette: null, verbose: false);
 				break;
 			default:
-				Console.WriteLine($"Unknown CEL file format: {magic} in file {Path.GetFileName(celFile)}");
+				//Console.WriteLine($"Unknown CEL file format: {magic} in file {Path.GetFileName(celFile)}");
 				break;
 		}
-  }
+	}
 	catch (Exception ex)
 	{
 		Console.WriteLine($"Error processing {Path.GetFileName(celFile)}: {ex.Message}");
-	}
-}
-
-var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\SubData";
-var subFiles = Directory.GetFiles(subFileDir, "*.pak", SearchOption.TopDirectoryOnly);
-
-foreach (var subfFile in subFiles)
-{
-	using var subfReader = new BinaryReader(File.OpenRead(subfFile));
-	var magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
-	while (magic == "SUBF" && subfReader.BaseStream.Position < subfReader.BaseStream.Length)
-	{
-		var headerStart = subfReader.BaseStream.Position - 4;
-		var headerLength = subfReader.ReadBigEndianInt32();
-		var dataLength = subfReader.ReadBigEndianInt32();
-		var bytesToNextSubf = subfReader.ReadBigEndianInt32();
-		var name = subfReader.ReadNullTerminatedString();
-		subfReader.BaseStream.Seek(headerStart + headerLength, SeekOrigin.Begin);
-		var data = subfReader.ReadBytes(dataLength);
-		var outputFile = Path.Combine(Path.GetDirectoryName(subfFile)!, Path.GetFileNameWithoutExtension(subfFile).Replace(".", "_"), name);
-		Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
-		File.WriteAllBytes(outputFile, data);
-		subfReader.BaseStream.Seek(headerStart + headerLength + bytesToNextSubf, SeekOrigin.Begin);
-		if (subfReader.BaseStream.Position >= subfReader.BaseStream.Length)
-			break;
-		magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
 	}
 }
 
@@ -963,7 +979,7 @@ void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
 
 						try
 						{
-							CelUnpacker.SaveCelImage(result, filePath, palette);
+							CelUnpacker.SaveCelImage(result, filePath, palette, result.CcbFlags);
 							Console.WriteLine($"  💾 Saved: {fileName}");
 							savedCount++;
 						}
@@ -1029,7 +1045,7 @@ void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
 					testFileName += ".png";
 					var testFilePath = Path.Combine(outputDir, testFileName); try
 					{
-						CelUnpacker.SaveCelImage(result, testFilePath, palette);
+						CelUnpacker.SaveCelImage(result, testFilePath, palette, result.CcbFlags);
 						Console.WriteLine($"  💾 Saved test image: {Path.GetFullPath(testFilePath)}");
 
 						// Ask user for confirmation
@@ -1053,7 +1069,7 @@ void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
 
 								try
 								{
-									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette);
+									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags);
 									Console.WriteLine($"  💾 Saved: {remainingFileName}");
 								}
 								catch (Exception ex)
@@ -1083,7 +1099,7 @@ void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
 
 								try
 								{
-									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette);
+									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags);
 									Console.WriteLine($"  💾 Saved: {remainingFileName}");
 								}
 								catch (Exception ex)
