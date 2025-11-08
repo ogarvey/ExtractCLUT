@@ -1001,7 +1001,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="verbose">If true, displays CCB header information</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <returns>List of unpacked CEL image data (one per PDAT chunk)</returns>
-        private static List<CelImageData> UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        private static List<CelImageData>  UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
         {
             var results = new List<CelImageData>();
 
@@ -1108,6 +1108,11 @@ namespace ExtractCLUT.Games.ThreeDO
                 {
                     // Unknown chunk - skip using its size
                     uint skipSize = chunkSize - 8; // Subtract magic (4) + size (4) already read
+                    if (stream.Position + skipSize > data.Length)
+                    {
+                        Console.WriteLine($"Chunk '{magicStr}' size exceeds file bounds, stopping parsing");
+                        break;
+                    }
                     stream.Position += skipSize;
 
                     if (verbose)
@@ -2501,7 +2506,8 @@ namespace ExtractCLUT.Games.ThreeDO
                 else if (chunkMagic == "PLUT")
                 {
                     // Read palette data
-                    int dataSize = chunkDataSize - 8; // Subtract header
+                    int dataSize = chunkDataSize - 0xc; // Subtract header
+                    reader.ReadInt32();
                     byte[] plutData = reader.ReadBytes(dataSize);
                     currentPalette = ExtractPaletteFromPLUT(plutData, verbose);
 
@@ -2616,138 +2622,503 @@ namespace ExtractCLUT.Games.ThreeDO
         }
 
         /// <summary>
-        /// Merges a CEL file with additional chunks from a headerless file and processes them together.
-        /// The headerless file is scanned for PDAT magic, and data from that point onward is appended to the CEL file.
-        /// This is useful for CEL files where PDAT chunks are split across multiple files.
+        /// Reorders pixels based on the pixelOrder field from IMAG header.
+        /// The pixelOrder describes how pixels are STORED in the file.
+        /// We need to read them in that order and place them in standard row-major order.
+        /// 
+        /// Note: Documentation uses (row,column) notation which is (y,x).
+        /// pixelOrder 0: Standard row-major - pixels stored left-to-right, top-to-bottom
+        /// pixelOrder 1: Sherrie LRform - within each 2x2 block, pixels stored as: (0,0), (0,1), (1,0), (1,1)
+        /// pixelOrder 2: UGO LRform - within each 2x2 block, pixels stored as: (0,1), (0,0), (1,1), (1,0)
         /// </summary>
-        /// <param name="celFilePath">Path to the main CEL file (contains CCB header and possibly some chunks)</param>
-        /// <param name="headerlessFilePath">Path to the headerless file containing additional PDAT/PLUT chunks</param>
-        /// <param name="verbose">If true, displays diagnostic information</param>
-        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel</param>
-        /// <returns>List of unpacked CEL image data (one per PDAT chunk from both files combined)</returns>
-        public static List<CelImageData> UnpackCelFileWithAppendedChunks(string celFilePath, string headerlessFilePath, bool verbose = false, int bitsPerPixel = 0)
+        /// <param name="source">Source image data (pixels in file order)</param>
+        /// <param name="pixelOrder">Pixel order mode (0=standard, 1=Sherrie, 2=UGO)</param>
+        /// <param name="verbose">Enable verbose logging</param>
+        /// <returns>Reordered image data in standard row-major layout</returns>
+        private static CelImageData ReorderPixels(CelImageData source, byte pixelOrder, bool verbose)
         {
-            if (!File.Exists(celFilePath))
+            if (pixelOrder == 0)
             {
-                Console.WriteLine($"CEL file not found: {celFilePath}");
-                return new List<CelImageData>();
-            }
-
-            if (!File.Exists(headerlessFilePath))
-            {
-                Console.WriteLine($"Headerless file not found: {headerlessFilePath}");
-                return new List<CelImageData>();
+                return source; // Already in standard order
             }
 
             if (verbose)
             {
-                Console.WriteLine($"\n========================================");
-                Console.WriteLine($"Merging CEL file with headerless chunks");
-                Console.WriteLine($"========================================");
-                Console.WriteLine($"CEL file: {Path.GetFileName(celFilePath)}");
-                Console.WriteLine($"Headerless file: {Path.GetFileName(headerlessFilePath)}");
+                Console.WriteLine($"\nReordering pixels from mode {pixelOrder} ({(pixelOrder == 1 ? "Sherrie LRform" : "UGO LRform")}) to standard row-major");
             }
 
-            // Read the main CEL file
-            byte[] celData = File.ReadAllBytes(celFilePath);
+            int bytesPerPixel = (source.BitsPerPixel + 7) / 8;
+            byte[] reorderedPixelData = new byte[source.Width * source.Height * bytesPerPixel];
+            bool[]? reorderedTransparencyMask = source.TransparencyMask != null ? new bool[source.Width * source.Height] : null;
+            byte[]? reorderedAmvData = source.AlternateMultiplyValues != null ? new byte[source.Width * source.Height] : null;
 
-            // Read the headerless file and find PDAT magic
-            byte[] headerlessData = File.ReadAllBytes(headerlessFilePath);
+            int srcPixelIndex = 0;
 
-            // Create merged data: CEL file + headerless file from PDAT offset
-            byte[] mergedData = new byte[celData.Length + headerlessData.Length];
-            
-            Array.Copy(celData, 0, mergedData, 0, celData.Length);
-            Array.Copy(headerlessData, 0, mergedData, celData.Length, headerlessData.Length);
-
-            if (verbose)
+            // Process image in 2x2 blocks
+            for (int blockY = 0; blockY < source.Height; blockY += 2)
             {
-                Console.WriteLine($"CEL file size: {celData.Length} bytes");
-                Console.WriteLine($"Appending {headerlessData.Length} bytes from headerless file");
-                Console.WriteLine($"Merged data size: {mergedData.Length} bytes");
+                for (int blockX = 0; blockX < source.Width; blockX += 2)
+                {
+                    // Define where each of the 4 sequential pixels in the file should go
+                    // Using (row, column) notation from the docs, which is (y, x)
+                    int[] destYOffsets, destXOffsets;
+                    
+                    if (pixelOrder == 1)
+                    {
+                        // Sherrie LRform: file has pixels in order for positions (row,col): (0,0), (0,1), (1,0), (1,1)
+                        // Interpreting as: top-left, bottom-left, top-right, bottom-right (column-major within block)
+                        destYOffsets = new int[] { 0, 1, 0, 1 };
+                        destXOffsets = new int[] { 0, 0, 1, 1 };
+                    }
+                    else // pixelOrder == 2
+                    {
+                        // UGO LRform: file has pixels in order for positions (row,col): (0,1), (0,0), (1,1), (1,0)
+                        // Interpreting as: top-right, bottom-right, top-left, bottom-left
+                        destYOffsets = new int[] { 0, 1, 0, 1 };
+                        destXOffsets = new int[] { 1, 1, 0, 0 };
+                    }
+
+                    // Read 4 sequential pixels from source and place them according to the pattern
+                    for (int i = 0; i < 4; i++)
+                    {
+                        int destX = blockX + destXOffsets[i];
+                        int destY = blockY + destYOffsets[i];
+
+                        // Bounds check
+                        if (destX >= source.Width || destY >= source.Height)
+                        {
+                            srcPixelIndex++; // Skip this pixel in source
+                            continue;
+                        }
+
+                        int destPixelIndex = destY * source.Width + destX;
+
+                        // Copy pixel data from sequential source position to calculated destination
+                        for (int b = 0; b < bytesPerPixel; b++)
+                        {
+                            reorderedPixelData[destPixelIndex * bytesPerPixel + b] = 
+                                source.PixelData[srcPixelIndex * bytesPerPixel + b];
+                        }
+
+                        // Copy transparency mask if present
+                        if (reorderedTransparencyMask != null && source.TransparencyMask != null)
+                        {
+                            reorderedTransparencyMask[destPixelIndex] = source.TransparencyMask[srcPixelIndex];
+                        }
+
+                        // Copy AMV data if present
+                        if (reorderedAmvData != null && source.AlternateMultiplyValues != null)
+                        {
+                            reorderedAmvData[destPixelIndex] = source.AlternateMultiplyValues[srcPixelIndex];
+                        }
+
+                        srcPixelIndex++;
+                    }
+                }
             }
 
-            if (verbose)
+            return new CelImageData
             {
-                File.WriteAllBytes(Path.Combine(Path.ChangeExtension(celFilePath, ".merged.cel")), mergedData);
-            }
-            // Process the merged data
-            return UnpackCelFile_FromBytes_Multiple(mergedData, verbose, bitsPerPixel);
+                Width = source.Width,
+                Height = source.Height,
+                BitsPerPixel = source.BitsPerPixel,
+                PixelData = reorderedPixelData,
+                TransparencyMask = reorderedTransparencyMask,
+                AlternateMultiplyValues = reorderedAmvData,
+                Palette = source.Palette
+            };
         }
 
         /// <summary>
-        /// Merges a CEL file with additional chunks from a headerless file and saves all resulting images.
+        /// Scales image data for hvformat modes (0554h, 0554v, v554h).
+        /// These formats store pixel data at reduced dimensions and need to be scaled up.
         /// </summary>
-        /// <param name="celFilePath">Path to the main CEL file</param>
-        /// <param name="headerlessFilePath">Path to the headerless file containing additional chunks</param>
-        /// <param name="outputPath">Base path for output PNG files</param>
-        /// <param name="palette">Optional palette to use for rendering</param>
-        /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel</param>
+        /// <param name="source">Source image data</param>
+        /// <param name="targetWidth">Target width after scaling</param>
+        /// <param name="targetHeight">Target height after scaling</param>
+        /// <param name="hvFormat">HV format: 1=0554h (horiz), 2=0554v (vert), 3=v554h</param>
+        /// <param name="verbose">Enable verbose logging</param>
+        /// <returns>Scaled image data</returns>
+        private static CelImageData ScaleImageData(CelImageData source, int targetWidth, int targetHeight, byte hvFormat, bool verbose)
+        {
+            if (verbose)
+            {
+                Console.WriteLine($"\nScaling image from {source.Width}x{source.Height} to {targetWidth}x{targetHeight} (hvFormat={hvFormat})");
+            }
+
+            int bytesPerPixel = (source.BitsPerPixel + 7) / 8;
+            byte[] scaledPixelData = new byte[targetWidth * targetHeight * bytesPerPixel];
+            bool[]? scaledTransparencyMask = source.TransparencyMask != null ? new bool[targetWidth * targetHeight] : null;
+            byte[]? scaledAmvData = source.AlternateMultiplyValues != null ? new byte[targetWidth * targetHeight] : null;
+
+            // Simple nearest-neighbor scaling
+            for (int y = 0; y < targetHeight; y++)
+            {
+                for (int x = 0; x < targetWidth; x++)
+                {
+                    // Map target coordinates back to source coordinates
+                    int srcX = (x * source.Width) / targetWidth;
+                    int srcY = (y * source.Height) / targetHeight;
+
+                    // Ensure source coordinates are within bounds
+                    srcX = Math.Min(srcX, source.Width - 1);
+                    srcY = Math.Min(srcY, source.Height - 1);
+
+                    int srcPixelIndex = srcY * source.Width + srcX;
+                    int dstPixelIndex = y * targetWidth + x;
+
+                    // Copy pixel data
+                    for (int b = 0; b < bytesPerPixel; b++)
+                    {
+                        scaledPixelData[dstPixelIndex * bytesPerPixel + b] = source.PixelData[srcPixelIndex * bytesPerPixel + b];
+                    }
+
+                    // Copy transparency mask if present
+                    if (scaledTransparencyMask != null && source.TransparencyMask != null)
+                    {
+                        scaledTransparencyMask[dstPixelIndex] = source.TransparencyMask[srcPixelIndex];
+                    }
+
+                    // Copy AMV data if present
+                    if (scaledAmvData != null && source.AlternateMultiplyValues != null)
+                    {
+                        scaledAmvData[dstPixelIndex] = source.AlternateMultiplyValues[srcPixelIndex];
+                    }
+                }
+            }
+
+            return new CelImageData
+            {
+                Width = targetWidth,
+                Height = targetHeight,
+                BitsPerPixel = source.BitsPerPixel,
+                PixelData = scaledPixelData,
+                TransparencyMask = scaledTransparencyMask,
+                AlternateMultiplyValues = scaledAmvData,
+                Palette = source.Palette
+            };
+        }
+
+        /// <summary>
+        /// Unpacks 3DO IMAG (Image Control) format files and automatically unpacks the pixel data.
+        /// IMAG files have a simpler header structure than CCB and are used for static images.
+        /// Structure: IMAG chunk + PLUT chunk (optional) + PDAT chunk(s)
+        /// </summary>
+        /// <param name="imagFile">Full path to the IMAG file</param>
+        /// <param name="verbose">If true, displays IMAG header information</param>
+        /// <returns>Unpacked image data with dimensions and pixel data, or null if failed</returns>
+        public static CelImageData? UnpackImagFile(string imagFile, bool verbose = false)
+        {
+            if (!File.Exists(imagFile))
+            {
+                Console.WriteLine($"File not found: {imagFile}");
+                return null;
+            }
+
+            byte[] data = File.ReadAllBytes(imagFile);
+            return UnpackImagFile_FromBytes(data, verbose);
+        }
+
+        /// <summary>
+        /// Unpacks 3DO IMAG (Image Control) format data from a byte array.
+        /// This is useful for processing IMAG data embedded in other file formats.
+        /// </summary>
+        /// <param name="data">IMAG data bytes (must start with IMAG chunk)</param>
+        /// <param name="verbose">If true, displays IMAG header information</param>
+        /// <returns>Unpacked image data with dimensions and pixel data, or null if failed</returns>
+        public static CelImageData? UnpackImagFile_FromBytes(byte[] data, bool verbose = false)
+        {
+            if (data.Length < 0x18)
+            {
+                Console.WriteLine($"Data too small to contain an IMAG header (minimum 24 bytes, got {data.Length})");
+                return null;
+            }
+
+            using var stream = new MemoryStream(data);
+            using var reader = new BinaryReader(stream);
+
+            List<Color>? palette = null;
+            byte[]? pixelData = null;
+            int width = 0, height = 0, bytesPerRow = 0;
+            byte bitsPerPixel = 0, numComponents = 0, numPlanes = 0;
+            byte colorSpace = 0, compType = 0, hvFormat = 0, pixelOrder = 0, version = 0;
+
+            // Parse all chunks until end of file
+            while (stream.Position < data.Length - 8)
+            {
+                long chunkStart = stream.Position;
+                byte[] magic = reader.ReadBytes(4);
+
+                if (magic.Length < 4) break;
+
+                string magicStr = System.Text.Encoding.ASCII.GetString(magic);
+                uint chunkSize = ReadBigEndianUInt32(data, (int)stream.Position);
+                stream.Position += 4;
+
+                if (verbose)
+                {
+                    Console.WriteLine($"Found chunk '{magicStr}' at offset 0x{chunkStart:X}, size: {chunkSize} bytes");
+                }
+
+                if (magicStr == "IMAG")
+                {
+                    // Process IMAG chunk - Image Control structure
+                    if (chunkSize < 0x18)
+                    {
+                        Console.WriteLine($"IMAG chunk too small: {chunkSize} bytes (expected at least 24)");
+                        return null;
+                    }
+
+                    long imagDataStart = stream.Position;
+
+                    // Read IMAG header fields (all big-endian)
+                    width = ReadBigEndianInt32(data, (int)stream.Position);
+                    stream.Position += 4;
+                    height = ReadBigEndianInt32(data, (int)stream.Position);
+                    stream.Position += 4;
+                    bytesPerRow = ReadBigEndianInt32(data, (int)stream.Position);
+                    stream.Position += 4;
+
+                    bitsPerPixel = reader.ReadByte();
+                    numComponents = reader.ReadByte();
+                    numPlanes = reader.ReadByte();
+                    colorSpace = reader.ReadByte();
+                    compType = reader.ReadByte();
+                    hvFormat = reader.ReadByte();
+                    pixelOrder = reader.ReadByte();
+                    version = reader.ReadByte();
+
+                    // Apply hvformat adjustments
+                    // hvformat: 0 => 0555, 1 => 0554h (horizontal double), 2 => 0554v (vertical double), 3 => v554h
+                    // For 0554v (vertical), the image data is stored at half height and should be doubled
+                    // For 0554h (horizontal), the image data is stored at half width and should be doubled
+                    int actualWidth = width;
+                    int actualHeight = height;
+                    
+                    if (hvFormat == 1) // 0554h - horizontal double
+                    {
+                        actualWidth = width * 2;
+                    }
+                    else if (hvFormat == 2) // 0554v - vertical double
+                    {
+                        actualHeight = height * 2;
+                    }
+                    else if (hvFormat == 3) // v554h - both doubled?
+                    {
+                        actualWidth = width * 2;
+                        actualHeight = height * 2;
+                    }
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"\n=== IMAG Header ===");
+                        Console.WriteLine($"Width: {width} (actual: {actualWidth})");
+                        Console.WriteLine($"Height: {height} (actual: {actualHeight})");
+                        Console.WriteLine($"Bytes per row: {bytesPerRow}");
+                        Console.WriteLine($"Bits per pixel: {bitsPerPixel}");
+                        Console.WriteLine($"Num components: {numComponents} ({(numComponents == 1 ? "coded/indexed" : "RGB/YUV")})");
+                        Console.WriteLine($"Num planes: {numPlanes} ({(numPlanes == 1 ? "chunky" : "planar")})");
+                        Console.WriteLine($"Color space: {colorSpace} ({(colorSpace == 0 ? "RGB" : "YCrCb")})");
+                        Console.WriteLine($"Compression type: {compType} ({(compType == 0 ? "uncompressed" : compType == 1 ? "Cel bit packed" : "unknown")})");
+                        Console.WriteLine($"HV format: {hvFormat} ({(hvFormat == 0 ? "0555" : hvFormat == 1 ? "0554h (horiz double)" : hvFormat == 2 ? "0554v (vert double)" : "v554h")})");
+                        Console.WriteLine($"Pixel order: {pixelOrder} ({(pixelOrder == 0 ? "standard row-major" : pixelOrder == 1 ? "Sherrie LRform (2x2 blocks)" : "UGO LRform (2x2 blocks)")})");
+                        Console.WriteLine($"Version: {version}");
+                        Console.WriteLine($"===================\n");
+                    }
+
+                    // Update width and height to actual values
+                    width = actualWidth;
+                    height = actualHeight;
+
+                    // Skip past the entire IMAG chunk
+                    stream.Position = chunkStart + chunkSize;
+                }
+                else if (magicStr == "PLUT")
+                {
+                    // Process PLUT chunk - extract palette data
+                    uint plutDataSize = chunkSize - 12; // Subtract magic (4) + size (4) + entries count (4)
+
+                    // Skip entries count (4 bytes)
+                    stream.Position += 4;
+
+                    // Read palette data
+                    byte[] plutData = reader.ReadBytes((int)plutDataSize);
+                    palette = ExtractPaletteFromPLUT(plutData, verbose);
+                }
+                else if (magicStr == "PDAT")
+                {
+                    // Process PDAT chunk - extract pixel data
+                    uint pdatDataSize = chunkSize - 8; // Subtract magic (4) + size (4)
+                    pixelData = reader.ReadBytes((int)pdatDataSize);
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"PDAT: Extracted {pixelData.Length} bytes of pixel data");
+                    }
+                }
+                else
+                {
+                    // Unknown chunk - skip using its size
+                    uint skipSize = chunkSize - 8;
+                    if (stream.Position + skipSize > data.Length)
+                    {
+                        Console.WriteLine($"Chunk '{magicStr}' size exceeds file bounds, stopping parsing");
+                        break;
+                    }
+                    stream.Position += skipSize;
+
+                    if (verbose)
+                    {
+                        Console.WriteLine($"Skipping unknown chunk '{magicStr}' ({skipSize} bytes)");
+                    }
+                }
+            }
+
+            // Validate we have the necessary data
+            if (width <= 0 || height <= 0)
+            {
+                Console.WriteLine($"No valid IMAG chunk found or invalid dimensions (width={width}, height={height})");
+                return null;
+            }
+
+            if (pixelData == null)
+            {
+                Console.WriteLine("No pixel data found in file");
+                return null;
+            }
+
+            try
+            {
+                CelImageData result;
+
+                // Determine format from IMAG header
+                bool isCoded = (numComponents == 1); // 1 = color index, 3 = RGB
+                bool isPacked = (compType == 1);     // 0 = uncompressed, 1 = Cel bit packed
+
+                // For hvformat scaling, we need to unpack at the stored dimensions first
+                int storedWidth = width;
+                int storedHeight = height;
+                
+                // Adjust back to stored dimensions for unpacking
+                if (hvFormat == 1) // 0554h - horizontal double
+                {
+                    storedWidth = width / 2;
+                }
+                else if (hvFormat == 2) // 0554v - vertical double
+                {
+                    storedHeight = height / 2;
+                }
+                else if (hvFormat == 3) // v554h - both doubled
+                {
+                    storedWidth = width / 2;
+                    storedHeight = height / 2;
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\nDetected format: {(isCoded ? "Coded" : "Uncoded")} {(isPacked ? "Packed" : "Unpacked")}");
+                    if (hvFormat != 0)
+                    {
+                        Console.WriteLine($"Unpacking at stored dimensions: {storedWidth}x{storedHeight}");
+                        Console.WriteLine($"Will scale to final dimensions: {width}x{height}");
+                    }
+                }
+
+                // Route to the appropriate unpacking method based on format
+                // Use STORED dimensions for unpacking
+                if (isCoded && isPacked)
+                {
+                    // Coded + Packed: Use coded packed method
+                    result = UnpackCodedPackedWithDimensions(pixelData, storedWidth, storedHeight, bitsPerPixel, verbose: verbose);
+                }
+                else if (isCoded && !isPacked)
+                {
+                    // Coded + Unpacked: Use coded unpacked method
+                    result = UnpackCodedUnpackedCelData(pixelData, storedWidth, storedHeight, bitsPerPixel);
+                }
+                else if (!isCoded && isPacked)
+                {
+                    // Uncoded + Packed: Use uncoded packed method
+                    result = UnpackUncodedPackedWithDimensions(pixelData, storedWidth, storedHeight, bitsPerPixel, verbose: verbose);
+                }
+                else
+                {
+                    // Uncoded + Unpacked: Use uncoded unpacked method
+                    result = UnpackUncodedUnpackedWithDimensions(pixelData, storedWidth, storedHeight, bitsPerPixel, verbose: verbose);
+                }
+
+                // Apply pixel reordering if needed (before scaling)
+                if (pixelOrder != 0)
+                {
+                    result = ReorderPixels(result, pixelOrder, verbose);
+                }
+
+                // Apply hvformat scaling if needed
+                if (hvFormat != 0 && (width != storedWidth || height != storedHeight))
+                {
+                    result = ScaleImageData(result, width, height, hvFormat, verbose);
+                }
+
+                // Add palette data to the result if we have it
+                if (palette != null)
+                {
+                    result.Palette = palette;
+                }
+
+                if (verbose)
+                {
+                    Console.WriteLine($"\nUnpacked IMAG image:");
+                    Console.WriteLine($"  Width: {result.Width}");
+                    Console.WriteLine($"  Height: {result.Height}");
+                    Console.WriteLine($"  BPP: {result.BitsPerPixel}");
+                    Console.WriteLine($"  Pixel data size: {result.PixelData.Length} bytes");
+                    if (result.Palette != null)
+                    {
+                        Console.WriteLine($"  Palette colors: {result.Palette.Count}");
+                    }
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error unpacking IMAG data: {ex.Message}");
+                if (verbose)
+                {
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Convenience method that unpacks an IMAG file and saves it directly to PNG.
+        /// </summary>
+        /// <param name="imagFilePath">Path to the IMAG file</param>
+        /// <param name="outputPath">Path where to save the PNG file</param>
+        /// <param name="palette">Color palette to use for rendering (optional for uncoded images)</param>
         /// <param name="verbose">If true, displays diagnostic information</param>
         /// <returns>True if successful, false if failed</returns>
-        public static bool UnpackAndSaveCelFileWithAppendedChunks(string celFilePath, string headerlessFilePath, string outputPath, List<Color>? palette = null, int bitsPerPixel = 0, bool verbose = false)
+        public static bool UnpackAndSaveImagFile(string imagFilePath, string outputPath, List<Color>? palette = null, bool verbose = false)
         {
-            var celDataList = UnpackCelFileWithAppendedChunks(celFilePath, headerlessFilePath, verbose, bitsPerPixel);
-            
-            if (celDataList.Count == 0)
+            var imagData = UnpackImagFile(imagFilePath, verbose);
+            if (imagData == null)
             {
-                if (verbose) Console.WriteLine($"Failed to unpack merged CEL data");
+                if (verbose) Console.WriteLine($"Failed to unpack IMAG file: {imagFilePath}");
                 return false;
             }
 
             try
             {
-                if (celDataList.Count == 1)
-                {
-                    // Single PDAT - save with original filename
-                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette);
-                    if (verbose) Console.WriteLine($"Successfully saved merged CEL image to: {outputPath}");
-                }
-                else
-                {
-                    // Multiple PDATs - save with numbered suffixes
-                    string directory = Path.GetDirectoryName(outputPath) ?? "";
-                    string fileNameWithoutExt = Path.GetFileNameWithoutExtension(outputPath);
-                    string extension = Path.GetExtension(outputPath);
-
-                    for (int i = 0; i < celDataList.Count; i++)
-                    {
-                        string numberedPath = Path.Combine(directory, $"{fileNameWithoutExt}_{i:D4}{extension}");
-                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette);
-                        if (verbose) Console.WriteLine($"Successfully saved merged CEL image #{i + 1} to: {numberedPath}");
-                    }
-                }
-                
+                SaveCelImage(imagData, outputPath, palette ?? imagData.Palette);
+                if (verbose) Console.WriteLine($"Successfully saved IMAG image to: {outputPath}");
                 return true;
             }
             catch (Exception ex)
             {
-                if (verbose) Console.WriteLine($"Failed to save merged CEL images: {ex.Message}");
+                if (verbose) Console.WriteLine($"Failed to save IMAG image: {ex.Message}");
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Finds the first occurrence of PDAT magic ("PDAT") in a byte array.
-        /// </summary>
-        /// <param name="data">Byte array to search</param>
-        /// <returns>Offset of PDAT magic, or -1 if not found</returns>
-        private static int FindPDATMagic(byte[] data)
-        {
-            byte[] pdatMagic = { (byte)'P', (byte)'D', (byte)'A', (byte)'T' };
-            
-            for (int i = 0; i <= data.Length - 4; i++)
-            {
-                if (data[i] == pdatMagic[0] &&
-                    data[i + 1] == pdatMagic[1] &&
-                    data[i + 2] == pdatMagic[2] &&
-                    data[i + 3] == pdatMagic[3])
-                {
-                    return i;
-                }
-            }
-            
-            return -1;
         }
 
         /// <summary>
