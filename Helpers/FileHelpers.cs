@@ -1047,7 +1047,7 @@ namespace ExtractCLUT.Helpers
     /// <param name="origin">Where the origin point is located within each sprite (e.g., BottomCenter for character feet)</param>
     public static void AlignSprite(string inputFolder, string outputFolder, ExpansionOrigin origin = ExpansionOrigin.TopLeft)
     {
-      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)\.png");
+      var regex = new Regex(@"(\d+)_(-?\d+)_(-?\d+)_(-?\d+)_(-?\d+)_(-?\d+)\.png");
       var files = Directory.GetFiles(inputFolder, "*.png");
 
       if (files.Length == 0)
@@ -1068,9 +1068,9 @@ namespace ExtractCLUT.Helpers
           continue;
         }
 
-        int index = int.Parse(match.Groups[1].Value);
-        int xOffset = int.Parse(match.Groups[2].Value);
-        int yOffset = int.Parse(match.Groups[3].Value);
+        int index = int.Parse(match.Groups[2].Value);
+        int xOffset = int.Parse(match.Groups[3].Value);
+        int yOffset = int.Parse(match.Groups[4].Value);
         var bmp = new Bitmap(file);
 
         spriteInfos.Add((file, index, xOffset, yOffset, bmp));

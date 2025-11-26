@@ -2028,7 +2028,7 @@ namespace ExtractCLUT.Helpers
         try
         {
           // GenerateClutImage MUST handle potential data length mismatches if they weren't fatal earlier
-          image = (Bitmap)ImageFormatHelper.GenerateClutImage(currentPalette, decodedData, imageWidth, imageHeight, outputFileName.Contains("parch"));
+          image = (Bitmap)GenerateClutImage(currentPalette, decodedData, imageWidth, imageHeight, true);
 
           // Construct the output filename for this frame
           string frameOutputPath;

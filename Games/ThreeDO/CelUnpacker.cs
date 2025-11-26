@@ -1023,7 +1023,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="verbose">If true, displays CCB header information</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <returns>List of unpacked CEL image data (one per PDAT chunk)</returns>
-        private static List<CelImageData>  UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        public static List<CelImageData>  UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
         {
             var results = new List<CelImageData>();
 
@@ -1039,7 +1039,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
             // Store all chunks in order, then match them up properly
             var chunks = new List<(string type, int index, object data)>();
-            var ccbList = new List<(int width, int height, uint flags, uint pre0, uint pre1)>();
+            var ccbList = new List<(int width, int height, uint flags, uint pre0, uint pre1, uint pixc)>();
             var pdatList = new List<byte[]>();
             var plutList = new List<List<Color>>();
 
@@ -1088,15 +1088,27 @@ namespace ExtractCLUT.Games.ThreeDO
                     int ccbWidth = ReadBigEndianInt32(data, (int)ccbDataStart + 0x40);
                     int ccbHeight = ReadBigEndianInt32(data, (int)ccbDataStart + 0x44);
 
-                    // Store CCB data
+                    // Read PIXC word (CCB word #13) if LDPIXC flag is set (bit 24)
+                    uint pixc = 0;
+                    bool ldpixc = (ccbFlags & 0x01000000) != 0; // LDPIXC flag - bit 24
+                    if (ldpixc && chunkSize >= 0x40) // Need at least 64 bytes for PIXC at offset 0x34
+                    {
+                        pixc = ReadBigEndianUInt32(data, (int)ccbDataStart + 0x34);
+                    }
+
+                    // Store CCB data including PIXC
                     int ccbIndex = ccbList.Count;
-                    ccbList.Add((ccbWidth, ccbHeight, ccbFlags, pre0, pre1));
+                    ccbList.Add((ccbWidth, ccbHeight, ccbFlags, pre0, pre1, pixc));
                     chunks.Add(("CCB", ccbIndex, null!));
 
                     if (verbose)
                     {
                         Console.WriteLine($"CCB #{ccbIndex + 1}: Width={ccbWidth}, Height={ccbHeight}, Flags=0x{ccbFlags:X8}");
                         Console.WriteLine($"CCB #{ccbIndex + 1}: PRE0=0x{pre0:X8}, PRE1=0x{pre1:X8}");
+                        if (ldpixc)
+                        {
+                            Console.WriteLine($"CCB #{ccbIndex + 1}: PIXC=0x{pixc:X8} (LDPIXC flag set)");
+                        }
                     }
 
                     // Skip past the entire CCB chunk
@@ -1161,7 +1173,7 @@ namespace ExtractCLUT.Games.ThreeDO
             }
 
             // Now match up chunks: For each PDAT, find its preceding CCB and following/preceding PLUT
-            var pdatGroups = new List<(byte[] pixelData, int width, int height, uint flags, uint pre0, uint pre1, List<Color> palette)>();
+            var pdatGroups = new List<(byte[] pixelData, int width, int height, uint flags, uint pre0, uint pre1, uint pixc, List<Color> palette)>();
             
             for (int i = 0; i < chunks.Count; i++)
             {
@@ -1221,7 +1233,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     var ccb = ccbList[ccbIdx];
                     List<Color> palette = plutIdx >= 0 ? plutList[plutIdx] : new List<Color>();
                     
-                    pdatGroups.Add((pixelData, ccb.width, ccb.height, ccb.flags, ccb.pre0, ccb.pre1, palette));
+                    pdatGroups.Add((pixelData, ccb.width, ccb.height, ccb.flags, ccb.pre0, ccb.pre1, ccb.pixc, palette));
                     
                     if (verbose)
                     {
@@ -1280,6 +1292,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 uint flags = group.flags;
                 uint pre0 = group.pre0;
                 uint pre1 = group.pre1;
+                uint pixc = group.pixc;
                 List<Color> palette = group.palette;
 
                 if (verbose)
@@ -1289,13 +1302,17 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"PACKED: {((flags & 0x00000200) != 0)}");
                     Console.WriteLine($"CCBPRE: {((flags & 0x00400000) != 0)}");
                     Console.WriteLine($"PRE0: 0x{pre0:X8}, PRE1: 0x{pre1:X8}");
+                    if (pixc != 0)
+                    {
+                        Console.WriteLine($"PIXC: 0x{pixc:X8}");
+                    }
                     Console.WriteLine($"Width: {width}, Height: {height}");
                     Console.WriteLine($"Pixel data size: {pixelData.Length} bytes");
                     Console.WriteLine($"Palette colors: {palette.Count}");
                 }
 
                 // Process this PDAT chunk using its associated CCB header data
-                var result = ProcessSinglePDAT(pixelData, width, height, flags, pre0, pre1, bitsPerPixel, skipUncompSize, verbose);
+                var result = ProcessSinglePDAT(pixelData, width, height, flags, pre0, pre1, pixc, bitsPerPixel, skipUncompSize, verbose);
                 
                 if (result != null)
                 {
@@ -1320,7 +1337,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// Processes a single PDAT chunk with CCB header information.
         /// Extracted as helper method to be reused for multiple PDAT chunks.
         /// </summary>
-        private static CelImageData? ProcessSinglePDAT(byte[] pixelData, int ccbWidth, int ccbHeight, uint ccbFlags, uint pre0, uint pre1, int bitsPerPixel, bool skipUncompSize, bool verbose)
+        private static CelImageData? ProcessSinglePDAT(byte[] pixelData, int ccbWidth, int ccbHeight, uint ccbFlags, uint pre0, uint pre1, uint pixc, int bitsPerPixel, bool skipUncompSize, bool verbose)
         {
             // Detect format from FLAGS and PRE0/PRE1
             bool isCoded = true;
@@ -1540,8 +1557,9 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Pixel data size: {result.PixelData.Length} bytes");
                 }
 
-                // Store CCB flags in result for later use in rendering (especially for PLUT 000 transparency)
+                // Store CCB flags and PIXC in result for later use in rendering
                 result.CcbFlags = ccbFlags;
+                result.Pixc = pixc;
 
                 return result;
             }
@@ -2368,8 +2386,65 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="outputPath">Path where to save the PNG file</param>
         /// <param name="palette">Color palette to use for rendering (optional for 32bpp RGBA data)</param>
         /// <param name="ccbFlags">CCB FLAGS word - used to check BGND flag for transparency handling</param>
-        public static void SaveCelImage(CelImageData celOutput, string outputPath, List<Color>? palette = null, uint ccbFlags = 0)
+        /// <param name="pixc">PIXC control word for pixel processor operations (0 = use default AMV scaling)</param>
+        /// <param name="useFrameBufferBlending">If true, simulate frame buffer blending for transparent background effects</param>
+        /// <param name="verbose">Enable verbose logging of pixel processor operations</param>
+        public static void SaveCelImage(CelImageData celOutput, string outputPath, List<Color>? palette = null, uint ccbFlags = 0, uint pixc = 0, bool useFrameBufferBlending = false, bool verbose = false)
         {
+            // Decode PIXC control word for pixel processor operations
+            // P-mode 0 (lower 16 bits) and P-mode 1 (upper 16 bits)
+            bool pixcProvided = pixc != 0;
+            
+            // P-mode 0 bits (bits 0-15)
+            uint pixcP0 = pixc & 0xFFFF;
+            bool p0_1S = (pixcP0 & 0x8000) != 0;        // Bit 15: Primary source (0=cel, 1=frame buffer)
+            uint p0_MS = (pixcP0 >> 13) & 0x03;         // Bits 14-13: Multiplier source
+            uint p0_MF = (pixcP0 >> 10) & 0x07;         // Bits 12-10: Multiplier factor (if MS=00)
+            uint p0_DF = (pixcP0 >> 8) & 0x03;          // Bits 9-8: Divider factor
+            uint p0_2S = (pixcP0 >> 6) & 0x03;          // Bits 7-6: Secondary source
+            uint p0_AV = (pixcP0 >> 1) & 0x1F;          // Bits 5-1: Secondary source value/AV bits
+            bool p0_2D = (pixcP0 & 0x01) != 0;          // Bit 0: Secondary divider (0=1, 1=2)
+            
+            // P-mode 1 bits (bits 16-31) - same structure
+            uint pixcP1 = (pixc >> 16) & 0xFFFF;
+            bool p1_1S = (pixcP1 & 0x8000) != 0;
+            uint p1_MS = (pixcP1 >> 13) & 0x03;
+            uint p1_MF = (pixcP1 >> 10) & 0x07;
+            uint p1_DF = (pixcP1 >> 8) & 0x03;
+            uint p1_2S = (pixcP1 >> 6) & 0x03;
+            uint p1_AV = (pixcP1 >> 1) & 0x1F;
+            bool p1_2D = (pixcP1 & 0x01) != 0;
+            
+            // Decode POVER bits from CCB FLAGS (bits 8-7) to determine P-mode selection
+            uint pover = (ccbFlags >> 7) & 0x03;
+            // POVER: 00=use P-mode from pixel, 01=reserved, 10=force P-mode 0, 11=force P-mode 1
+            
+            if (verbose && pixcProvided)
+            {
+                Console.WriteLine($"\n[PIXC Pixel Processor Configuration]");
+                Console.WriteLine($"  PIXC Word: 0x{pixc:X8}");
+                Console.WriteLine($"  POVER (CCB bits 8-7): {pover} ({(pover == 0 ? "From Pixel" : pover == 2 ? "Force P-mode 0" : pover == 3 ? "Force P-mode 1" : "Reserved")})");
+                Console.WriteLine($"\n  P-mode 0 (bits 0-15): 0x{pixcP0:X4}");
+                Console.WriteLine($"    1S (Primary Source): {(p0_1S ? "Frame Buffer" : "Cel Pixel")}");
+                Console.WriteLine($"    MS (Multiplier Source): {p0_MS} ({(p0_MS == 0 ? "CCB constant" : p0_MS == 1 ? "AMV from decoder" : p0_MS == 2 ? "Both PMV+PDV from color" : "PMV from color")})");
+                if (p0_MS == 0) Console.WriteLine($"    MF (Multiplier Factor): {p0_MF + 1}");
+                Console.WriteLine($"    DF (Divider Factor): {(p0_DF == 0 ? 16 : p0_DF == 1 ? 2 : p0_DF == 2 ? 4 : 8)}");
+                Console.WriteLine($"    2S (Secondary Source): {p0_2S} ({(p0_2S == 0 ? "Zero" : p0_2S == 1 ? "CCB AV value" : p0_2S == 2 ? "Frame Buffer" : "Cel Pixel")})");
+                Console.WriteLine($"    AV (Secondary Value): {p0_AV}");
+                Console.WriteLine($"    2D (Secondary Divider): {(p0_2D ? 2 : 1)}");
+                Console.WriteLine($"\n  P-mode 1 (bits 16-31): 0x{pixcP1:X4}");
+                Console.WriteLine($"    1S: {(p1_1S ? "Frame Buffer" : "Cel Pixel")}, MS: {p1_MS}, MF: {p1_MF + 1}, DF: {(p1_DF == 0 ? 16 : p1_DF == 1 ? 2 : p1_DF == 2 ? 4 : 8)}, 2S: {p1_2S}, AV: {p1_AV}, 2D: {(p1_2D ? 2 : 1)}");
+                
+                if (useFrameBufferBlending)
+                {
+                    Console.WriteLine($"\n  Frame Buffer Blending: ENABLED (transparent background used for secondary source)");
+                }
+                else
+                {
+                    Console.WriteLine($"\n  Frame Buffer Blending: DISABLED (use default AMV scaling)");
+                }
+            }
+
             Image<Rgba32> image;
 
             // Handle 32bpp RGBA32 data first (from uncoded formats) - transparency already in alpha channel
@@ -2479,21 +2554,102 @@ namespace ExtractCLUT.Games.ThreeDO
                             }
                         }
 
-                        // Apply AMV (Alternate Multiply Value) for brightness modulation if available
+                        // Apply Pixel Processor operations (AMV and PIXC)
                         if (celOutput.AlternateMultiplyValues != null)
                         {
                             byte amv = celOutput.AlternateMultiplyValues[pixelIndex];
-                            // AMV provides 8 brightness levels (0-7)
-                            // 0 = darkest (black), 7 = full brightness
-                            // Scale color by (amv / 7.0)
-                            float multiplier = amv / 7.0f;
+                            
+                            if (pixcProvided && useFrameBufferBlending)
+                            {
+                                // Use P-mode 0 settings (most common for coded 8bpp with AMV)
+                                // Apply full 3DO pixel processor pipeline
+                                
+                                // Primary Source - the cel pixel color
+                                Rgba32 primarySource = baseColor;
+                                
+                                // Primary Multiplier Value (PMV)
+                                float pmv = 1.0f;
+                                if (p0_MS == 0)
+                                {
+                                    // Use CCB constant (MF + 1)
+                                    pmv = p0_MF + 1;
+                                }
+                                else if (p0_MS == 1)
+                                {
+                                    // Use AMV from decoder (0-7 maps to 1-8)
+                                    pmv = amv + 1;
+                                }
+                                else if (p0_MS == 3)
+                                {
+                                    // Use color value from decoder as PMV (top 3 bits of RGB)
+                                    // For simplicity, average the R, G, B top bits
+                                    float colorPmv = ((baseColor.R >> 5) + (baseColor.G >> 5) + (baseColor.B >> 5)) / 3.0f;
+                                    pmv = colorPmv + 1; // 0-7 → 1-8
+                                }
+                                
+                                // Primary Divider Value (PDV)
+                                float pdv = p0_DF == 0 ? 16.0f : p0_DF == 1 ? 2.0f : p0_DF == 2 ? 4.0f : 8.0f;
+                                
+                                // Scale primary source
+                                float primaryScale = pmv / pdv;
+                                Rgba32 scaledPrimary = new Rgba32(
+                                    (byte)Math.Min(255, baseColor.R * primaryScale),
+                                    (byte)Math.Min(255, baseColor.G * primaryScale),
+                                    (byte)Math.Min(255, baseColor.B * primaryScale),
+                                    baseColor.A
+                                );
+                                
+                                // Secondary Source
+                                Rgba32 secondarySource = new Rgba32(0, 0, 0, 0);
+                                if (p0_2S == 1)
+                                {
+                                    // CCB AV value (constant grayscale)
+                                    byte avValue = (byte)((p0_AV * 255) / 31);
+                                    secondarySource = new Rgba32(avValue, avValue, avValue, 255);
+                                }
+                                else if (p0_2S == 2)
+                                {
+                                    // Frame buffer pixel (transparent = black for blending)
+                                    secondarySource = new Rgba32(0, 0, 0, 0);
+                                }
+                                else if (p0_2S == 3)
+                                {
+                                    // Cel pixel itself
+                                    secondarySource = baseColor;
+                                }
+                                
+                                // Secondary divider
+                                float sdv = p0_2D ? 2.0f : 1.0f;
+                                Rgba32 scaledSecondary = new Rgba32(
+                                    (byte)Math.Min(255, secondarySource.R / sdv),
+                                    (byte)Math.Min(255, secondarySource.G / sdv),
+                                    (byte)Math.Min(255, secondarySource.B / sdv),
+                                    secondarySource.A
+                                );
+                                
+                                // Final math stage - add primary and secondary (most common for fire effects)
+                                baseColor = new Rgba32(
+                                    (byte)Math.Min(255, scaledPrimary.R + scaledSecondary.R),
+                                    (byte)Math.Min(255, scaledPrimary.G + scaledSecondary.G),
+                                    (byte)Math.Min(255, scaledPrimary.B + scaledSecondary.B),
+                                    255 // Keep opaque
+                                );
+                            }
+                            else
+                            {
+                                // Simple AMV scaling (legacy behavior when PIXC not provided)
+                                // AMV provides 8 brightness levels (0-7)
+                                // Map to 1-8 range for multiplication, then divide by 8 for normalization
+                                // This gives: 0→0.125, 1→0.25, 2→0.375, ..., 7→1.0
+                                float multiplier = (amv + 1) / 8.0f;
 
-                            baseColor = new Rgba32(
-                                (byte)(baseColor.R * multiplier),
-                                (byte)(baseColor.G * multiplier),
-                                (byte)(baseColor.B * multiplier),
-                                baseColor.A
-                            );
+                                baseColor = new Rgba32(
+                                    (byte)Math.Min(255, baseColor.R * multiplier),
+                                    (byte)Math.Min(255, baseColor.G * multiplier),
+                                    (byte)Math.Min(255, baseColor.B * multiplier),
+                                    baseColor.A
+                                );
+                            }
                         }
 
                         image[x, y] = baseColor;
@@ -2768,6 +2924,14 @@ namespace ExtractCLUT.Games.ThreeDO
                             // Extract CCB flags for transparency handling
                             uint ccbFlags = (uint)ReadBigEndianInt32(ccbToUse, 8);
 
+                            // Extract PIXC word (CCB word #13) if LDPIXC flag is set (bit 24)
+                            uint pixc = 0;
+                            bool ldpixc = (ccbFlags & 0x01000000) != 0;
+                            if (ldpixc && ccbToUse.Length >= 60) // Need at least 60 bytes for PIXC at offset 52
+                            {
+                                pixc = (uint)ReadBigEndianInt32(ccbToUse, 52); // PIXC is CCB word #13 (offset 52 from CCB start)
+                            }
+
                             // Log transparency status
                             if (verbose)
                             {
@@ -2783,8 +2947,8 @@ namespace ExtractCLUT.Games.ThreeDO
                                     $"Transparent pixels={transparentPixels}/{totalPixels} ({100.0 * transparentPixels / totalPixels:F1}%)");
                             }
 
-                            // Save the frame with CCB flags for proper transparency handling
-                            SaveCelImage(celImageData, frameOutputPath, paletteToUse, ccbFlags);
+                            // Save the frame with CCB flags and PIXC for proper transparency handling and pixel processor simulation
+                            SaveCelImage(celImageData, frameOutputPath, paletteToUse, ccbFlags, pixc, useFrameBufferBlending: false, verbose);
                             
                             if (verbose)
                             {
@@ -3329,7 +3493,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
             try
             {
-                SaveCelImage(imagData, outputPath, palette ?? imagData.Palette, imagData.CcbFlags);
+                SaveCelImage(imagData, outputPath, palette ?? imagData.Palette, imagData.CcbFlags, imagData.Pixc, useFrameBufferBlending: false, verbose);
                 if (verbose) Console.WriteLine($"Successfully saved IMAG image to: {outputPath}");
                 return true;
             }
@@ -3364,7 +3528,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 if (celDataList.Count == 1)
                 {
                     // Single PDAT - save with original filename
-                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette, celDataList[0].CcbFlags);
+                    SaveCelImage(celDataList[0], outputPath, palette ?? celDataList[0].Palette, celDataList[0].CcbFlags, celDataList[0].Pixc, useFrameBufferBlending: false, verbose);
                     if (verbose) Console.WriteLine($"Successfully saved CEL image to: {outputPath}");
                 }
                 else
@@ -3377,7 +3541,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     for (int i = 0; i < celDataList.Count; i++)
                     {
                         string numberedPath = Path.Combine(directory, $"{fileNameWithoutExt}_{i:D4}{extension}");
-                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette, celDataList[i].CcbFlags);
+                        SaveCelImage(celDataList[i], numberedPath, palette ?? celDataList[i].Palette, celDataList[i].CcbFlags, celDataList[i].Pixc, useFrameBufferBlending: true, verbose);
                         if (verbose) Console.WriteLine($"Successfully saved CEL image #{i + 1} to: {numberedPath}");
                     }
                 }
@@ -3429,5 +3593,13 @@ namespace ExtractCLUT.Games.ThreeDO
         /// Important for PLUT 000 transparency handling (BGND flag at bit 5).
         /// </summary>
         public uint CcbFlags { get; set; } = 0;
+
+        /// <summary>
+        /// PIXC word from CCB (word #13) - Pixel Processor Control.
+        /// Controls pixel processor math operations for blending, scaling, and effects.
+        /// Contains P-mode 0 (bits 0-15) and P-mode 1 (bits 16-31) settings.
+        /// Only populated when LDPIXC flag (bit 24 of FLAGS) is set in CCB.
+        /// </summary>
+        public uint Pixc { get; set; } = 0;
     }
 }
