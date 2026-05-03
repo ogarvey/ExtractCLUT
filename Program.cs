@@ -42,7 +42,7 @@ foreach (var gfxFile in bndFiles)
     }
 }
 
-// testy mc test face
+// testy mc test face, round 2 electric boogaloo
 
 var packFileDir = @"C:\Dev\Gaming\PC\Dos\Games\007-James-Bond---The-Stealth-Affair_DOS_EN\PackFiles";
 var packFiles = Directory.GetFiles(packFileDir, "*", SearchOption.TopDirectoryOnly);
