@@ -104,7 +104,7 @@ namespace ExtractCLUT.Games.ThreeDO.EoT
         /// <param name="chaData">Complete CHA file data</param>
         /// <param name="pidData">Complete PID file data (array of DWORDs indicating sprite sizes)</param>
         /// <returns>Array of decompressed sprites</returns>
-        public static SpriteData[] ExtractAllSprites(byte[] chaData, byte[] pidData)
+        public static SpriteData[] ExtractAllSprites(byte[] chaData, byte[] pidData, bool isChar = false)
         {
             if (chaData == null || pidData == null)
                 throw new ArgumentException("Invalid file data");
@@ -112,10 +112,10 @@ namespace ExtractCLUT.Games.ThreeDO.EoT
             using (var pidReader = new BinaryReader(new MemoryStream(pidData)))
             {
                 // First DWORD in PID is often special/header, read and skip it
-                uint firstEntry = pidReader.ReadUInt32();
+                if (isChar) pidReader.ReadUInt32();
 
                 // Calculate number of sprites (remaining bytes / 4)
-                int spriteCount = (int)((pidData.Length - 4) / 4);
+                int spriteCount = pidData.Length  / 4 - (isChar ? 1 : 0);
                 var sprites = new SpriteData[spriteCount];
 
                 int currentOffset = 0;

@@ -38,7 +38,7 @@ namespace ExtractCLUT.Games.PC.Voodoo
 				reader.BaseStream.Seek(entry.NameOffset, SeekOrigin.Begin);
 				reader.ReadByte();
 				var nameLength = reader.ReadByte();
-				entry.Name = new string(reader.ReadChars(nameLength));
+				entry.Name = new string(reader.ReadChars(nameLength)).TrimEnd('\0');
 
 				entries.Add(entry);
 				reader.BaseStream.Seek(currentPos, SeekOrigin.Begin);

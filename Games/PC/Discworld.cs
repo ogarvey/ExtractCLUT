@@ -98,7 +98,7 @@ namespace ExtractCLUT.Games.PC
                         }
                     }
                 }
-                var imageDataOffset = chunks.Where(c => c.ChunkType == ScnChunkType.BLOCKS).FirstOrDefault().Offset + chunkHeaderLength;
+                var imageDataOffset = chunks.FirstOrDefault(c => c.ChunkType == ScnChunkType.BLOCKS).Offset + chunkHeaderLength;
                 var imageData = data.Skip(imageDataOffset).ToArray();
                 var tileOutputFolder = Path.Combine(Path.GetDirectoryName(scnFile), "Tiles_NEW", Path.GetFileNameWithoutExtension(scnFile));
                 //Directory.CreateDirectory(tileOutputFolder);

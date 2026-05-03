@@ -8,6 +8,56 @@ namespace ExtractCLUT.Helpers
 {
   public static class ColorHelper
   {
+    // This function can both swizzle and unswizzle PS2 palette
+    // It supports 32bit and 16bit palettes
+    public static byte[] ConvertPs2Palette(byte[] paletteData)
+    {
+      if (paletteData == null)
+      {
+        throw new ArgumentNullException(nameof(paletteData));
+      }
+
+      byte[] convertedPaletteData = new byte[paletteData.Length];
+      int bytesPerPalettePixel = 4;
+
+      // Integer division equivalent to int(len(palette_data) / 32)
+      int parts = paletteData.Length / 32;
+      int stripes = 2;
+      int colors = 8;
+      int blocks = 2;
+      int index = 0;
+      int writeOffset = 0;
+
+      for (int part = 0; part < parts; part++)
+      {
+        for (int block = 0; block < blocks; block++)
+        {
+          for (int stripe = 0; stripe < stripes; stripe++)
+          {
+            for (int color = 0; color < colors; color++)
+            {
+              int paletteIndex = index
+                                 + part * colors * stripes * blocks
+                                 + block * colors
+                                 + stripe * stripes * colors
+                                 + color;
+
+              int paletteOffset = paletteIndex * bytesPerPalettePixel;
+
+              // Ensure we don't read past the end of the array
+              if (paletteOffset + bytesPerPalettePixel <= paletteData.Length)
+              {
+                Array.Copy(paletteData, paletteOffset, convertedPaletteData, writeOffset, bytesPerPalettePixel);
+              }
+
+              writeOffset += bytesPerPalettePixel;
+            }
+          }
+        }
+      }
+
+      return convertedPaletteData;
+    }
     public static List<Color> GenerateColors(int count)
     {
       List<Color> colors = new List<Color>();
@@ -162,6 +212,22 @@ namespace ExtractCLUT.Helpers
         byte red = translate ? VgaTranslate(bytes[i]) : (bytes[i]);
         byte green = translate ? VgaTranslate(bytes[i + 1]) : (bytes[i + 1]);
         byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
+
+        Rgba32 color = new Rgba32(red, green, blue);
+        colors.Add(color);
+      }
+      return colors;
+    }
+
+    public static List<SixLabors.ImageSharp.Color> ConvertRgbxIS(byte[] bytes, bool translate = false)
+    {
+      List<SixLabors.ImageSharp.Color> colors = new List<SixLabors.ImageSharp.Color>();
+      for (int i = 0; i < bytes.Length - 3; i += 4)
+      {
+        byte red = translate ? VgaTranslate(bytes[i]) : (bytes[i]);
+        byte green = translate ? VgaTranslate(bytes[i + 1]) : (bytes[i + 1]);
+        byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
+        // byte alpha = translate ? VgaTranslate(bytes[i + 3]) : (bytes[i + 3]);
 
         Rgba32 color = new Rgba32(red, green, blue);
         colors.Add(color);

@@ -1,158 +1,1072 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 using ExtractCLUT;
-using ExtractCLUT.Games.Generic;
-using ExtractCLUT.Games.PC.Delphine;
-using ExtractCLUT.Games.PC.TSage;
 using ExtractCLUT.Helpers;
-using ExtractCLUT.Games.PC.AniMagic;
-using ExtractCLUT.Games.Sega.Saturn;
-using ExtractCLUT.Games.ThreeDO.ShadowWarrior;
-using ExtractCLUT.Games.PC.TLJ;
-using ExtractCLUT.Games.PC;
-using ExtractCLUT.Games.PC.HopkinsFBI;
-using ExtractCLUT.Games.PC.Eradicator;
-using ExtractCLUT.Games;
-using ExtractCLUT.Games.PC.Anvil;
-using ExtractCLUT.Games.PC.Interspective;
-using ExtractCLUT.Games.PC.Prince;
-using ExtractCLUT.Games.PC.JackOrlando;
-using ExtractCLUT.Games.Generic.ScummVM.Decompression;
-using OGLibCDi.Models;
 using Rectangle = SixLabors.ImageSharp.Rectangle;
 using SixLabors.ImageSharp;
-using ExtractCLUT.Games.PC.Mario.TMD;
 using SixLabors.ImageSharp.PixelFormats;
-using ExtractCLUT.Games.PC.Bubsy;
 using Color = SixLabors.ImageSharp.Color;
-using ExtractCLUT.Games.PC.MADE;
-using ExtractCLUT.Games.PC.AlienCabal;
-using ExtractCLUT.Games.PC.AlienTrilogy;
-using static ExtractCLUT.Games.PC.IconRLEDecompressor;
-using ExtractCLUT.Games.PC.Cryo;
 using Image = SixLabors.ImageSharp.Image;
 using SixLabors.ImageSharp.Processing;
 using Point = SixLabors.ImageSharp.Point;
-using ExtractCLUT.Games.ThreeDO;
-using ExtractCLUT.Games.ThreeDO.WotW;
-using FormatHelper = ExtractCLUT.Games.PC.Mario.TMD.FormatHelper;
+using SixLabors.ImageSharp.Drawing.Processing;
+using ExtractCLUT.Games.Amiga;
+using ExtractCLUT.Models;
+using ExtractCLUT.Games.PC.Youngblood;
+using ExtractCLUT.Games.PC.Abomination;
+using ExtractCLUT.Games.PC.AtomicBomberman;
+using ExtractCLUT.Games.PC.Arcturus;
+using ExtractCLUT.Games.PC.BlackMagic;
+using ExtractCLUT.Games.Generic;
 using ExtractCLUT.Games.ThreeDO.EoT;
+using ExtractCLUT.Games.PC.EoL;
+using SkiaSharp;
+using ExtractCLUT.Games.PC.MoonChild;
+using ExtractCLUT.Games.PSX.Korokke;
+using ExtractCLUT.Games.PC.Delphine;
+using ExtractCLUT.Games.PC.AlienTrilogy;
 
-var animFileDir = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\CLAW\ANIS";
-var animFiles = Directory.GetFiles(animFileDir, "*.ANI", SearchOption.TopDirectoryOnly);
 
-var framesFolder = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\Claw\images";
-var framesPngs = Directory.GetFiles(framesFolder, "*.png", SearchOption.TopDirectoryOnly);
-
-foreach (var animFile in animFiles)
+var gfxDir = @"C:\Dev\Gaming\PC\Dos\Games\ALIEN_TRILOGY_PC\CD\NME";
+//var gfxFiles = Directory.GetFiles(gfxDir, "*.B16", SearchOption.TopDirectoryOnly);
+var bndFiles = Directory.GetFiles(gfxDir, "*.BND", SearchOption.TopDirectoryOnly);
+//var allFiles = gfxFiles.Concat(bndFiles).ToList();
+foreach (var gfxFile in bndFiles)
 {
-	using var animReader = new BinaryReader(File.OpenRead(animFile));
-	animReader.ReadBytes(0xC);
-	var frameCount = animReader.ReadUInt32();
-	var nameLength = animReader.ReadUInt32();
-	Console.WriteLine($"ANIM Frame Count: {frameCount}");
-	animReader.BaseStream.Seek(0x20, SeekOrigin.Begin);
-	var nameBytes = animReader.ReadBytes((int)nameLength);
-	var name = Encoding.ASCII.GetString(nameBytes);
-	Console.WriteLine($"ANIM Image Folder: {name}");
-	var animOutputFolder = Path.Combine(framesFolder, $"{Path.GetFileNameWithoutExtension(animFile)}");
-	Directory.CreateDirectory(animOutputFolder);
-
-	for (int i = 0; i < frameCount; i++)
-	{
-		var unk1 = animReader.ReadUInt16();
-		var unk2 = animReader.ReadUInt16();
-		if (unk2 != 3)
-		{
-			animReader.BaseStream.Seek(-4, SeekOrigin.Current);
-			var s = animReader.ReadNullTerminatedString();
-			Console.WriteLine($"Warning: Unexpected unk2 value {unk2} at frame {i}");
-			i--;
-			continue;
-		}
-		var unk3 = animReader.ReadUInt16();
-		var unk4 = animReader.ReadUInt16();
-		var frameId = animReader.ReadUInt16();
-		var unk5 = animReader.ReadInt16();
-		var unk6 = animReader.ReadInt16();
-		var unk7 = animReader.ReadInt16();
-		var unk8 = animReader.ReadInt16();
-		var unk9 = animReader.ReadInt16();
-
-
-		var framePng = framesPngs.Where(f => Path.GetFileNameWithoutExtension(f).StartsWith($"{frameId:D3}_")).FirstOrDefault();
-		if (framePng == null)
-		{
-			Console.WriteLine($"Warning: No PNG found for frame ID {frameId}");
-			continue;
-		}
-		var outputPng = Path.Combine(animOutputFolder, $"{i}_{Path.GetFileNameWithoutExtension(framePng)}_{unk5}_{unk9}.png");
-		File.Copy(framePng, outputPng, overwrite: true);
-	}
-	var alignedFolder = Path.Combine(animOutputFolder, "aligned");
-	FileHelpers.AlignSprite(animOutputFolder, alignedFolder, ExpansionOrigin.MiddleCenter);
-	// delete unaligned files
-	var unalignedFiles = Directory.GetFiles(animOutputFolder, "*.png", SearchOption.TopDirectoryOnly);
-	foreach (var unalignedFile in unalignedFiles)
-	{
-		File.Delete(unalignedFile);
-	}
-	// move aligned files to main folder
-	var alignedFiles = Directory.GetFiles(alignedFolder, "*.png", SearchOption.TopDirectoryOnly);
-	foreach (var alignedFile in alignedFiles)
-	{
-		var destFile = Path.Combine(animOutputFolder, Path.GetFileName(alignedFile));
-		File.Move(alignedFile, destFile, overwrite: true);
-	}
-	Directory.Delete(alignedFolder);
+    try
+    {
+        GfxHelper.ExtractGfxFile(gfxFile);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"An error occurred during GFX extraction of {gfxFile}: {ex.Message}");
+    }
 }
 
-var clawDir = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\Claw\images";
-//FileHelpers.AlignSprite(clawDir, Path.Combine(clawDir, "aligned"), ExpansionOrigin.MiddleCenter);
-var pidFiles = Directory.GetFiles(clawDir, "*.PID", SearchOption.AllDirectories);
-var palFileClaw = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\LEVEL11\PALETTES\MAIN.PAL";
-var palDataClaw = File.ReadAllBytes(palFileClaw);
-var clawPalette = ColorHelper.ConvertBytesToRgbIS(palDataClaw);
-foreach (var (clawFile, index) in pidFiles.WithIndex())
+var packFileDir = @"C:\Dev\Gaming\PC\Dos\Games\007-James-Bond---The-Stealth-Affair_DOS_EN\PackFiles";
+var packFiles = Directory.GetFiles(packFileDir, "*", SearchOption.TopDirectoryOnly);
+
+foreach (var packFile in packFiles)
 {
-	var clawPid = new PIDFile(clawFile);
-	if (clawPid.IsInverted || clawPid.IsMirrored || clawPid.HasPalette)
+	var pack = new PartFile(packFile);
+	if (pack.ParseFile())
 	{
-		Console.WriteLine($"Found inverted/mirrored PID file: {Path.GetFileName(clawFile)}");
-		Debugger.Break();
-	}
-	var image = ImageFormatHelper.GenerateIMClutImage(clawPalette, clawPid.Data, (int)clawPid.Width, (int)clawPid.Height, true);
-	var outputPng = "";
-	if (Path.GetFileNameWithoutExtension(clawFile).StartsWith("FRAME"))
-	{
-		var frameId = int.Parse(Path.GetFileNameWithoutExtension(clawFile).Substring(5));
-		outputPng = Path.Combine(Path.GetDirectoryName(clawFile)!, $"{frameId:D3}_{clawPid.OffsetX}_{clawPid.OffsetY}.png");
+		var outDir = Path.Combine(Path.GetDirectoryName(packFile)!, $"{Path.GetFileNameWithoutExtension(packFile)}_output");
+		Directory.CreateDirectory(outDir);
+		foreach (var sub in pack.SubFiles)
+		{
+			var outputFile = Path.Combine(outDir, sub.Name.RemoveInvalidFileNameChars());
+			if(sub.Data != null && sub.Data.Length > 0) File.WriteAllBytes(outputFile, sub.Data);
+			Console.WriteLine($"Extracted {sub.Name} with size {sub.Size} bytes (compressed: {sub.CompressedSize} bytes)");
+		}
 	}
 	else
 	{
-		outputPng = Path.ChangeExtension(clawFile, ".png");
+		Console.WriteLine($"Failed to parse {Path.GetFileName(packFile)}");
 	}
-	image.SaveAsPng(outputPng);
 }
 
 
-var unkFileDir = @"C:\Dev\Gaming\PC\Dos\Games\Veil Of Darkness (1993)(Strategic Simulations Inc)\res1_output\";
-var unkFiles = Directory.GetFiles(unkFileDir, "*.bin", SearchOption.TopDirectoryOnly);
+var ancPath = @"C:\Dev\Gaming\Sony\PSX\Games\KOROKKE\BIND_output\";
+var ancFiles = Directory.GetFiles(ancPath, "*.ANM", SearchOption.TopDirectoryOnly);
 
-var palFile = @"C:\Dev\Gaming\PC\Dos\Games\Veil Of Darkness (1993)(Strategic Simulations Inc)\colors";
-var palData = File.ReadAllBytes(palFile);
-var palette = ColorHelper.ConvertBytesToRgbIS(palData.Skip(6145).ToArray(), true);
-
-
-foreach (var unkFile in unkFiles)
+foreach (var ancFile in ancFiles)
 {
-	var unkData = File.ReadAllBytes(unkFile);
-	var decomp = VoD.Decompress(unkData);
-	Console.WriteLine($"Decompressed Image: {decomp.Width}x{decomp.Height}, Data Size: {decomp.Data.Length} bytes");
-	var outputFile = Path.ChangeExtension(unkFile, $".{decomp.Width}x{decomp.Height}_{decomp.StartX}.png");
-	var image = ImageFormatHelper.GenerateIMClutImage(palette, decomp.Data, decomp.Width, decomp.Height, true);
+	var ancOut = Path.Combine(Path.GetDirectoryName(ancFile)!, "anm_images", $"{Path.GetFileNameWithoutExtension(ancFile)}_output");
+	KorokkeExtractor.Extract(ancFile, ancOut, null, 0);
+}
+
+var bindTbl = @"C:\Dev\Gaming\Sony\PSX\Games\KOROKKE\BIND.TBL";
+var bindDat = @"C:\Dev\Gaming\Sony\PSX\Games\KOROKKE\BIND.DAT";
+
+var bindNamesAndSizes = new List<(string Name, uint Size)>();
+
+using var tableReader = new BinaryReader(File.OpenRead(bindTbl));
+while (tableReader.BaseStream.Position < tableReader.BaseStream.Length)
+{
+	var nameBytes = tableReader.ReadBytes(10);
+	var name = Encoding.ASCII.GetString(nameBytes).TrimEnd('\0');
+	var size = tableReader.ReadUInt24();
+	// size should be rounded up to next multiple of 2048
+	size = (size + 2047) & ~2047u;
+	bindNamesAndSizes.Add((name, size));
+}
+
+Console.WriteLine($"Found {bindNamesAndSizes.Count} entries in BIND.TBL:");
+
+using var dataReader = new BinaryReader(File.OpenRead(bindDat));
+var bindOutputFolder = Path.Combine(Path.GetDirectoryName(bindDat)!, $"{Path.GetFileNameWithoutExtension(bindDat)}_output");
+Directory.CreateDirectory(bindOutputFolder);
+
+foreach (var (name, size) in bindNamesAndSizes)
+{
+	var data = dataReader.ReadBytes((int)size);
+	var outputFile = Path.Combine(bindOutputFolder, name);
+	File.WriteAllBytes(outputFile, data);
+	Console.WriteLine($"  Extracted {name} with size {size} bytes");
+}
+
+
+var mcMapFile = @"C:\Dev\Gaming\PC\Win\Games\MoonChild\Data\Lvl34.map";
+var mcTilesetFile = @"C:\Dev\Gaming\PC\Win\Games\MoonChild\Data\MC_Output_TP\PATS3._tp.png";
+var mcMapImage = MoonChild.CreateMoonChildMap(mcMapFile, 287, 287, mcTilesetFile);
+var mcMapOutputFile = Path.ChangeExtension(mcMapFile, "_map.png");
+mcMapImage.SaveAsPng(mcMapOutputFile);
+
+var artFile = @"C:\Dev\Gaming\PC\Win\Games\MoonChild\Data\Mc.art";
+using var artReader = new BinaryReader(File.OpenRead(artFile));
+var artFilesCount = artReader.ReadUInt32();
+var artOffsetsWithNames = new List<(uint Offset, string Name)>();
+for (int i = 0; i < artFilesCount; i++)
+{
+	var offset = artReader.ReadUInt32();
+	var nameBytes = artReader.ReadBytes(16);
+	var name = Encoding.ASCII.GetString(nameBytes).TrimEnd('\0');
+	artOffsetsWithNames.Add((offset, name));
+}
+
+var artOutputDir = Path.Combine(Path.GetDirectoryName(artFile)!, $"{Path.GetFileNameWithoutExtension(artFile)}_output");
+Directory.CreateDirectory(artOutputDir);
+
+foreach (var ((offset, name), aIndex) in artOffsetsWithNames.WithIndex())
+{
+	artReader.BaseStream.Seek(offset, SeekOrigin.Begin);
+	var nextOffset = (aIndex < artOffsetsWithNames.Count - 1) ? artOffsetsWithNames[aIndex + 1].Offset : artReader.BaseStream.Length;
+	var dataSize = nextOffset - offset;
+	var artData = artReader.ReadBytes((int)dataSize);
+
+	var outputFile = Path.Combine(artOutputDir, name);
+	File.WriteAllBytes(outputFile, artData);
+}
+
+
+
+var fx5Dir = @"C:\Dev\Gaming\PC\Dos\Games\Eol-ui_Moheom_1995\EoluiM\";
+var fx5Files = Directory.GetFiles(fx5Dir, "*.FX5", SearchOption.TopDirectoryOnly);
+
+var palFiles = Directory.GetFiles(fx5Dir, "*.PAL", SearchOption.TopDirectoryOnly);
+
+foreach (var fx5File in fx5Files)
+{
+	foreach (var palFile in palFiles)
+	{
+		var fx5 = new Fx5(fx5File, true);
+		fx5.ParseImages(palFile);
+		var fxOutputPath = Path.Combine(Path.GetDirectoryName(fx5File)!, "FX5", $"{Path.GetFileNameWithoutExtension(palFile)}", $"{Path.GetFileNameWithoutExtension(fx5File)}_output");
+		Directory.CreateDirectory(fxOutputPath);
+		fx5.SaveImages(fxOutputPath);
+	}
+}
+
+
+var dalmpalfile = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALMA.PAL";
+// var dalmpalData = File.ReadAllBytes(dalmpalfile).Take(0x30).ToArray();
+// var dalmpal = ColorHelper.ConvertBytesToRgbIS(dalmpalData, true);
+
+// var idxFile = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALM_IDX.KKH";
+// var actFile = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALM_ACT.KKH";
+
+// var chaFile = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALMA.CHA";
+// var pidFile = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALMA.PID";
+// var chaData = File.ReadAllBytes(chaFile);
+// var pidData = File.ReadAllBytes(pidFile);
+
+// var sprites = CHASpriteDecompressor.ExtractAllSprites(chaData, pidData,true);
+
+
+// Console.WriteLine($"\nLoading IDX file: { idxFile}");
+// byte[] idxData = File.ReadAllBytes(idxFile);
+// Console.WriteLine($"  Size: {idxData.Length} bytes");
+
+// Console.WriteLine($"Loading ACT file: {actFile}");
+// byte[] actData = File.ReadAllBytes(actFile);
+// Console.WriteLine($"  Size: {actData.Length} bytes");
+
+// Console.WriteLine("\nExporting animations...");
+// var animInputDir = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA\DALMA_sprites_output\palette_1";
+// string animationsDir = Path.Combine(animInputDir, "animations_new_raw");
+// Directory.CreateDirectory(animationsDir);
+
+// var animations = AnimationExporter.LoadAllAnimations(idxData, actData, sprites);
+
+// var (frameW, frameH) = AnimationExporter.ExportAnimationFramesFromImages(animations[37], animInputDir, animFramesDir, "anim", facing: 0);
+
+// for (int i = 0; i < animations.Length; i++)
+// {
+// 	var anim = animations[i];
+// 	if (anim == null || anim.Frames == null || anim.Frames.Length == 0)
+// 		continue;
+
+// 	Console.WriteLine($"\nAnimation {i}: {anim.Frames.Length} frames");
+
+// 	string animFramesDir = Path.Combine(animationsDir, $"anim_{i:D3}_frames");
+// 	var (frameW, frameH) = AnimationExporter.ExportAnimationFramesFromImages(anim, animInputDir, animFramesDir, "anim", facing: 0);
+// 	Console.WriteLine($"  Frames: {anim.Frames.Length} x {frameW}x{frameH} -> {Path.GetFileName(animFramesDir)}/");
+
+// }
+
+// foreach (var (sprite, sIndex) in sprites.WithIndex())
+// {
+// 	var outputFilePath = Path.Combine(Path.GetDirectoryName(chaFile)!, $"{Path.GetFileNameWithoutExtension(chaFile)}_sprite_{sIndex:D3}.bin");
+// 	var outputData = ImageFormatHelper.ConvertPlanarToLinear(sprite.Pixels, sprite.Height, sprite.Width);
+// 	File.WriteAllBytes(outputFilePath, outputData);
+// }
+
+// var chip1 = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map\01\01_1chip.bmp";
+// var chip2 = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map\01\01_2chip.bmp";
+// var mask1 = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map\01\01_1MASK.BMP";
+// var mask2 = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map\01\01_2MASK.BMP";
+
+// var mapFile = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map\01\01_1.MAP";
+// var mapFileParser = new MapFileParser();
+// var parsedMap = mapFileParser.Parse(mapFile);
+// var mapOutputDir = Path.Combine(Path.GetDirectoryName(mapFile)!, $"{Path.GetFileNameWithoutExtension(mapFile)}_output");
+// Directory.CreateDirectory(mapOutputDir);
+// mapFileParser.ExportTerrain(mapFile, chip1, mapOutputDir);
+
+// var scmDir = @"C:\Dev\Gaming\PC\Win\Games\Black-Magic_Win_EN_English-Translated-Game\BlackMagic\Main\Map";
+// var scmFiles = Directory.GetFiles(scmDir, "*.SCM", SearchOption.AllDirectories);
+// foreach (var scmFile in scmFiles)
+// {
+// 	var scmParser = new ScmParser();
+// 	var parsedScm = scmParser.Parse(scmFile);
+// 	var outDir = Path.Combine(Path.GetDirectoryName(scmFile)!, $"{Path.GetFileNameWithoutExtension(scmFile)}_output");
+// 	Directory.CreateDirectory(outDir);
+// 	scmParser.ExportAlignedCompositeFrames(parsedScm, outDir, 0, true);
+// }
+
+// var mapFile = @"C:\Dev\Gaming\PC\Win\Games\AKUMA\Akuma\map\a1.Map";
+// using var mapReader = new BinaryReader(File.OpenRead(mapFile));
+// var widthByte = mapReader.ReadByte();
+// var heightByte = mapReader.ReadByte();
+
+// var tileList = new List<ushort>();
+// var altTileList = new List<ushort>();
+
+// while (mapReader.BaseStream.Position < 0x10002)
+// {
+// 	var tileIndex = mapReader.ReadUInt16();
+// 	tileList.Add(tileIndex);
+// 	var altTileIndex = mapReader.ReadUInt16();
+// 	altTileList.Add(altTileIndex);
+// }
+
+// var tileImageFolder = @"C:\Dev\Gaming\PC\Win\Extractions\Akuma\Tiles_st1";
+// var altTileImageFolder = @"C:\Dev\Gaming\PC\Win\Extractions\Akuma\Tiles_st3";
+// var tileFiles = Directory.GetFiles(tileImageFolder, "*.png", SearchOption.TopDirectoryOnly);
+// var altTileFiles = Directory.GetFiles(altTileImageFolder, "*.png", SearchOption.TopDirectoryOnly);
+// // filename in format `slice_0_0.png`, order by first int then second int
+// tileFiles = tileFiles.OrderBy(f =>
+// {
+// 	var name = Path.GetFileNameWithoutExtension(f);
+// 	var parts = name.Split('_');
+// 	if (parts.Length == 3 && int.TryParse(parts[1], out int x) && int.TryParse(parts[2], out int y))
+// 	{
+// 		return (x, y);
+// 	}
+// 	return (int.MaxValue, int.MaxValue);
+// }).ToArray();
+
+// altTileFiles = altTileFiles.OrderBy(f =>
+// {
+// 	var name = Path.GetFileNameWithoutExtension(f);
+// 	var parts = name.Split('_');
+// 	if (parts.Length == 3 && int.TryParse(parts[1], out int x) && int.TryParse(parts[2], out int y))
+// 	{
+// 		return (x, y);
+// 	}
+// 	return (int.MaxValue, int.MaxValue);
+// }).ToArray();
+
+
+// // Create a new image for the map (assuming each tile is 32x32 pixels and map is 128x128 tiles)
+// var mapImage = new Image<Rgba32>(128 * 32, 128 * 32);
+// for (int y = 0; y < 128; y++)
+// {
+// 	for (int x = 0; x < 128; x++)
+// 	{
+// 		int tileIndex = tileList[y * 128 + x];
+// 		int altTileIndex = altTileList[y * 128 + x];
+// 		if (tileIndex < tileFiles.Length)
+// 		{
+// 			var tileImage = Image.Load<Rgba32>((altTileIndex != 0xFFFF && tileIndex == 0xFFFF) ? altTileFiles[tileIndex] : tileFiles[tileIndex]);
+// 			mapImage.Mutate(ctx => ctx.DrawImage(tileImage, new Point(x * 32, y * 32), new GraphicsOptions()));
+// 		}
+// 	}
+// }
+
+// var outputMapFile = Path.ChangeExtension(mapFile, "3.png");
+// mapImage.SaveAsPng(outputMapFile);
+
+
+
+var bmpFolder = @"C:\Dev\Gaming\PC\Win\Games\Arcturus\data\data\bmp\visual";
+var bmpFiles = Directory.GetFiles(bmpFolder, "*.bmp", SearchOption.TopDirectoryOnly);
+
+foreach (var bmpFile in bmpFiles)
+{
+	var outputFile = Path.ChangeExtension(bmpFile, ".png");
+	using var image = Image.Load(bmpFile);
 	image.SaveAsPng(outputFile);
 }
+
+
+var sprFileToExtract = @"C:\Dev\Gaming\PC\Win\Games\Arcturus\data\data\sprite\monstr\ingnbr\fild\gigntess_f.spr";
+var sprOutDir = @"C:\Dev\Gaming\PC\Win\Games\Arcturus\data\data\sprite\monstr\ingnbr\fild\gigntess_f_aligned";
+
+ArcturusExtractor.PakArchive.ExportActAlignedFramesForExtractedSprite(sprFileToExtract, sprOutDir, true);
+
+var pakPath = @"C:\Dev\Gaming\PC\Win\Games\Arcturus\data.pak";
+var pakOutPath = @"C:\Dev\Gaming\PC\Win\Games\Arcturus\data";
+var pak = ArcturusExtractor.PakArchive.Load(pakPath);
+// string reportPath = Path.Combine(pakOutPath, "index_report.txt");
+// pak.WriteIndexReport(reportPath);
+pak.ExtractAll(pakOutPath);
+
+var rmpFiles = Directory.GetFiles(@"C:\Dev\Gaming\PC\Win\DiscImages\Atomic-Bomberman_Win_EN_RIP-Version\bomber", "*.RMP", SearchOption.TopDirectoryOnly);
+var isBomberman = true;
+
+// var aniFile = @"C:\Dev\Gaming\PC\Win\DiscImages\Atomic-Bomberman_Win_EN_RIP-Version\bomber\DATA\ANI\BWALK1.ANI";
+// var animOutputFolder = Path.Combine(Path.GetDirectoryName(aniFile)!, $"{Path.GetFileNameWithoutExtension(aniFile)}_output");
+// Directory.CreateDirectory(animOutputFolder);
+
+// var animBinOutputFolder = Path.Combine(Path.GetDirectoryName(aniFile)!, $"{Path.GetFileNameWithoutExtension(aniFile)}_bin_output");
+// Directory.CreateDirectory(animBinOutputFolder);
+
+// using var aniReader = new BinaryReader(File.OpenRead(aniFile));
+// aniReader.BaseStream.Seek(0x2470, SeekOrigin.Begin);
+// var tagBytes = aniReader.ReadBytes(4);
+// var tag = Encoding.ASCII.GetString(tagBytes);
+// while (tag == "FRAM")
+// {
+// 	var framSize = aniReader.ReadUInt32();
+// 	aniReader.ReadInt16();
+// 	var headTag = Encoding.ASCII.GetString(aniReader.ReadBytes(4));
+// 	var headSize = aniReader.ReadUInt32();
+// 	aniReader.ReadInt16();
+// 	var headData = aniReader.ReadBytes((int)headSize);
+// 	var fnamTag = Encoding.ASCII.GetString(aniReader.ReadBytes(4));
+// 	var fnamSize = aniReader.ReadUInt32();
+// 	aniReader.ReadInt16();
+// 	var fnam = Encoding.ASCII.GetString(aniReader.ReadBytes((int)fnamSize));
+// 	var cimgTag = Encoding.ASCII.GetString(aniReader.ReadBytes(4));
+// 	var cimgSize = aniReader.ReadUInt32();
+// 	aniReader.ReadBytes(0xE); // skip unknown 14 bytes
+// 	var width = aniReader.ReadUInt16();
+// 	var height = aniReader.ReadUInt16();
+// 	var possibleXOffset = aniReader.ReadInt16();
+// 	var possibleYOffset = aniReader.ReadInt16();
+// 	var unknown1 = aniReader.ReadUInt16();
+// 	var unknown2 = aniReader.ReadUInt16();
+// 	var unknown3 = aniReader.ReadUInt16();
+// 	var unknown4 = aniReader.ReadUInt16();
+// 	var compressedSize = aniReader.ReadUInt32();
+// 	var decompressedSize = aniReader.ReadUInt32();
+// 	var compressedData = aniReader.ReadBytes((int)compressedSize - 0xC);
+
+
+// 	var decoded = DecodeMode11Rle16(compressedData, decompressedSize, compressedSize);
+
+// 	var colorMap = @"C:\Dev\Gaming\PC\Win\DiscImages\Atomic-Bomberman_Win_EN_RIP-Version\bomber\COLOR.PAL";
+
+// 	// last 768 bytes
+// 	var palData = File.ReadAllBytes(colorMap).Take(0x300).ToArray();
+// 	palData = palData.Skip(palData.Length - 768).Take(768).ToArray();
+// 	var pal = ColorHelper.ConvertBytesToRgbIS(palData, true);
+// 	//File.WriteAllBytes(Path.ChangeExtension(colorMap, ".pal.bin"), palData);
+// 	var colorMapData = File.ReadAllBytes(colorMap).Skip(0x300).ToArray();
+
+// 	if (isBomberman)
+// 	{
+// 		foreach (var rmpFile in rmpFiles)
+// 		{
+// 			var rmpOutputDir = Path.Combine(animOutputFolder, $"{Path.GetFileNameWithoutExtension(rmpFile)}");
+// 			var rmpBinOutputDir = Path.Combine(animBinOutputFolder, $"{Path.GetFileNameWithoutExtension(rmpFile)}");
+
+// 			var rmpData = Bomberman.LoadRmp(rmpFile);
+// 			var finalIndexed = Bomberman.BuildFinalIndexed(decoded, colorMapData, rmpData, transparentKeyEnabled: false, transparentKey: 0);
+// 			var image = ImageFormatHelper.GenerateIMClutImage(pal, finalIndexed, width, height, true, 0xb8, false, true);
+// 			var outputFile = Path.Combine(rmpOutputDir, $"{Path.GetFileNameWithoutExtension(fnam)}.png");
+// 			Directory.CreateDirectory(rmpOutputDir);
+// 			Directory.CreateDirectory(rmpBinOutputDir);
+// 			File.WriteAllBytes(Path.Combine(rmpBinOutputDir, $"{Path.GetFileNameWithoutExtension(fnam)}.bin"), finalIndexed);
+// 			image.SaveAsPng(outputFile);
+// 		}
+// 	}
+// 	else
+// 	{
+// 		var finalIndexed = Bomberman.BuildFinalIndexed(decoded, colorMapData, null, transparentKeyEnabled: true, transparentKey: 0);
+// 		var image = ImageFormatHelper.GenerateIMClutImage(pal, finalIndexed, width, height, true, 0xb8, false, true);
+// 		var outputFile = Path.Combine(animOutputFolder, $"{Path.GetFileNameWithoutExtension(fnam)}.png");
+// 		Directory.CreateDirectory(animOutputFolder);
+// 		image.SaveAsPng(outputFile);
+// 	}
+
+
+// 	tagBytes = aniReader.ReadBytes(4);
+// 	tag = Encoding.ASCII.GetString(tagBytes);
+// }
+
+
+
+var cltDir = @"C:\Dev\Gaming\PC\Win\Games\Abomination\Data";
+var cltFiles = Directory.GetFiles(cltDir, "sprites.clt", SearchOption.TopDirectoryOnly);
+
+foreach (var cltFile in cltFiles)
+{
+	var cltOutputFolder = Path.Combine(Path.GetDirectoryName(cltFile)!, $"{Path.GetFileNameWithoutExtension(cltFile)}_output");
+	var extractedCount = CltExtractor.ExtractCltFile(cltFile, cltOutputFolder);
+	Console.WriteLine($"Extracted {extractedCount} entries from {Path.GetFileName(cltFile)}");
+}
+
+var wdlFile = @"C:\Dev\Gaming\PC\Win\Games\Youngblood Search and Destroy (August 1, 1997 Demo)\DATA\CHAPL.WDL";
+var wdlData = File.ReadAllBytes(wdlFile).Skip(0x48).Take(0x83708).ToArray();
+var images = GraExtractor.DecodeGraImages(wdlData);
+var utputFolder = Path.Combine(Path.GetDirectoryName(wdlFile)!, $"{Path.GetFileNameWithoutExtension(wdlFile)}_gra_output");
+Directory.CreateDirectory(utputFolder);
+
+for (int i = 0; i < images.Count; i++)
+{
+	var outputFile = Path.Combine(utputFolder, $"gra_image_{i:D2}.png");
+	images[i].SaveAsPng(outputFile);
+}
+
+
+
+var compressedFilesFolder = @"C:\Dev\Gaming\Amiga\Games\It Came from the Desert (1989)\OUTPUT\ContainerFiles\BACKS1_output";
+var compressedFiles = Directory.GetFiles(compressedFilesFolder, "*", SearchOption.TopDirectoryOnly);
+var decompressedOutputFolder = Path.Combine(compressedFilesFolder, "decompressed_swapped");
+Directory.CreateDirectory(decompressedOutputFolder);
+
+foreach (var compressedFile in compressedFiles)
+{
+	var compressedData = File.ReadAllBytes(compressedFile);
+
+	// Check first two bytes for LZ or SM signature
+	if (compressedData.Length < 2)
+	{
+		Console.WriteLine($"Skipping file {Path.GetFileName(compressedFile)}: too small to contain valid header");
+		continue;
+	}
+
+	var signature = Encoding.ASCII.GetString(compressedData, 0, 2);
+
+	if (signature == "LZ")
+	{
+		var decompressedData = ICFTDLzwDecompressor.Decompress(compressedData);
+		var outputFile = Path.Combine(decompressedOutputFolder, $"{Path.GetFileNameWithoutExtension(compressedFile)}.decompressed.{Path.GetExtension(compressedFile).Replace(".", "")}");
+		File.WriteAllBytes(outputFile, decompressedData);
+	}
+	else if (signature == "SM")
+	{
+		if (Path.GetExtension(compressedFile).Equals(".PAL", StringComparison.OrdinalIgnoreCase))
+		{
+			SmsResourceDecoder.TryDecodeFromLzwOutput(compressedData, 0, out var resource);
+			if (resource != null)
+			{
+				SmsResourceDecoder.TryExtractPaletteRgbFromHighNibbleTriplets(resource, out var outData);
+				if (outData != null)
+				{
+					var outputFile = Path.Combine(decompressedOutputFolder, $"{Path.GetFileNameWithoutExtension(compressedFile)}.decompressed.{Path.GetExtension(compressedFile).Replace(".", "")}");
+					File.WriteAllBytes(outputFile, outData);
+				}
+			}
+		}
+		else
+		{
+			SmsResourceDecoder.TryDecodeFromLzwOutput(compressedData, 0, out var resource);
+			if (resource != null)
+			{
+				var outputFile = Path.Combine(decompressedOutputFolder, $"{Path.GetFileNameWithoutExtension(compressedFile)}_{resource.Width}_{resource.Height}.decompressed.{Path.GetExtension(compressedFile).Replace(".", "")}");
+				var decompressedData = SmsResourceDecoder.ConvertPlanarToLinear(resource);
+				File.WriteAllBytes(outputFile, decompressedData);
+				SmsResourceDecoder.TryExtractPaletteRgbFromHighNibbleTriplets(resource, out var outData);
+				if (outData != null && outData.Any(b => b != 0)) // check if palette is not empty 
+				{
+					outputFile = Path.Combine(decompressedOutputFolder, $"{Path.GetFileNameWithoutExtension(compressedFile)}.decompressed.{Path.GetExtension(compressedFile).Replace(".", "")}.pal");
+					File.WriteAllBytes(outputFile, outData);
+				}
+			}
+		}
+	}
+
+}
+
+var containerFileFolder = @"C:\Dev\Gaming\Amiga\Games\It Came from the Desert (1989)\OUTPUT\ContainerFiles";
+var containerFiles = Directory.GetFiles(containerFileFolder, "*", SearchOption.TopDirectoryOnly);
+var tableData = new List<GenericTableEntry>();
+
+foreach (var containerFile in containerFiles)
+{
+	using var containerReader = new BinaryReader(File.OpenRead(containerFile));
+	var count = containerReader.ReadBigEndianUInt16();
+	var offsetTableLength = containerReader.ReadBigEndianUInt32();
+	var dataStartOffset = offsetTableLength + 6; // 6 bytes for the header (count + offsetTableLength)
+	for (int i = 0; i < count; i++)
+	{
+		var name = containerReader.ReadNullTerminatedString();
+		var offset = containerReader.ReadBigEndianUInt32() + dataStartOffset;
+		var size = containerReader.ReadBigEndianUInt32();
+		tableData.Add(new GenericTableEntry { Name = name, Offset = offset, Size = size });
+	}
+
+	var outputFolder = Path.Combine(Path.GetDirectoryName(containerFile)!, $"{Path.GetFileNameWithoutExtension(containerFile)}_output");
+	Directory.CreateDirectory(outputFolder);
+
+	foreach (var entry in tableData)
+	{
+		containerReader.BaseStream.Seek(entry.Offset, SeekOrigin.Begin);
+		var entryData = containerReader.ReadBytes((int)entry.Size);
+		var safeName = string.Join("_", entry.Name.Split(Path.GetInvalidFileNameChars()));
+		var outputFile = Path.Combine(outputFolder, $"{safeName}");
+		File.WriteAllBytes(outputFile, entryData);
+	}
+	tableData.Clear();
+}
+
+// var test = @"C:\Dev\Gaming\Amiga\Games\It Came from the Desert (1989)\OUTPUT\testPal.bin";
+// var testData = File.ReadAllBytes(test);
+// SmsResourceDecoder.TryDecodeFromLzwOutput(testData, 0, out var resource);
+
+// if (resource != null)
+// {
+// 	SmsResourceDecoder.TryExtractPaletteRgb(resource, out var outData);
+// 	if (outData != null)
+// 	{
+// 		var outputFile = Path.ChangeExtension(test, ".converted.bin");
+// 		File.WriteAllBytes(outputFile, outData);
+// 	}
+// }
+
+//File.WriteAllBytes(Path.ChangeExtension(test, ",SMS.decompressed.bin"), decompressedData);
+
+
+// var romDir = @"C:\Dev\Gaming\NeoGeo\ROMs\wjammers";
+// var clutData = NeoGeo.ConvertSpriteDataToCLUT(romDir);
+// File.WriteAllBytes(Path.Combine(romDir, "wjammers_clut.bin"), clutData);
+
+// var romFile = @"C:\Dev\Gaming\NeoGeo\ROMs\wjammers\065-p1.byteswapped.rom";
+// using var romReader = new BinaryReader(File.OpenRead(romFile));
+
+// romReader.BaseStream.Seek(0x30020, SeekOrigin.Begin);
+
+// A color word is composed in the following manner:
+
+// Bit 	15				14	13	12	11	10	9		8		7		6		5		4		3		2		1		0
+// Def	Dark bit	R0	G0	B0	R4	R3	R2	R1	G4	G3	G2	G1	B4	B3	B2	B1
+// Which can also be seen in a simpler way:
+
+// Bit 	15	14	13	12		11	10	9	8		7	6	5	4				3	2	1	0
+// Def	LSBs							Red MSBs			Green MSBs		Blue MSBs
+// With:
+
+// Red: R4~0
+// Green: G4~0
+// Blue: B4~0
+// The dark bit, used as a common LSB for the 3 components
+
+// var paletteData = romReader.ReadBytes(512);
+// var palette = new List<Rgba32>();
+
+// for (int i = 0; i < 256; i++)
+// {
+// 	var colorWord = BinaryPrimitives.ReadUInt16BigEndian(paletteData.AsSpan(i * 2, 2));
+// 	// extract dark bit (15) and red bits (14, 11, 10, 9, 8)
+// 	var darkBit = (colorWord >> 15) & 0x01;
+// 	int r14 = (colorWord >> 14) & 0x01;
+// 	int r11to8 = (colorWord >> 8) & 0x0F;
+// 	int r = (r11to8 << 1) | darkBit;
+// 	r = (r << 1) | r14;
+
+// 	// extract green bits (13, 7, 6, 5, 4)
+// 	int g13 = (colorWord >> 13) & 0x01;
+// 	int g7to4 = (colorWord >> 4) & 0x0F;
+// 	int g = (g7to4 << 1) | darkBit;
+// 	g = (g << 1) | g13;
+
+// 	// extract blue bits (12, 3, 2, 1, 0)
+// 	int b12 = (colorWord >> 12) & 0x01;
+// 	int b3to0 = colorWord & 0x0F;
+// 	int b = (b3to0 << 1) | darkBit;
+// 	b = (b << 1) | b12;
+
+// 	// Scale from 0-31 to 0-255
+// 	r = (r * 255) / 31;
+// 	g = (g * 255) / 31;
+// 	b = (b * 255) / 31;
+
+// 	palette.Add(new Rgba32((byte)r, (byte)g, (byte)b, i % 16 == 0 ? (byte)0 : (byte)255));
+// }
+
+// var palFileOutput = Path.ChangeExtension(romFile, ".pal.bin");
+// var palBytes = new byte[palette.Count * 4];
+// for (int i = 0; i < palette.Count; i++)
+// {
+// 	palBytes[i * 4 + 0] = palette[i].R;
+// 	palBytes[i * 4 + 1] = palette[i].G;
+// 	palBytes[i * 4 + 2] = palette[i].B;
+// 	palBytes[i * 4 + 3] = palette[i].A;
+// }
+// File.WriteAllBytes(palFileOutput, palBytes);
+
+// // create an image where each color is represented as a 20x20 pixel square
+// var paletteImage = new Image<Rgba32>(20 * 16, 20 * 16);
+// for (int i = 0; i < 256; i++)
+// {
+// 	var color = palette[i];
+// 	paletteImage.Mutate(ctx => ctx.Fill(color, new Rectangle((i % 16) * 20, (i / 16) * 20, 20, 20)));
+// }
+// var outputPaletteImage = Path.ChangeExtension(romFile, ".palette.png");
+// paletteImage.SaveAsPng(outputPaletteImage);
+
+static byte[] DecodeMode11Rle16(byte[] src, uint expectedOutputBytes, uint packedBytes)
+{
+	// Based on FUN_0041c0ba.
+	var dst = new byte[expectedOutputBytes];
+	int si = 0;
+	int di = 0;
+	uint remainingIn = (uint)Math.Min(packedBytes, src.Length);
+	uint remainingOut = expectedOutputBytes;
+
+	while (remainingIn > 0 && remainingOut > 0)
+	{
+		byte control = src[si];
+		if (control == 0xFF)
+		{
+			break;
+		}
+
+		if ((control & 0x80) == 0)
+		{
+			// Literal words: control+1 words, each as 2 raw bytes.
+			si += 1;
+			remainingIn -= 1;
+
+			int words = control + 1;
+			for (int i = 0; i < words && remainingIn >= 2 && remainingOut >= 2; i++)
+			{
+				dst[di++] = src[si++];
+				dst[di++] = src[si++];
+				remainingIn -= 2;
+				remainingOut -= 2;
+			}
+		}
+		else
+		{
+			// Repeat word: repeat next 2-byte value (control&0x7F)+1 times.
+			int words = (control & 0x7F) + 1;
+			if (remainingIn < 3)
+			{
+				break;
+			}
+
+			byte b0 = src[si + 1];
+			byte b1 = src[si + 2];
+
+			for (int i = 0; i < words && remainingOut >= 2; i++)
+			{
+				dst[di++] = b0;
+				dst[di++] = b1;
+				remainingOut -= 2;
+			}
+
+			si += 3;
+			remainingIn -= 3;
+		}
+	}
+
+	if (di < dst.Length)
+	{
+		Array.Resize(ref dst, di);
+	}
+
+	return dst;
+}
+
+// var twins = new TwinsDecompressor(uniPAth);
+// var tTestFile = @"C:\Dev\Gaming\PC\Dos\Games\Twins_DOS_KR\TND.DAC";
+
+// var decompressedTwsData = twins.Load_Compressed_Resource(tTestFile);
+// var outputTwsFile = Path.ChangeExtension(tTestFile, ".decompressed");
+// File.WriteAllBytes(outputTwsFile, decompressedTwsData);
+// var dacFile = new TwinsDacFile();
+// dacFile.Parse(decompressedTwsData);
+// foreach (var frame in dacFile.Frames)
+// {
+// 	Console.WriteLine($"Frame: {frame.Width}x{frame.Height} at ({frame.X},{frame.Y})");
+// }
+
+// var grcFiles = Directory.GetFiles(@"C:\Dev\Gaming\Sony\PS2\Disc Images\King of Fighters '98, The - Ultimate Match (Europe)\DATA\MENU", "*.GRC", SearchOption.AllDirectories);
+// foreach (var grcTestFile in grcFiles)
+// {
+// 	var compressedData = File.ReadAllBytes(grcTestFile);
+// 	var decompressedData = GrcDecompressor.Decompress(compressedData);
+// 	var outputFile = Path.ChangeExtension(grcTestFile, ".decompressed.bin");
+// 	File.WriteAllBytes(outputFile, decompressedData);
+// }
+
+// var kofDir = @"C:\Dev\Gaming\Sony\PS2\Disc Images\King of Fighters '94, The - Re-Bout (Japan)\DATA\DNAS0";
+// var datFiles = Directory.GetFiles(kofDir, "*.DAT", SearchOption.TopDirectoryOnly);
+// foreach (var datFile in datFiles)
+// {
+// 	using var datReader = new BinaryReader(File.OpenRead(datFile));
+// 	var outputDir = Path.Combine(Path.GetDirectoryName(datFile)!, $"{Path.GetFileNameWithoutExtension(datFile)}_output");
+// 	Directory.CreateDirectory(outputDir);
+// 	var palData = datReader.ReadBytes(256 * 4);
+// 	var palette = ColorHelper.ConvertBytesToRGBA(ColorHelper.ConvertPs2Palette(palData));
+// 	var imageIndex = 0;
+// 	while (datReader.BaseStream.Position < datReader.BaseStream.Length)
+// 	{
+// 		var width = 32;
+// 		var height = 448;
+// 		var dataSize = width * height;
+// 		var imageData = datReader.ReadBytes(dataSize);
+// 		var image = ImageFormatHelper.GenerateClutImage(palette, imageData, width, height, true);
+// 		var outputPng = Path.Combine(outputDir, $"{imageIndex:D4}.png");
+// 		image.Save(outputPng);
+// 		imageIndex++;
+// 	}
+// }
+
+// var volFile = @"C:\Dev\Gaming\PC\Dos\Games\AKIMBO\VOL\AKIMBO.VOL";
+// var volOutputDir = Path.Combine(Path.GetDirectoryName(volFile)!, "AKIMBO_vol_output");
+// Directory.CreateDirectory(volOutputDir);
+// VolFile.Unpack(volFile, volOutputDir);
+
+// var mainSpriteBin = @"C:\Dev\Gaming\PC\Win\Games\COMIX\SPRITES.BIN";
+// using var mainSpriteReader = new BinaryReader(File.OpenRead(mainSpriteBin));
+// var dataStartOffset = mainSpriteReader.ReadUInt32();
+// var firstHeaderOffset = mainSpriteReader.ReadUInt32();
+// var offsetList = new List<uint>() { firstHeaderOffset };
+// while (mainSpriteReader.BaseStream.Position < firstHeaderOffset)
+// {
+// 	var offset = mainSpriteReader.ReadUInt32();
+// 	offsetList.Add(offset);
+// }
+// offsetList.Add(dataStartOffset);
+
+// for (int i = 0; i < offsetList.Count - 1; i++)
+// {
+// 	var headerOffset = offsetList[i];
+// 	var nextHeaderOffset = offsetList[i + 1];
+// 	mainSpriteReader.BaseStream.Seek(headerOffset, SeekOrigin.Begin);
+// 	var xOffset = mainSpriteReader.ReadInt16();
+// 	var yOffset = mainSpriteReader.ReadInt16();
+// 	var width = mainSpriteReader.ReadUInt16();
+// 	var height = mainSpriteReader.ReadUInt16();
+// 	var unk1 = mainSpriteReader.ReadUInt16();
+// 	var spriteOffset = mainSpriteReader.ReadUInt32();
+// 	var unk2 = mainSpriteReader.ReadUInt16();
+// 	var remainingBytesCount = nextHeaderOffset - mainSpriteReader.BaseStream.Position;
+// 	var remainingBytes = mainSpriteReader.ReadBytes((int)remainingBytesCount);
+// 	Console.WriteLine($"Sprite {i}: Offset=0x{headerOffset:X8}, Pos=({xOffset},{yOffset}), Size=({width}x{height}), SpriteOffset=0x{spriteOffset:X8}, Unk1=0x{unk1:X4}, Unk2=0x{unk2:X4}");
+// 	Console.WriteLine($"  Remaining Bytes Count: {remainingBytesCount}:");
+// 	for (int b = 0; b < remainingBytes.Length; b++)
+// 	{
+// 		Console.Write($" {remainingBytes[b]:X2}");
+// 	}
+// 	Console.WriteLine();
+// }
+
+// var testSpriteFile = @"C:\Dev\Gaming\PC\Win\Games\COMIX\Scratch\spr3_compressed.bin";
+// using var testSpriteReader = new BinaryReader(File.OpenRead(testSpriteFile));
+// var outputBytes = new List<byte>();
+
+// var twidth = 0xb2;
+
+// while (testSpriteReader.BaseStream.Position < testSpriteReader.BaseStream.Length)
+// {
+// 	var outputLine = new byte[twidth];
+// 	while (true)
+// 	{
+// 		var byteCount = testSpriteReader.ReadByte();
+// 		if (byteCount == 0)
+// 			break;
+// 		var x_start = testSpriteReader.ReadByte();
+// 		for (int i = 0; i < byteCount; i++)
+// 		{
+// 			var pixel = testSpriteReader.ReadByte();
+// 			outputLine[x_start + i] = pixel;
+// 		}
+// 	}
+// 	outputBytes.AddRange(outputLine);
+// }
+
+// var decomp = Path.ChangeExtension(testSpriteFile, ".decompressed.bin");
+// File.WriteAllBytes(decomp, outputBytes.ToArray());
+
+// var clawDir = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\LEVEL8\IMAGES\REDTAILPIRATE";
+
+// var animFileDir = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\LEVEL8\ANIS\REDTAILPIRATE";
+// var animFiles = Directory.GetFiles(animFileDir, "*.ANI", SearchOption.TopDirectoryOnly);
+
+// var framesFolder = clawDir;
+// var framesPngs = Directory.GetFiles(framesFolder, "*.png", SearchOption.TopDirectoryOnly);
+
+// foreach (var animFile in animFiles)
+// {
+// 	using var animReader = new BinaryReader(File.OpenRead(animFile));
+// 	animReader.ReadBytes(0xC);
+// 	var frameCount = animReader.ReadUInt32();
+// 	var nameLength = animReader.ReadUInt32();
+// 	Console.WriteLine($"ANIM Frame Count: {frameCount}");
+// 	animReader.BaseStream.Seek(0x20, SeekOrigin.Begin);
+// 	var nameBytes = animReader.ReadBytes((int)nameLength);
+// 	var name = Encoding.ASCII.GetString(nameBytes);
+// 	Console.WriteLine($"ANIM Image Folder: {name}");
+// 	var animOutputFolder = Path.Combine(framesFolder, $"{Path.GetFileNameWithoutExtension(animFile)}");
+// 	Directory.CreateDirectory(animOutputFolder);
+
+// 	for (int i = 0; i < frameCount; i++)
+// 	{
+// 		var unk1 = animReader.ReadUInt16();
+// 		var unk2 = animReader.ReadUInt16();
+// 		if (unk2 != 3)
+// 		{
+// 			animReader.BaseStream.Seek(-4, SeekOrigin.Current);
+// 			var s = animReader.ReadNullTerminatedString();
+// 			Console.WriteLine($"Warning: Unexpected unk2 value {unk2} at frame {i}");
+// 			i--;
+// 			continue;
+// 		}
+// 		var unk3 = animReader.ReadUInt16();
+// 		var unk4 = animReader.ReadUInt16();
+// 		var frameId = animReader.ReadUInt16();
+// 		var unk5 = animReader.ReadInt16();
+// 		var unk6 = animReader.ReadInt16();
+// 		var unk7 = animReader.ReadInt16();
+// 		var unk8 = animReader.ReadInt16();
+// 		var unk9 = animReader.ReadInt16();
+
+
+// 		var framePng = framesPngs.Where(f => Path.GetFileNameWithoutExtension(f).StartsWith($"{frameId:D3}_")).FirstOrDefault();
+// 		if (framePng == null)
+// 		{
+// 			Console.WriteLine($"Warning: No PNG found for frame ID {frameId}");
+// 			continue;
+// 		}
+// 		var outputPng = Path.Combine(animOutputFolder, $"{i}_{Path.GetFileNameWithoutExtension(framePng)}_{unk5}_{unk9}.png");
+// 		File.Copy(framePng, outputPng, overwrite: true);
+// 	}
+// 	var alignedFolder = Path.Combine(animOutputFolder, "aligned");
+// 	FileHelpers.AlignSprite(animOutputFolder, alignedFolder, ExpansionOrigin.TopCenter);
+// 	// delete unaligned files
+// 	var unalignedFiles = Directory.GetFiles(animOutputFolder, "*.png", SearchOption.TopDirectoryOnly);
+// 	foreach (var unalignedFile in unalignedFiles)
+// 	{
+// 		File.Delete(unalignedFile);
+// 	}
+// 	// move aligned files to main folder
+// 	var alignedFiles = Directory.GetFiles(alignedFolder, "*.png", SearchOption.TopDirectoryOnly);
+// 	foreach (var alignedFile in alignedFiles)
+// 	{
+// 		var destFile = Path.Combine(animOutputFolder, Path.GetFileName(alignedFile));
+// 		File.Move(alignedFile, destFile, overwrite: true);
+// 	}
+// 	Directory.Delete(alignedFolder);
+// }
+
+
+// var delvionDir = @"C:\Dev\Gaming\PC\Dos\Games\Delvion-Star-Interceptor_DOS_EN";
+// var datFiles = Directory.GetFiles(delvionDir, "*.DAT", SearchOption.AllDirectories);
+
+// foreach (var (datFile, dIndex) in datFiles.WithIndex())
+// {
+// 	using var datReader = new BinaryReader(File.OpenRead(datFile));
+// 	var outputFolder = Path.Combine(Path.GetDirectoryName(datFile)!, $"{Path.GetFileNameWithoutExtension(datFile)}_output");
+// 	Directory.CreateDirectory(outputFolder);
+
+// 	var offsetAndSizeList = new List<(uint Offset, uint Size)>();
+// 	var offset = datReader.ReadUInt32();
+// 	while (offset != 0)
+// 	{
+// 		var size = datReader.ReadUInt32();
+// 		offsetAndSizeList.Add((offset, size));
+// 		offset = datReader.ReadUInt32();
+// 	}
+
+// 	if (datFile.Contains("STAGE"))
+// 	{
+// 		foreach (var ((offsetEntry, sizeEntry), index) in offsetAndSizeList.WithIndex())
+// 		{
+// 			datReader.BaseStream.Seek(offsetEntry, SeekOrigin.Begin);
+// 			var nextOffset = (index + 1 < offsetAndSizeList.Count) ? offsetAndSizeList[index + 1].Offset : (uint)datReader.BaseStream.Length;
+// 			int sizeToRead = sizeEntry == 0 ? (int)(nextOffset - offsetEntry) : (int)sizeEntry;
+// 			var entryData = datReader.ReadBytes(sizeToRead);
+// 			var outputFile = index switch
+// 			{
+// 				0 => Path.Combine(outputFolder, "header.bin"),
+// 				1 => Path.Combine(outputFolder, "sprites.SP0"),
+// 				2 => Path.Combine(outputFolder, "tiles.bin"),
+// 				3 => Path.Combine(outputFolder, "map.bin"),
+// 				4 => Path.Combine(outputFolder, $"level_{dIndex:D2}.pal"),
+// 				_ => Path.Combine(outputFolder, $"unk_entry_{index:D2}.bin"),
+// 			};
+// 			File.WriteAllBytes(outputFile, entryData);
+// 		}
+// 	}
+// 	else
+// 	{
+// 		foreach (var ((offsetEntry, sizeEntry), index) in offsetAndSizeList.WithIndex())
+// 		{
+// 			datReader.BaseStream.Seek(offsetEntry, SeekOrigin.Begin);
+// 			var nextOffset = (index + 1 < offsetAndSizeList.Count) ? offsetAndSizeList[index + 1].Offset : (uint)datReader.BaseStream.Length;
+// 			int sizeToRead = sizeEntry == 0 ? (int)(nextOffset - offsetEntry) : (int)sizeEntry;
+// 			var entryData = datReader.ReadBytes(sizeToRead);
+// 			var outputFile = Path.Combine(outputFolder, $"{index:D2}.bin");
+// 			File.WriteAllBytes(outputFile, entryData);
+// 		}
+// 	}
+// 	var sp0FilesInner = Directory.GetFiles(outputFolder, "*.SP0", SearchOption.TopDirectoryOnly);
+// 	var palFilesInner = Directory.GetFiles(outputFolder, "*.PAL", SearchOption.TopDirectoryOnly);
+
+// 	if (sp0FilesInner.Length == 0 || palFilesInner.Length == 0)
+// 		continue;
+
+// 	var sp0FileInner = sp0FilesInner[0];
+// 	var palFileInner = palFilesInner[0];
+
+
+// 	var tileFile = Path.Combine(outputFolder, "tiles.bin");
+// 	var tileOutputFolder = Path.Combine(outputFolder, "tiles");
+// 	Directory.CreateDirectory(tileOutputFolder);
+// 	var palData = File.ReadAllBytes(palFileInner);
+// 	var palette = ColorHelper.ConvertBytesToRgbIS(palData, true);
+
+// 	// each tile is 8x8 pixels, 1 byte per pixel
+// 	using var tileReader = new BinaryReader(File.OpenRead(tileFile));
+// 	var tileIndex = 0;
+// 	while (tileReader.BaseStream.Position < tileReader.BaseStream.Length)
+// 	{
+// 		var tileData = tileReader.ReadBytes(8 * 8);
+// 		// process tile data as needed
+// 		var tileImage = ImageFormatHelper.GenerateIMClutImage(palette, tileData, 8, 8, true);
+// 		var outputTilePath = Path.Combine(tileOutputFolder, $"{tileIndex:D4}.png");
+// 		tileImage.SaveAsPng(outputTilePath);
+// 		tileIndex++;
+// 	}
+
+// 	using var sprReader = new BinaryReader(File.OpenRead(sp0FileInner));
+// 	// Magic == 5A 45 44 02
+// 	var magic = sprReader.ReadBytes(4);
+// 	if (magic[0] != 0x5A || magic[1] != 0x45 || magic[2] != 0x44 || magic[3] != 0x02)
+// 	{
+// 		Console.WriteLine($"Skipping non-SP0 file: {Path.GetFileName(sp0FileInner)}");
+// 	}
+// 	var sprOutputFolder = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(sp0FileInner));
+// 	Directory.CreateDirectory(sprOutputFolder);
+// 	byte sprCount = sprReader.ReadByte();
+// 	var fileSize = sprReader.ReadUInt32();
+// 	sprReader.BaseStream.Seek(0x10, SeekOrigin.Begin); // skip to sprite entries
+// 	for (int i = 0; i < sprCount; i++)
+// 	{
+// 		var sprDataLength = sprReader.ReadUInt16();
+// 		sprReader.ReadByte(); // pad
+// 		byte width = sprReader.ReadByte();
+// 		byte height = sprReader.ReadByte();
+// 		sprReader.ReadBytes(2); // padding
+// 		var sprData = sprReader.ReadBytes(sprDataLength - 5);
+// 		// sanity check on data length
+// 		var expectedDataLength = width * height;
+// 		if (sprData.Length != expectedDataLength)
+// 		{
+// 			Console.WriteLine($"Warning: Sprite data length mismatch in file {Path.GetFileName(sp0FileInner)} sprite {i}: expected {expectedDataLength} bytes, got {sprData.Length} bytes");
+// 		}
+// 		var image = ImageFormatHelper.GenerateIMClutImage(palette, sprData, width, height, true);
+// 		var outputPng = Path.Combine(sprOutputFolder, $"{i:D3}.png");
+// 		image.SaveAsPng(outputPng);
+// 	}
+// }
+
+
+// var sp0Files = Directory.GetFiles(delvionDir, "*.SP0", SearchOption.TopDirectoryOnly);
+// var palFiles = Directory.GetFiles(delvionDir, "*.PAL", SearchOption.AllDirectories);
+
+// foreach (var palFile in palFiles)
+// {
+// 	var palData = File.ReadAllBytes(palFile);
+// 	var palette = ColorHelper.ConvertBytesToRgbIS(palData, true);
+
+// 	var outputFolder = Path.Combine(delvionDir, $"{Path.GetFileNameWithoutExtension(palFile)}_output");
+// 	foreach (var sprFile in sp0Files)
+// 	{
+// 		using var sprReader = new BinaryReader(File.OpenRead(sprFile));
+// 		// Magic == 5A 45 44 02
+// 		var magic = sprReader.ReadBytes(4);
+// 		if (magic[0] != 0x5A || magic[1] != 0x45 || magic[2] != 0x44 || magic[3] != 0x02)
+// 		{
+// 			Console.WriteLine($"Skipping non-SP0 file: {Path.GetFileName(sprFile)}");
+// 			continue;
+// 		}
+// 		var sprOutputFolder = Path.Combine(outputFolder, Path.GetFileNameWithoutExtension(sprFile));
+// 		Directory.CreateDirectory(sprOutputFolder);
+// 		byte sprCount = sprReader.ReadByte();
+// 		var fileSize = sprReader.ReadUInt32();
+// 		sprReader.BaseStream.Seek(0x10, SeekOrigin.Begin); // skip to sprite entries
+// 		for (int i = 0; i < sprCount; i++)
+// 		{
+// 			var sprDataLength = sprReader.ReadUInt16();
+// 			sprReader.ReadByte(); // pad
+// 			byte width = sprReader.ReadByte();
+// 			byte height = sprReader.ReadByte();
+// 			sprReader.ReadBytes(2); // padding
+// 			var sprData = sprReader.ReadBytes(sprDataLength - 5);
+// 			// sanity check on data length
+// 			var expectedDataLength = width * height;
+// 			if (sprData.Length != expectedDataLength)
+// 			{
+// 				Console.WriteLine($"Warning: Sprite data length mismatch in file {Path.GetFileName(sprFile)} sprite {i}: expected {expectedDataLength} bytes, got {sprData.Length} bytes");
+// 			}
+// 			var image = ImageFormatHelper.GenerateIMClutImage(palette, sprData, width, height, true);
+// 			var outputPng = Path.Combine(sprOutputFolder, $"{i:D3}.png");
+// 			image.SaveAsPng(outputPng);
+// 		}
+// 	}
+// }
+
+
+// var pidFiles = Directory.GetFiles(clawDir, "*.PID", SearchOption.AllDirectories);
+// var palFileClaw = @"C:\Dev\Gaming\PC\Win\Games\Claw\CLAW\LEVEL12\PALETTES\MAIN.PAL";
+// var palDataClaw = File.ReadAllBytes(palFileClaw);
+// var clawPalette = ColorHelper.ConvertBytesToRgbIS(palDataClaw);
+// foreach (var (clawFile, index) in pidFiles.WithIndex())
+// {
+// 	var clawPid = new PIDFile(clawFile);
+// 	if (clawPid.IsInverted || clawPid.IsMirrored || clawPid.HasPalette)
+// 	{
+// 		Console.WriteLine($"Found inverted/mirrored PID file: {Path.GetFileName(clawFile)}");
+// 		Debugger.Break();
+// 	}
+// 	var image = ImageFormatHelper.GenerateIMClutImage(clawPalette, clawPid.Data, (int)clawPid.Width, (int)clawPid.Height, true);
+// 	var outputPng = "";
+// 	if (Path.GetFileNameWithoutExtension(clawFile).StartsWith("FRAME"))
+// 	{
+// 		var frameId = int.Parse(Path.GetFileNameWithoutExtension(clawFile).Substring(5));
+// 		outputPng = Path.Combine(Path.GetDirectoryName(clawFile)!, $"{frameId:D3}_{clawPid.OffsetX}_{clawPid.OffsetY}.png");
+// 	}
+// 	else
+// 	{
+// 		outputPng = Path.ChangeExtension(clawFile, ".png");
+// 	}
+// 	image.SaveAsPng(outputPng);
+// }
+
+// var unkFileDir = @"C:\Dev\Gaming\PC\Dos\Games\Veil Of Darkness (1993)(Strategic Simulations Inc)\res1_output\";
+// var unkFiles = Directory.GetFiles(unkFileDir, "*.bin", SearchOption.TopDirectoryOnly);
+
+// var palFile = @"C:\Dev\Gaming\PC\Dos\Games\Veil Of Darkness (1993)(Strategic Simulations Inc)\colors";
+// var palData = File.ReadAllBytes(palFile);
+// var palette = ColorHelper.ConvertBytesToRgbIS(palData.Skip(6145).ToArray(), true);
+
+
+// foreach (var unkFile in unkFiles)
+// {
+// 	var unkData = File.ReadAllBytes(unkFile);
+// 	var decomp = VoD.Decompress(unkData);
+// 	Console.WriteLine($"Decompressed Image: {decomp.Width}x{decomp.Height}, Data Size: {decomp.Data.Length} bytes");
+// 	var outputFile = Path.ChangeExtension(unkFile, $".{decomp.Width}x{decomp.Height}_{decomp.StartX}.png");
+// 	var image = ImageFormatHelper.GenerateIMClutImage(palette, decomp.Data, decomp.Width, decomp.Height, true);
+// 	image.SaveAsPng(outputFile);
+// }
 
 // using var unkReader = new BinaryReader(File.OpenRead(unkFile));
 // var unkSize = unkReader.ReadUInt32();
@@ -221,42 +1135,42 @@ foreach (var unkFile in unkFiles)
 // 	var data = resourceReader.ReadBytes((int)size);
 // 	var outputFile = Path.Combine(outputDirResource, $"{i:D4}.bin");
 // 	File.WriteAllBytes(outputFile, data);
+// // }
+
+// var dwPalFile = @"C:\Dev\Gaming\PC\Dos\Games\DW\DREAMWEB.PAL";
+// var dwFileDir = @"C:\Dev\Gaming\PC\Dos\Games\DW";
+
+// var rFiles = Directory.GetFiles(dwFileDir, "*.R*", SearchOption.TopDirectoryOnly);
+
+// foreach (var roomFile in rFiles)
+// {
+// 	var outputDirRoom = Path.Combine(Path.GetDirectoryName(roomFile)!, "room_output", $"{Path.GetExtension(roomFile).Replace(".", "")}");
+// 	Directory.CreateDirectory(outputDirRoom);
+// 	DreamWeb.ExtractRoomFile(roomFile, outputDirRoom, dwPalFile);
 // }
 
-var dwPalFile = @"C:\Dev\Gaming\PC\Dos\Games\DW\DREAMWEB.PAL";
-var dwFileDir = @"C:\Dev\Gaming\PC\Dos\Games\DW";
+// var gFiles = Directory.GetFiles(dwFileDir, "*.G*", SearchOption.TopDirectoryOnly);
+// var cFiles = Directory.GetFiles(dwFileDir, "*.C*", SearchOption.TopDirectoryOnly);
+// var sFiles = Directory.GetFiles(dwFileDir, "*.S*", SearchOption.TopDirectoryOnly);
 
-var rFiles = Directory.GetFiles(dwFileDir, "*.R*", SearchOption.TopDirectoryOnly);
+// var graphicsFiles = new List<string>();
+// graphicsFiles.AddRange(cFiles);
+// graphicsFiles.AddRange(sFiles);
+// graphicsFiles.AddRange(gFiles);
 
-foreach (var roomFile in rFiles)
-{
-	var outputDirRoom = Path.Combine(Path.GetDirectoryName(roomFile)!, "room_output", $"{Path.GetExtension(roomFile).Replace(".", "")}");
-	Directory.CreateDirectory(outputDirRoom);
-	DreamWeb.ExtractRoomFile(roomFile, outputDirRoom, dwPalFile);
-}
-
-var gFiles = Directory.GetFiles(dwFileDir, "*.G*", SearchOption.TopDirectoryOnly);
-var cFiles = Directory.GetFiles(dwFileDir, "*.C*", SearchOption.TopDirectoryOnly);
-var sFiles = Directory.GetFiles(dwFileDir, "*.S*", SearchOption.TopDirectoryOnly);
-
-var graphicsFiles = new List<string>();
-graphicsFiles.AddRange(cFiles);
-graphicsFiles.AddRange(sFiles);
-graphicsFiles.AddRange(gFiles);
-
-foreach (var gFile in graphicsFiles)
-{
-	var outputDir = Path.Combine(Path.GetDirectoryName(gFile)!, "graphics_output", Path.GetExtension(gFile).Replace(".", ""));
-	Directory.CreateDirectory(outputDir);
-	DreamWeb.ExtractGFile(gFile, outputDir, dwPalFile);
-}
+// foreach (var gFile in graphicsFiles)
+// {
+// 	var outputDir = Path.Combine(Path.GetDirectoryName(gFile)!, "graphics_output", Path.GetExtension(gFile).Replace(".", ""));
+// 	Directory.CreateDirectory(outputDir);
+// 	DreamWeb.ExtractGFile(gFile, outputDir, dwPalFile);
+// }
 
 
-var hCell = @"C:\Dev\Gaming\3do\CC3\CC5\CC5.chunk0.caf";
-var hCellPng = Path.ChangeExtension(hCell, ".png");
-ParseHeaderlessCelBruteForce(hCell);
+// var hCell = @"C:\Dev\Gaming\3do\CC3\CC5\CC5.chunk0.caf";
+// var hCellPng = Path.ChangeExtension(hCell, ".png");
+// ParseHeaderlessCelBruteForce(hCell);
 
-var mainDir = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA";
+// var mainDir = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDATA";
 // var chaFile = Path.Combine(mainDir, "HIDM.CHA");
 // var pidFile = Path.Combine(mainDir, "HIDM.PID");
 
@@ -390,33 +1304,7 @@ var mainDir = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDA
 // 	var outputFile = Path.Combine(routputDir, Path.GetFileNameWithoutExtension(inputFile) + ".reordered.bin");
 // 	File.WriteAllBytes(outputFile, outputData);
 // }
-// byte[] ConvertPlanarToLinear(byte[] planarData, int width, int height)
-// {
-// 	if (height % 4 != 0)
-// 		throw new ArgumentException("Height must be divisible by 4 for planar mode");
 
-// 	int totalPixels = width * height;
-// 	byte[] linearData = new byte[totalPixels];
-// 	int rowsPerPlane = height / 4;  // Each plane contains height/4 rows
-// 	int bytesPerRow = width;
-
-// 	// Interleave the 4 planes
-// 	for (int plane = 0; plane < 4; plane++)
-// 	{
-// 		int planeOffset = plane * rowsPerPlane * bytesPerRow;
-
-// 		for (int row = 0; row < rowsPerPlane; row++)
-// 		{
-// 			int srcOffset = planeOffset + (row * bytesPerRow);
-// 			int dstRow = (row * 4) + plane;  // Interleave: plane 0 row 0 -> output row 0, plane 1 row 0 -> output row 1, etc.
-// 			int dstOffset = dstRow * bytesPerRow;
-
-// 			Array.Copy(planarData, srcOffset, linearData, dstOffset, bytesPerRow);
-// 		}
-// 	}
-
-// 	return linearData;
-// }
 // var matoDir = @"C:\Dev\Gaming\3do\Games\Guardian-War\lsdata\mapdata";
 // var matoFiles = Directory.GetFiles(matoDir, "*.bin", SearchOption.TopDirectoryOnly);
 // foreach (var matoFile in matoFiles)
@@ -477,6 +1365,99 @@ var mainDir = @"C:\Dev\Gaming\PC\Dos\Eye_of_Typhoon_The_1996\eyeotyp\DATA\MAINDA
 // }
 
 
+
+// var tFile = @"C:\Dev\Gaming\PC\Win\Games\VOODOO\Test\test.decompressed.bin";
+// var tData = File.ReadAllBytes(tFile);
+// var tSpriteData = VoodooSpriteExtractor.ExtractFrame(tData, 0);
+// Console.WriteLine($"Sprite Frame: {tSpriteData.Width}x{tSpriteData.Height}, SubFrames: {tSpriteData.SubFrames.Count}");
+// File.WriteAllBytes(Path.ChangeExtension(tFile, ".frame0_at9.raw"), tSpriteData.SubFrames[0].DecodedPixels);
+
+// var anemSprDir = @"C:\Dev\Gaming\PC\Win\Games\Anemone_Win_KO_Full-Rip\Anemone\Data";
+// var anemSprFiles = Directory.GetFiles(anemSprDir, "*.SPR", SearchOption.AllDirectories);
+// foreach (var anemSprFile in anemSprFiles)
+// {
+// 	var anemOutputDir = Path.Combine(Path.GetDirectoryName(anemSprFile)!, Path.GetFileNameWithoutExtension(anemSprFile) + "_output");
+// 	Directory.CreateDirectory(anemOutputDir);
+// 	using var anemReader = new BinaryReader(File.OpenRead(anemSprFile));
+// 	anemReader.BaseStream.Seek(0x34, SeekOrigin.Begin); // skip header
+// 	var sprCount = anemReader.ReadUInt32();
+// 	anemReader.ReadUInt32();
+// 	for (int i = 0; i < sprCount; i++)
+// 	{
+// 		var width = anemReader.ReadUInt32();
+// 		var height = anemReader.ReadUInt32();
+// 		var compressedSize = anemReader.ReadUInt32();
+// 		var flags = anemReader.ReadUInt32();
+// 		var compressedAnemData = anemReader.ReadBytes((int)compressedSize);
+// 		var anemDecompressed = AnemoneSpriteDecompressor.Decompress(compressedAnemData, (int)width, (int)height, flags);
+// 		// decompressed is 16-bit 555 pixels, load into image and convert to png
+// 		var anemImage = Image.LoadPixelData<Bgr565>(anemDecompressed, (int)width, (int)height);
+// 		// convert to 32-bit RGBA, making 0x0000 in the oorignal data transparent in the result
+// 		var anemImageRgba = anemImage.CloneAs<Bgra32>();
+// 		anemImageRgba.ProcessPixelRows(accessor =>
+// 		{
+// 			for (int y = 0; y < accessor.Height; y++)
+// 			{
+// 				var pixelRow = accessor.GetRowSpan(y);
+// 				for (int x = 0; x < pixelRow.Length; x++)
+// 				{
+// 					var pixel = pixelRow[x];
+// 					if (pixel.B == 0 && pixel.G == 0 && pixel.R == 0)
+// 					{
+// 						pixelRow[x] = new Bgra32(0, 0, 0, 0); // make black transparent
+// 					}
+// 				}
+// 			}
+// 		});
+// 		anemImageRgba.Save(Path.Combine(anemOutputDir, $"{i:D4}.png"));
+// 	}
+// }
+
+
+// var qdaFile = @"C:\Dev\Gaming\PC\Win\Games\Akunji\bmp.qda";
+// var qdaOutputDir = Path.Combine(Path.GetDirectoryName(qdaFile)!, "qda_output");
+// Directory.CreateDirectory(qdaOutputDir);
+// using var qdaReader = new BinaryReader(File.OpenRead(qdaFile));
+// qdaReader.ReadBytes(8); // magic
+// var bmpCount = qdaReader.ReadUInt32();
+// qdaReader.BaseStream.Seek(0x100, SeekOrigin.Begin);
+
+// for (int i = 0; i < bmpCount; i++)
+// {
+// 	var currentPos = qdaReader.BaseStream.Position;
+// 	var offset = qdaReader.ReadUInt32();
+// 	var size = qdaReader.ReadUInt32();
+// 	var sizeCheck = qdaReader.ReadUInt32();
+// 	var name = qdaReader.ReadNullTerminatedString();
+// 	if (size != sizeCheck)
+// 	{
+// 		Console.WriteLine($"Warning: Size mismatch for BMP {i}: {size:X8} != {sizeCheck:X8}");
+// 		Debugger.Break();
+// 	}
+// 	qdaReader.BaseStream.Seek(offset, SeekOrigin.Begin);
+// 	var bmpData = qdaReader.ReadBytes((int)size);
+// 	// convert to png, and replace 0x000000 with transparency
+// 	using var ms = new MemoryStream(bmpData);
+// 	var image = Image.Load<Bgra32>(ms);
+// 	image.ProcessPixelRows(accessor =>
+// 	{
+// 		for (int y = 0; y < accessor.Height; y++)
+// 		{
+// 			var pixelRow = accessor.GetRowSpan(y);
+// 			for (int x = 0; x < pixelRow.Length; x++)
+// 			{
+// 				var pixel = pixelRow[x];
+// 				if (pixel.B == 0 && pixel.G == 0 && pixel.R == 0)
+// 				{
+// 					pixelRow[x] = new Bgra32(0, 0, 0, 0); // make black transparent
+// 				}
+// 			}
+// 		}
+// 	});
+// 	var outputPng = Path.Combine(qdaOutputDir, $"{i:D4}_{Path.GetFileNameWithoutExtension(name)}.png");
+// 	image.SaveAsPng(outputPng);
+// 	qdaReader.BaseStream.Seek(currentPos+0x10c, SeekOrigin.Begin);
+// }
 
 
 // var moveListFile = @"C:\Dev\Gaming\3do\Games\SHADOW Warriors\ALVIN.MOVES";
@@ -1193,426 +2174,426 @@ var dataFileDir = @"C:\Dev\Gaming\3do\Games\Escape from Monster Manor";
 // } // End of foreach loop
 
 
-void ParseHeaderlessCel(string celFile, int bpp = 6)
-{
-	using var cafReader = new BinaryReader(File.OpenRead(celFile));
-	var outputDir = Path.GetDirectoryName(celFile)!;
-	Directory.CreateDirectory(outputDir);
+// void ParseHeaderlessCel(string celFile, int bpp = 6)
+// {
+// 	using var cafReader = new BinaryReader(File.OpenRead(celFile));
+// 	var outputDir = Path.GetDirectoryName(celFile)!;
+// 	Directory.CreateDirectory(outputDir);
 
-	var celOutputs = new List<CelImageData>();
-	var palettes = new List<List<Color>>();
+// 	var celOutputs = new List<CelImageData>();
+// 	var palettes = new List<List<Color>>();
 
-	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-	while (magic == "PDAT" || magic == "PLUT")
-	{
-		var chunkSize = cafReader.ReadBigEndianUInt32();
-		if (magic == "PDAT")
-		{
-			cafReader.ReadUInt32();
-			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
+// 	var magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	while (magic == "PDAT" || magic == "PLUT")
+// 	{
+// 		var chunkSize = cafReader.ReadBigEndianUInt32();
+// 		if (magic == "PDAT")
+// 		{
+// 			cafReader.ReadUInt32();
+// 			var compData = cafReader.ReadBytes((int)chunkSize - 0xC);
 
-			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
+// 			var celOutput = CelUnpacker.UnpackCodedPackedCelData(compData, bitsPerPixel: bpp);
 
-			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
-			{
-				celOutputs.Add(celOutput);
-			}
-		}
-		else
-		{
-			var entries = cafReader.ReadBigEndianUInt32();
-			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
-			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-			palettes.Add(palette);
-		}
-		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
-	}
+// 			if (celOutput.PixelData.Length > 0 && celOutput.Width > 0 && celOutput.Height > 0)
+// 			{
+// 				celOutputs.Add(celOutput);
+// 			}
+// 		}
+// 		else
+// 		{
+// 			var entries = cafReader.ReadBigEndianUInt32();
+// 			var paletteData = cafReader.ReadBytes((int)chunkSize - 0xC);
+// 			var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 			palettes.Add(palette);
+// 		}
+// 		magic = Encoding.ASCII.GetString(cafReader.ReadBytes(4));
+// 	}
 
-	if (palettes.Count == 0)
-	{
-		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
-		// Attempt to find chunk 0 file in same directory
-		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
-		var dir = Path.GetDirectoryName(celFile)!;
-		var dirName = Path.GetFileName(dir);
-		var charIdPart = dirName.Substring(2); // Get part after "CC"
-		var chunk0File = Path.Combine(dir, $"Parts.caf");
-		if (File.Exists(chunk0File))
-		{
-			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
-			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			while (chunk0Magic != "PLUT")
-			{
-				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
-				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			}
-			while (chunk0Magic == "PLUT")
-			{
-				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
-				var entries = chunk0Reader.ReadBigEndianUInt32();
-				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
-				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-				palettes.Add(palette);
-				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
-			}
-		}
-	}
+// 	if (palettes.Count == 0)
+// 	{
+// 		Console.WriteLine("No palettes found in CAF file. Finding Chunk 0 file for default palettes.");
+// 		// Attempt to find chunk 0 file in same directory
+// 		// Files are in pattern CC{CHAR_ID}.chunk{CHUNK_ID}.caf where both can be 2 digits
+// 		var dir = Path.GetDirectoryName(celFile)!;
+// 		var dirName = Path.GetFileName(dir);
+// 		var charIdPart = dirName.Substring(2); // Get part after "CC"
+// 		var chunk0File = Path.Combine(dir, $"Parts.caf");
+// 		if (File.Exists(chunk0File))
+// 		{
+// 			using var chunk0Reader = new BinaryReader(File.OpenRead(chunk0File));
+// 			var chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			while (chunk0Magic != "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				chunk0Reader.ReadBytes((int)chunkSize - 0x8);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 			while (chunk0Magic == "PLUT")
+// 			{
+// 				var chunkSize = chunk0Reader.ReadBigEndianUInt32();
+// 				var entries = chunk0Reader.ReadBigEndianUInt32();
+// 				var paletteData = chunk0Reader.ReadBytes((int)chunkSize - 0xC);
+// 				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 				palettes.Add(palette);
+// 				chunk0Magic = Encoding.ASCII.GetString(chunk0Reader.ReadBytes(4));
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < palettes.Count; i++)
-	{
-		var imageIndex = 0;
-		var palDir = Path.Combine(outputDir, $"palette_{i}");
-		Directory.CreateDirectory(palDir);
-		foreach (var celOutput in celOutputs)
-		{
-			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(celFile)}_image{imageIndex++}.png");
-			// Generate image with transparency support
-			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i], celOutput.CcbFlags, celOutput.Pixc);
-			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
-		}
-	}
+// 	for (int i = 0; i < palettes.Count; i++)
+// 	{
+// 		var imageIndex = 0;
+// 		var palDir = Path.Combine(outputDir, $"palette_{i}");
+// 		Directory.CreateDirectory(palDir);
+// 		foreach (var celOutput in celOutputs)
+// 		{
+// 			var outputPng = Path.Combine(palDir, $"{Path.GetFileNameWithoutExtension(celFile)}_image{imageIndex++}.png");
+// 			// Generate image with transparency support
+// 			CelUnpacker.SaveCelImage(celOutput, outputPng, palettes[i], celOutput.CcbFlags, celOutput.Pixc);
+// 			Console.WriteLine($"Saved: {Path.GetFileName(outputPng)}");
+// 		}
+// 	}
 
-}
+// }
 
-// Enhanced headerless CEL parser with brute-force format detection
-void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
-{
-	Console.WriteLine($"\n{new string('=', 70)}");
-	Console.WriteLine($"Processing headerless CEL: {Path.GetFileName(celFile)}");
-	Console.WriteLine(new string('=', 70));
+// // Enhanced headerless CEL parser with brute-force format detection
+// void ParseHeaderlessCelBruteForce(string celFile, int width = 0, int height = 0)
+// {
+// 	Console.WriteLine($"\n{new string('=', 70)}");
+// 	Console.WriteLine($"Processing headerless CEL: {Path.GetFileName(celFile)}");
+// 	Console.WriteLine(new string('=', 70));
 
-	var outputDir = Path.Combine(Path.GetDirectoryName(celFile)!, Path.GetFileNameWithoutExtension(celFile) + "_decoded");
-	Directory.CreateDirectory(outputDir);
+// 	var outputDir = Path.Combine(Path.GetDirectoryName(celFile)!, Path.GetFileNameWithoutExtension(celFile) + "_decoded");
+// 	Directory.CreateDirectory(outputDir);
 
-	// Parse all PDAT and PLUT chunks from the file
-	var pdatChunks = new List<byte[]>();
-	var palettes = new List<List<Color>>();
+// 	// Parse all PDAT and PLUT chunks from the file
+// 	var pdatChunks = new List<byte[]>();
+// 	var palettes = new List<List<Color>>();
 
-	using (var reader = new BinaryReader(File.OpenRead(celFile)))
-	{
-		while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
-		{
-			var magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
-			if (magic != "PDAT" && magic != "PLUT")
-			{
-				Console.WriteLine($"Unknown magic '{magic}' at position {reader.BaseStream.Position - 4}, stopping parse.");
-				// read 4 bytes at a time until we find a valid magic or reach end of file
-				while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
-				{
-					magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
-					if (magic == "PDAT" || magic == "PLUT")
-					{
-						break;
-					}
-				}
-			}
+// 	using (var reader = new BinaryReader(File.OpenRead(celFile)))
+// 	{
+// 		while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
+// 		{
+// 			var magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
+// 			if (magic != "PDAT" && magic != "PLUT")
+// 			{
+// 				Console.WriteLine($"Unknown magic '{magic}' at position {reader.BaseStream.Position - 4}, stopping parse.");
+// 				// read 4 bytes at a time until we find a valid magic or reach end of file
+// 				while (reader.BaseStream.Position < reader.BaseStream.Length - 8)
+// 				{
+// 					magic = Encoding.ASCII.GetString(reader.ReadBytes(4));
+// 					if (magic == "PDAT" || magic == "PLUT")
+// 					{
+// 						break;
+// 					}
+// 				}
+// 			}
 
-			var chunkSize = reader.ReadBigEndianUInt32();
+// 			var chunkSize = reader.ReadBigEndianUInt32();
 
-			if (magic == "PDAT")
-			{
-				// PDAT chunk: skip 4 bytes (usually uncompressed size or flags), then read pixel data
-				reader.ReadUInt32(); // Skip 4 bytes after size
-				var pixelData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + skip(4)
-				pdatChunks.Add(pixelData);
-				Console.WriteLine($"Found PDAT chunk: {pixelData.Length} bytes of pixel data");
-			}
-			else if (magic == "PLUT")
-			{
-				// PLUT chunk: read entry count, then palette data
-				var entries = reader.ReadBigEndianUInt32();
-				var paletteData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + entries(4)
-				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
-				palettes.Add(palette);
-				Console.WriteLine($"Found PLUT chunk: {entries} entries, {palette.Count} colors extracted");
-			}
-		}
-	}
+// 			if (magic == "PDAT")
+// 			{
+// 				// PDAT chunk: skip 4 bytes (usually uncompressed size or flags), then read pixel data
+// 				reader.ReadUInt32(); // Skip 4 bytes after size
+// 				var pixelData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + skip(4)
+// 				pdatChunks.Add(pixelData);
+// 				Console.WriteLine($"Found PDAT chunk: {pixelData.Length} bytes of pixel data");
+// 			}
+// 			else if (magic == "PLUT")
+// 			{
+// 				// PLUT chunk: read entry count, then palette data
+// 				var entries = reader.ReadBigEndianUInt32();
+// 				var paletteData = reader.ReadBytes((int)chunkSize - 0xC); // chunkSize includes magic(4) + size(4) + entries(4)
+// 				var palette = ColorHelper.ReadRgb15PaletteIS(paletteData);
+// 				palettes.Add(palette);
+// 				Console.WriteLine($"Found PLUT chunk: {entries} entries, {palette.Count} colors extracted");
+// 			}
+// 		}
+// 	}
 
-	if (pdatChunks.Count == 0)
-	{
-		Console.WriteLine("No PDAT chunks found in file.");
-		return;
-	}
+// 	if (pdatChunks.Count == 0)
+// 	{
+// 		Console.WriteLine("No PDAT chunks found in file.");
+// 		return;
+// 	}
 
-	Console.WriteLine($"\nTotal: {pdatChunks.Count} PDAT chunk(s), {palettes.Count} palette(s)");
+// 	Console.WriteLine($"\nTotal: {pdatChunks.Count} PDAT chunk(s), {palettes.Count} palette(s)");
 
-	// If no palettes in file, look for palettes in other .cel files in the same directory
-	if (palettes.Count == 0)
-	{
-		Console.WriteLine("\nNo palettes found in file. Searching for palettes in other .cel files...");
-		var dir = Path.GetDirectoryName(celFile)!;
-		var otherCelFiles = Directory.GetFiles(dir, "*.cel", SearchOption.TopDirectoryOnly)
-			.Where(f => !f.Equals(celFile, StringComparison.OrdinalIgnoreCase))
-			.ToList();
+// 	// If no palettes in file, look for palettes in other .cel files in the same directory
+// 	if (palettes.Count == 0)
+// 	{
+// 		Console.WriteLine("\nNo palettes found in file. Searching for palettes in other .cel files...");
+// 		var dir = Path.GetDirectoryName(celFile)!;
+// 		var otherCelFiles = Directory.GetFiles(dir, "*.cel", SearchOption.TopDirectoryOnly)
+// 			.Where(f => !f.Equals(celFile, StringComparison.OrdinalIgnoreCase))
+// 			.ToList();
 
-		foreach (var otherFile in otherCelFiles)
-		{
-			try
-			{
-				var otherCelData = CelUnpacker.UnpackCelFile(otherFile, verbose: false, bitsPerPixel: 0);
-				if (otherCelData?.Palette != null)
-				{
-					palettes.Add(otherCelData.Palette);
-					Console.WriteLine($"  Found palette in {Path.GetFileName(otherFile)}: {otherCelData.Palette.Count} colors");
-				}
-			}
-			catch { /* Ignore files that can't be read */ }
+// 		foreach (var otherFile in otherCelFiles)
+// 		{
+// 			try
+// 			{
+// 				var otherCelData = CelUnpacker.UnpackCelFile(otherFile, verbose: false, bitsPerPixel: 0);
+// 				if (otherCelData?.Palette != null)
+// 				{
+// 					palettes.Add(otherCelData.Palette);
+// 					Console.WriteLine($"  Found palette in {Path.GetFileName(otherFile)}: {otherCelData.Palette.Count} colors");
+// 				}
+// 			}
+// 			catch { /* Ignore files that can't be read */ }
 
-			if (palettes.Count >= 5) break; // Limit to 5 palettes to avoid too many combinations
-		}
-	}
+// 			if (palettes.Count >= 5) break; // Limit to 5 palettes to avoid too many combinations
+// 		}
+// 	}
 
-	// Define format attempts in order of likelihood (coded formats first, most common bpp values)
-	var formatAttempts = new List<(string Name, Func<byte[], CelImageData?> Decoder)>
-	{
-		// Coded Packed (most common)
-		("Coded_Packed_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 6, verbose: false))),
-		("Coded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 8, verbose: false))),
-		("Coded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 16, verbose: false))),
-		// Coded Unpacked (most common) - no brute-force for now
-		("Coded_Unpacked_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 6))),
-		("Coded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 8))),
-		("Coded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 16))),
+// 	// Define format attempts in order of likelihood (coded formats first, most common bpp values)
+// 	var formatAttempts = new List<(string Name, Func<byte[], CelImageData?> Decoder)>
+// 	{
+// 		// Coded Packed (most common)
+// 		("Coded_Packed_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 6, verbose: false))),
+// 		("Coded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 8, verbose: false))),
+// 		("Coded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 16, verbose: false))),
+// 		// Coded Unpacked (most common) - no brute-force for now
+// 		("Coded_Unpacked_6bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 6))),
+// 		("Coded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 8))),
+// 		("Coded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 16))),
 
-		// Coded Packed (least common)
-		("Coded_Packed_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 4, verbose: false))),
-		("Coded_Packed_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 2, verbose: false))),
-		("Coded_Packed_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 1, verbose: false))),
+// 		// Coded Packed (least common)
+// 		("Coded_Packed_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 4, verbose: false))),
+// 		("Coded_Packed_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 2, verbose: false))),
+// 		("Coded_Packed_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedPackedCelData(data, 1, verbose: false))),
 
-		// Coded Unpacked (least common) - no brute-force for now
-		("Coded_Unpacked_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 4))),
-		("Coded_Unpacked_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 2))),
-		("Coded_Unpacked_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 1))),
-		
-		// Uncoded Packed (less common)
-		("Uncoded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 16))),
-		("Uncoded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 8))),
+// 		// Coded Unpacked (least common) - no brute-force for now
+// 		("Coded_Unpacked_4bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 4))),
+// 		("Coded_Unpacked_2bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 2))),
+// 		("Coded_Unpacked_1bpp", data => TryDecode(() => CelUnpacker.UnpackCodedUnpackedCelData(data, width, height, 1))),
 
-		// Uncoded Unpacked (least common) - no brute-force for now
-		// ("Uncoded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 16))),
-		// ("Uncoded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 8))),
-	};
+// 		// Uncoded Packed (less common)
+// 		("Uncoded_Packed_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 16))),
+// 		("Uncoded_Packed_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedPackedCelData(data, 8))),
 
-	// Track confirmed format for batch processing
-	string? confirmedFormat = null;
+// 		// Uncoded Unpacked (least common) - no brute-force for now
+// 		// ("Uncoded_Unpacked_16bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 16))),
+// 		// ("Uncoded_Unpacked_8bpp", data => TryDecode(() => CelUnpacker.UnpackUncodedUnpackedCelData(data, 8))),
+// 	};
 
-	// Process each PDAT chunk
-	for (int pdatIndex = 0; pdatIndex < pdatChunks.Count; pdatIndex++)
-	{
-		var pixelData = pdatChunks[pdatIndex];
-		Console.WriteLine($"\n{new string('-', 70)}");
-		Console.WriteLine($"Processing PDAT chunk {pdatIndex + 1}/{pdatChunks.Count} ({pixelData.Length} bytes)");
-		Console.WriteLine(new string('-', 70));
+// 	// Track confirmed format for batch processing
+// 	string? confirmedFormat = null;
 
-		bool decoded = false;
+// 	// Process each PDAT chunk
+// 	for (int pdatIndex = 0; pdatIndex < pdatChunks.Count; pdatIndex++)
+// 	{
+// 		var pixelData = pdatChunks[pdatIndex];
+// 		Console.WriteLine($"\n{new string('-', 70)}");
+// 		Console.WriteLine($"Processing PDAT chunk {pdatIndex + 1}/{pdatChunks.Count} ({pixelData.Length} bytes)");
+// 		Console.WriteLine(new string('-', 70));
 
-		// If we have a confirmed format from a previous chunk, use it directly with all palettes
-		if (confirmedFormat != null)
-		{
-			Console.WriteLine($"\nApplying confirmed format: {confirmedFormat.Replace("_", " ")}...");
-			var confirmedAttempt = formatAttempts.FirstOrDefault(f => f.Name == confirmedFormat);
-			if (confirmedAttempt != default)
-			{
-				var result = confirmedAttempt.Decoder(pixelData);
-				if (result != null && result.Width > 0 && result.Height > 0 && result.PixelData.Length > 0)
-				{
-					Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
+// 		bool decoded = false;
 
-					// Save with all available palettes (or just once for 32bpp uncoded)
-					int palettesToSave = result.BitsPerPixel == 32 ? 1 : palettes.Count;
-					if (palettesToSave == 0) palettesToSave = 1;
+// 		// If we have a confirmed format from a previous chunk, use it directly with all palettes
+// 		if (confirmedFormat != null)
+// 		{
+// 			Console.WriteLine($"\nApplying confirmed format: {confirmedFormat.Replace("_", " ")}...");
+// 			var confirmedAttempt = formatAttempts.FirstOrDefault(f => f.Name == confirmedFormat);
+// 			if (confirmedAttempt != default)
+// 			{
+// 				var result = confirmedAttempt.Decoder(pixelData);
+// 				if (result != null && result.Width > 0 && result.Height > 0 && result.PixelData.Length > 0)
+// 				{
+// 					Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
 
-					int savedCount = 0;
-					for (int palIdx = 0; palIdx < palettesToSave; palIdx++)
-					{
-						var palette = (result.BitsPerPixel == 32 || palettes.Count == 0) ? null : palettes[palIdx];
-						var fileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{confirmedFormat}";
-						if (palette != null) fileName += $"_pal{palIdx + 1}";
-						fileName += ".png";
-						var filePath = Path.Combine(outputDir, fileName);
+// 					// Save with all available palettes (or just once for 32bpp uncoded)
+// 					int palettesToSave = result.BitsPerPixel == 32 ? 1 : palettes.Count;
+// 					if (palettesToSave == 0) palettesToSave = 1;
 
-						try
-						{
-							CelUnpacker.SaveCelImage(result, filePath, palette, result.CcbFlags, result.Pixc);
-							Console.WriteLine($"  💾 Saved: {fileName}");
-							savedCount++;
-						}
-						catch (Exception ex)
-						{
-							Console.WriteLine($"  ✗ Error saving image with palette {palIdx + 1}: {ex.Message}");
-						}
-					}
+// 					int savedCount = 0;
+// 					for (int palIdx = 0; palIdx < palettesToSave; palIdx++)
+// 					{
+// 						var palette = (result.BitsPerPixel == 32 || palettes.Count == 0) ? null : palettes[palIdx];
+// 						var fileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{confirmedFormat}";
+// 						if (palette != null) fileName += $"_pal{palIdx + 1}";
+// 						fileName += ".png";
+// 						var filePath = Path.Combine(outputDir, fileName);
 
-					if (savedCount > 0)
-					{
-						decoded = true;
-					}
-				}
-				else
-				{
-					Console.WriteLine($"  ✗ Failed to decode with confirmed format, trying all formats...");
-					confirmedFormat = null; // Reset and try all formats
-				}
-			}
-		}
+// 						try
+// 						{
+// 							CelUnpacker.SaveCelImage(result, filePath, palette, result.CcbFlags, result.Pixc);
+// 							Console.WriteLine($"  💾 Saved: {fileName}");
+// 							savedCount++;
+// 						}
+// 						catch (Exception ex)
+// 						{
+// 							Console.WriteLine($"  ✗ Error saving image with palette {palIdx + 1}: {ex.Message}");
+// 						}
+// 					}
 
-		// If no confirmed format or it failed, try each format
-		if (!decoded)
-		{
-			foreach (var (formatName, decoder) in formatAttempts)
-			{
-				Console.WriteLine($"\nTrying format: {formatName.Replace("_", " ")}...");
-				var result = decoder(pixelData);
+// 					if (savedCount > 0)
+// 					{
+// 						decoded = true;
+// 					}
+// 				}
+// 				else
+// 				{
+// 					Console.WriteLine($"  ✗ Failed to decode with confirmed format, trying all formats...");
+// 					confirmedFormat = null; // Reset and try all formats
+// 				}
+// 			}
+// 		}
 
-				if (result == null || result.Width <= 0 || result.Height <= 0 || result.PixelData.Length == 0)
-				{
-					Console.WriteLine($"  ✗ Failed: Invalid dimensions or no data");
-					continue;
-				}
+// 		// If no confirmed format or it failed, try each format
+// 		if (!decoded)
+// 		{
+// 			foreach (var (formatName, decoder) in formatAttempts)
+// 			{
+// 				Console.WriteLine($"\nTrying format: {formatName.Replace("_", " ")}...");
+// 				var result = decoder(pixelData);
 
-				Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
+// 				if (result == null || result.Width <= 0 || result.Height <= 0 || result.PixelData.Length == 0)
+// 				{
+// 					Console.WriteLine($"  ✗ Failed: Invalid dimensions or no data");
+// 					continue;
+// 				}
 
-				// Check if this is a coded format (requires palette) or uncoded format (direct RGB)
-				bool isCoded = formatName.StartsWith("Coded_");
-				bool isUncoded = formatName.StartsWith("Uncoded_");
+// 				Console.WriteLine($"  ✓ Decoded: {result.Width}x{result.Height}, {result.BitsPerPixel}bpp");
 
-				// For coded formats, need a palette
-				if (isCoded && palettes.Count == 0)
-				{
-					Console.WriteLine($"  ⚠ Skipping: Coded format requires palette (none available)");
-					continue;
-				}
+// 				// Check if this is a coded format (requires palette) or uncoded format (direct RGB)
+// 				bool isCoded = formatName.StartsWith("Coded_");
+// 				bool isUncoded = formatName.StartsWith("Uncoded_");
 
-				// Determine how many palette variations to try
-				// - Uncoded formats: Don't use palettes (direct RGB), so only 1 version
-				// - Coded formats: Use all available palettes
-				int palettesToTry = isUncoded ? 1 : palettes.Count;
-				if (palettesToTry == 0) palettesToTry = 1; // Fallback if no palettes
+// 				// For coded formats, need a palette
+// 				if (isCoded && palettes.Count == 0)
+// 				{
+// 					Console.WriteLine($"  ⚠ Skipping: Coded format requires palette (none available)");
+// 					continue;
+// 				}
 
-				for (int palIdx = 0; palIdx < palettesToTry; palIdx++)
-				{
-					// Uncoded formats don't use palettes (they have direct RGB values)
-					// Coded formats need a palette to map indices to colors
-					var palette = (isUncoded || palettes.Count == 0) ? null : palettes[palIdx];
-					var testFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}";
-					if (palette != null) testFileName += $"_pal{palIdx + 1}";
-					testFileName += ".png";
-					var testFilePath = Path.Combine(outputDir, testFileName); try
-					{
-						CelUnpacker.SaveCelImage(result, testFilePath, palette, result.CcbFlags, result.Pixc);
-						Console.WriteLine($"  💾 Saved test image: {Path.GetFullPath(testFilePath)}");
+// 				// Determine how many palette variations to try
+// 				// - Uncoded formats: Don't use palettes (direct RGB), so only 1 version
+// 				// - Coded formats: Use all available palettes
+// 				int palettesToTry = isUncoded ? 1 : palettes.Count;
+// 				if (palettesToTry == 0) palettesToTry = 1; // Fallback if no palettes
 
-						// Ask user for confirmation
-						Console.Write($"\n  Is this image correct? (y/n/a=use for all remaining/s=skip): ");
-						var response = Console.ReadLine()?.Trim().ToLower();
+// 				for (int palIdx = 0; palIdx < palettesToTry; palIdx++)
+// 				{
+// 					// Uncoded formats don't use palettes (they have direct RGB values)
+// 					// Coded formats need a palette to map indices to colors
+// 					var palette = (isUncoded || palettes.Count == 0) ? null : palettes[palIdx];
+// 					var testFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}";
+// 					if (palette != null) testFileName += $"_pal{palIdx + 1}";
+// 					testFileName += ".png";
+// 					var testFilePath = Path.Combine(outputDir, testFileName); try
+// 					{
+// 						CelUnpacker.SaveCelImage(result, testFilePath, palette, result.CcbFlags, result.Pixc);
+// 						Console.WriteLine($"  💾 Saved test image: {Path.GetFullPath(testFilePath)}");
 
-						if (response == "y" || response == "yes")
-						{
-							Console.WriteLine($"  ✓ Confirmed! Saving with all {palettes.Count} palette(s)...");
-							decoded = true;
+// 						// Ask user for confirmation
+// 						Console.Write($"\n  Is this image correct? (y/n/a=use for all remaining/s=skip): ");
+// 						var response = Console.ReadLine()?.Trim().ToLower();
 
-							// Save this chunk with all remaining palettes (current palette already saved above)
-							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
-							{
-								// Skip the palette we just saved
-								if (remainingPalIdx == palIdx) continue;
+// 						if (response == "y" || response == "yes")
+// 						{
+// 							Console.WriteLine($"  ✓ Confirmed! Saving with all {palettes.Count} palette(s)...");
+// 							decoded = true;
 
-								var remainingPalette = palettes[remainingPalIdx];
-								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
-								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
+// 							// Save this chunk with all remaining palettes (current palette already saved above)
+// 							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
+// 							{
+// 								// Skip the palette we just saved
+// 								if (remainingPalIdx == palIdx) continue;
 
-								try
-								{
-									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags, result.Pixc);
-									Console.WriteLine($"  💾 Saved: {remainingFileName}");
-								}
-								catch (Exception ex)
-								{
-									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
-								}
-							}
+// 								var remainingPalette = palettes[remainingPalIdx];
+// 								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
+// 								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
 
-							break;
-						}
-						else if (response == "a" || response == "all")
-						{
-							Console.WriteLine($"  ✓ Confirmed! Will use this format for all remaining PDAT chunks (with all palettes)");
-							confirmedFormat = formatName;
-							decoded = true;
+// 								try
+// 								{
+// 									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags, result.Pixc);
+// 									Console.WriteLine($"  💾 Saved: {remainingFileName}");
+// 								}
+// 								catch (Exception ex)
+// 								{
+// 									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
+// 								}
+// 							}
 
-							// Save this chunk with all remaining palettes (current palette already saved above)
-							Console.WriteLine($"  💾 Saving current chunk with all {palettes.Count} palette(s)...");
-							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
-							{
-								// Skip the palette we just saved
-								if (remainingPalIdx == palIdx) continue;
+// 							break;
+// 						}
+// 						else if (response == "a" || response == "all")
+// 						{
+// 							Console.WriteLine($"  ✓ Confirmed! Will use this format for all remaining PDAT chunks (with all palettes)");
+// 							confirmedFormat = formatName;
+// 							decoded = true;
 
-								var remainingPalette = palettes[remainingPalIdx];
-								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
-								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
+// 							// Save this chunk with all remaining palettes (current palette already saved above)
+// 							Console.WriteLine($"  💾 Saving current chunk with all {palettes.Count} palette(s)...");
+// 							for (int remainingPalIdx = 0; remainingPalIdx < palettes.Count; remainingPalIdx++)
+// 							{
+// 								// Skip the palette we just saved
+// 								if (remainingPalIdx == palIdx) continue;
 
-								try
-								{
-									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags, result.Pixc);
-									Console.WriteLine($"  💾 Saved: {remainingFileName}");
-								}
-								catch (Exception ex)
-								{
-									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
-								}
-							}
+// 								var remainingPalette = palettes[remainingPalIdx];
+// 								var remainingFileName = $"{Path.GetFileNameWithoutExtension(celFile)}_{pdatIndex + 1}_{formatName}_pal{remainingPalIdx + 1}.png";
+// 								var remainingFilePath = Path.Combine(outputDir, remainingFileName);
 
-							break;
-						}
-						else if (response == "s" || response == "skip")
-						{
-							Console.WriteLine($"  ⊗ Skipping remaining formats for this PDAT chunk");
-							File.Delete(testFilePath);
-							decoded = true; // Mark as handled to skip remaining formats
-							break;
-						}
-						else
-						{
-							Console.WriteLine($"  ✗ Rejected. Deleting {testFileName}");
-							File.Delete(testFilePath);
-						}
-					}
-					catch (Exception ex)
-					{
-						Console.WriteLine($"  ✗ Error saving image: {ex.Message}");
-						if (File.Exists(testFilePath)) File.Delete(testFilePath);
-					}
-				}
+// 								try
+// 								{
+// 									CelUnpacker.SaveCelImage(result, remainingFilePath, remainingPalette, result.CcbFlags, result.Pixc);
+// 									Console.WriteLine($"  💾 Saved: {remainingFileName}");
+// 								}
+// 								catch (Exception ex)
+// 								{
+// 									Console.WriteLine($"  ✗ Error saving with palette {remainingPalIdx + 1}: {ex.Message}");
+// 								}
+// 							}
 
-				if (decoded) break; // Move to next PDAT chunk
-			}
-		}
+// 							break;
+// 						}
+// 						else if (response == "s" || response == "skip")
+// 						{
+// 							Console.WriteLine($"  ⊗ Skipping remaining formats for this PDAT chunk");
+// 							File.Delete(testFilePath);
+// 							decoded = true; // Mark as handled to skip remaining formats
+// 							break;
+// 						}
+// 						else
+// 						{
+// 							Console.WriteLine($"  ✗ Rejected. Deleting {testFileName}");
+// 							File.Delete(testFilePath);
+// 						}
+// 					}
+// 					catch (Exception ex)
+// 					{
+// 						Console.WriteLine($"  ✗ Error saving image: {ex.Message}");
+// 						if (File.Exists(testFilePath)) File.Delete(testFilePath);
+// 					}
+// 				}
 
-		if (!decoded)
-		{
-			Console.WriteLine($"\n  ⚠ No format worked for PDAT chunk {pdatIndex + 1}");
-		}
-	}
+// 				if (decoded) break; // Move to next PDAT chunk
+// 			}
+// 		}
 
-	Console.WriteLine($"\n{new string('=', 70)}");
-	Console.WriteLine($"Decoding complete. Output saved to: {outputDir}");
-	Console.WriteLine($"{new string('=', 70)}\n");
-}
+// 		if (!decoded)
+// 		{
+// 			Console.WriteLine($"\n  ⚠ No format worked for PDAT chunk {pdatIndex + 1}");
+// 		}
+// 	}
 
-// Helper method to safely try decoding
-CelImageData? TryDecode(Func<CelImageData> decoderFunc)
-{
-	try
-	{
-		return decoderFunc();
-	}
-	catch
-	{
-		return null;
-	}
-}
+// 	Console.WriteLine($"\n{new string('=', 70)}");
+// 	Console.WriteLine($"Decoding complete. Output saved to: {outputDir}");
+// 	Console.WriteLine($"{new string('=', 70)}\n");
+// }
+
+// // Helper method to safely try decoding
+// CelImageData? TryDecode(Func<CelImageData> decoderFunc)
+// {
+// 	try
+// 	{
+// 		return decoderFunc();
+// 	}
+// 	catch
+// 	{
+// 		return null;
+// 	}
+// }
 
 
 // var glFile = @"C:\Dev\Gaming\PC\Dos\Games\B13\DATA_output\mapart";
@@ -3149,7 +4130,8 @@ CelImageData? TryDecode(Func<CelImageData> decoderFunc)
 //   palettes.Add(palette);
 // }
 
-
+//var palData = File.ReadAllBytes(palFile).Skip(0x20).Take(0x300).ToArray();
+//   var palette = ColorHelper.ConvertBytesToRGB(palData, true);
 // var d3grDir = @"C:\GOGGames\War Wind\Data\RES004_output";
 // var d3grFiles = Directory.GetFiles(d3grDir, "*.bin");
 

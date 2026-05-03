@@ -20,6 +20,7 @@ using System.Collections.Concurrent;
 using ImageMagick;
 using ExtractCLUT.Games.PSX;
 using System.Text;
+using SixLabors.ImageSharp.Advanced;
 
 namespace ExtractCLUT.Helpers
 {
@@ -1105,6 +1106,54 @@ namespace ExtractCLUT.Helpers
       return bitmap;
     }
 
+    public static Image<Rgba32> DecodeRgbaToImageSharp(byte[] imageData, int width, int height)
+    {
+      var image = new Image<Rgba32>(width, height);
+      int src = 0;
+
+      for (int y = 0; y < height; y++)
+      {
+        Span<Rgba32> row = image.DangerousGetPixelRowMemory(y).Span;
+        for (int x = 0; x < width; x++)
+        {
+          byte a = imageData[src++];
+          byte r = imageData[src++];
+          byte g = imageData[src++];
+          byte b = imageData[src++];
+
+          row[x] = new Rgba32(r, g, b, a);
+        }
+      }
+
+      return image;
+    }
+    public static byte[] ConvertPlanarToLinear(byte[] planarData, int width, int height)
+    {
+      if (height % 4 != 0)
+        throw new ArgumentException("Height must be divisible by 4 for planar mode");
+
+      int totalPixels = width * height;
+      byte[] linearData = new byte[totalPixels];
+      int rowsPerPlane = height / 4;  // Each plane contains height/4 rows
+      int bytesPerRow = width;
+
+      // Interleave the 4 planes
+      for (int plane = 0; plane < 4; plane++)
+      {
+        int planeOffset = plane * rowsPerPlane * bytesPerRow;
+
+        for (int row = 0; row < rowsPerPlane; row++)
+        {
+          int srcOffset = planeOffset + (row * bytesPerRow);
+          int dstRow = (row * 4) + plane;  // Interleave: plane 0 row 0 -> output row 0, plane 1 row 0 -> output row 1, etc.
+          int dstOffset = dstRow * bytesPerRow;
+
+          Array.Copy(planarData, srcOffset, linearData, dstOffset, bytesPerRow);
+        }
+      }
+
+      return linearData;
+    }
     public static void CropImageFolderRandom(string folderPath, string extension, int width, int height)
     {
       string[] imageFiles = Directory.GetFiles(folderPath, extension); // Change the extension as required
@@ -1182,6 +1231,52 @@ namespace ExtractCLUT.Helpers
       return bitmap;
     }
 
+    public static Image<Rgba32> Decode16BitImage(
+        byte[] data, int offset, int width, int height,
+        bool useRgb555 = false, bool swapRedBlue = false)
+    {
+      var image = new Image<Rgba32>(width, height);
+      int src = offset;
+
+      for (int y = 0; y < height; y++)
+      {
+        Span<Rgba32> row = image.DangerousGetPixelRowMemory(y).Span;
+        for (int x = 0; x < width; x++)
+        {
+          ushort v = (ushort)(data[src] | (data[src + 1] << 8));
+          src += 2;
+
+          int r, g, b;
+          if (useRgb555)
+          {
+            r = (v >> 10) & 0x1F;
+            g = (v >> 5) & 0x1F;
+            b = v & 0x1F;
+            r = (r * 255 + 15) / 31;
+            g = (g * 255 + 15) / 31;
+            b = (b * 255 + 15) / 31;
+          }
+          else
+          {
+            r = (v >> 11) & 0x1F;
+            g = (v >> 5) & 0x3F;
+            b = v & 0x1F;
+            r = (r * 255 + 15) / 31;
+            g = (g * 255 + 31) / 63;
+            b = (b * 255 + 15) / 31;
+          }
+
+          if (swapRedBlue)
+          {
+            int tmp = r; r = b; b = tmp;
+          }
+
+          row[x] = new Rgba32((byte)r, (byte)g, (byte)b, (r == 255 && g == 0 && b == 255) ? (byte)0 : (byte)255);
+        }
+      }
+
+      return image;
+    }
 
     public static byte[] GenerateClutBytes(List<Color> palette, byte[] clut7Bytes, int Width, int Height)
     {
@@ -1320,7 +1415,7 @@ namespace ExtractCLUT.Helpers
           {
             var pixelIndex = y * width + x;
             var byteOffset = pixelIndex * 2; // 2 bytes per pixel for 16bpp
-            
+
             // Read 16-bit palette index (little-endian)
             var paletteIndex = pixelData[byteOffset] | (pixelData[byteOffset + 1] << 8);
 
@@ -1461,7 +1556,7 @@ namespace ExtractCLUT.Helpers
           var rgbaArr = new byte[(rgb888Bytes.Length / 3) * 4];
           for (int i = 0, j = 0; i < rgb888Bytes.Length; i += 3, j += 4)
           {
-            rgbaArr[j] = rgb888Bytes[i+2]; // R
+            rgbaArr[j] = rgb888Bytes[i + 2]; // R
             rgbaArr[j + 1] = rgb888Bytes[i + 1]; // G
             rgbaArr[j + 2] = rgb888Bytes[i]; // B
             rgbaArr[j + 3] = 255; // Set alpha to 255 (opaque)
@@ -2194,6 +2289,26 @@ namespace ExtractCLUT.Helpers
           ms.Position = 0; // Reset stream position to the beginning
           var bmp = new Bitmap(ms);
           return bmp;
+        }
+      }
+    }
+
+    public static SLImage ConvertPCXToImageSharp(byte[] bytes, bool makeTrans = false)
+    {
+      using (var image = new MagickImage(bytes))
+      {
+        if (makeTrans)
+        {
+          image.Alpha(AlphaOption.Set);
+          // Sets the last color in the colormap to transparent.
+          image.SetColormapColor(0, MagickColors.Transparent);
+        }
+        using (var ms = new MemoryStream())
+        {
+          image.Write(ms, MagickFormat.Png);
+          ms.Position = 0; // Reset stream position to the beginning
+          var imgSharp = SixLabors.ImageSharp.Image.Load(ms);
+          return imgSharp;
         }
       }
     }

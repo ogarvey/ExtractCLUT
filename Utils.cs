@@ -21,6 +21,26 @@ namespace ExtractCLUT
       return (int)Math.Round((double)(component * multiplier));
     }
 
+    public static string RemoveInvalidFileNameChars(this string input)
+    {
+      var invalidChars = Path.GetInvalidFileNameChars();
+      var sanitized = new StringBuilder(input.Length);
+
+      foreach (var c in input)
+      {
+        if (!invalidChars.Contains(c))
+        {
+          sanitized.Append(c);
+        }
+        else
+        {
+          sanitized.Append('_'); // Replace invalid characters with an underscore
+        }
+      }
+
+      return sanitized.ToString();
+    }
+
     public static string ReadNullTerminatedString(this BinaryReader reader)
     {
       var byteList = new List<byte>();
@@ -37,6 +57,18 @@ namespace ExtractCLUT
     public static int bytesToInt(this byte[] bytes)
     {
       return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+    }
+
+    public static uint ReadUInt24(this BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(3);
+      return (uint)((bytes[0] << 16) | (bytes[1] << 8) | bytes[2]);
+    }
+
+    public static uint ReadUInt24BigEndian(this BinaryReader reader)
+    {
+      byte[] bytes = reader.ReadBytes(3);
+      return (uint)((bytes[2] << 16) | (bytes[1] << 8) | bytes[0]);
     }
 
     public static ushort ReadBigEndianUInt16(this BinaryReader reader)
