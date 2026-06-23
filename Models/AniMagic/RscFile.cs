@@ -189,6 +189,154 @@ namespace ExtractCLUT.Models.AniMagic
 			return outputBuffer;
 		}
 
+		protected byte[] DecompressType45(Stream inputStream, int compressedDataSize, int expectedOutputSize)
+		{
+			if (inputStream == null)
+				throw new ArgumentNullException(nameof(inputStream));
+			if (!inputStream.CanRead)
+				throw new ArgumentException("Stream must be readable.", nameof(inputStream));
+			if (compressedDataSize < 2)
+				throw new ArgumentOutOfRangeException(nameof(compressedDataSize), "Compressed data size must be at least 2 bytes for type 4/5 data.");
+			if (expectedOutputSize < 0)
+				throw new ArgumentOutOfRangeException(nameof(expectedOutputSize), "Expected output size cannot be negative.");
+			if (expectedOutputSize == 0)
+				return Array.Empty<byte>();
+
+			byte[] outputBuffer = new byte[expectedOutputSize];
+			int outputIndex = 0;
+			int bytesRemaining = compressedDataSize;
+
+			using var reader = new BinaryReader(inputStream);
+
+			ushort bitBuffer;
+			try { bitBuffer = reader.ReadUInt16(); }
+			catch (EndOfStreamException ex)
+			{
+				throw new InvalidDataException("Stream ended unexpectedly while reading the initial bit buffer.", ex);
+			}
+			bytesRemaining -= 2;
+			int bitsRemaining = 16;
+
+			bool ReadBit()
+			{
+				if (bitsRemaining == 0)
+				{
+					if (bytesRemaining < 2)
+						throw new InvalidDataException("Stream ended unexpectedly while refilling the bit buffer.");
+
+					try { bitBuffer = reader.ReadUInt16(); }
+					catch (EndOfStreamException ex)
+					{
+						throw new InvalidDataException("Stream ended unexpectedly while refilling the bit buffer.", ex);
+					}
+
+					bytesRemaining -= 2;
+					bitsRemaining = 16;
+				}
+
+				bool bit = (bitBuffer & 1) != 0;
+				bitBuffer >>= 1;
+				bitsRemaining--;
+				return bit;
+			}
+
+			byte ReadDataByte(string context)
+			{
+				if (bytesRemaining <= 0)
+					throw new InvalidDataException($"Stream ended unexpectedly while reading {context}.");
+
+				try
+				{
+					bytesRemaining--;
+					return reader.ReadByte();
+				}
+				catch (EndOfStreamException ex)
+				{
+					throw new InvalidDataException($"Stream ended unexpectedly while reading {context}.", ex);
+				}
+			}
+
+			while (outputIndex < expectedOutputSize)
+			{
+				if (!ReadBit())
+				{
+					outputBuffer[outputIndex++] = ReadDataByte("literal byte");
+					continue;
+				}
+
+				if (!ReadBit())
+				{
+					int shortCopyLength = ((ReadBit() ? 1 : 0) << 1) | (ReadBit() ? 1 : 0);
+					shortCopyLength += 2;
+					byte offsetLow = ReadDataByte("short back-reference offset");
+					int shortBackReferenceDistance = offsetLow + 1;
+
+					if (shortBackReferenceDistance > outputIndex)
+						throw new InvalidDataException($"Invalid back-reference. Distance {shortBackReferenceDistance} at output index {outputIndex} points before the start of the buffer.");
+					if (outputIndex + shortCopyLength > expectedOutputSize)
+						throw new InvalidDataException($"Decompression error. Copying {shortCopyLength} bytes at output index {outputIndex} would exceed the expected output size of {expectedOutputSize}.");
+
+					int shortSourceIndex = outputIndex - shortBackReferenceDistance;
+					for (int i = 0; i < shortCopyLength; i++)
+					{
+						outputBuffer[outputIndex++] = outputBuffer[shortSourceIndex++];
+					}
+					continue;
+				}
+
+				byte referenceLow = ReadDataByte("back-reference low byte");
+				byte referenceHigh = ReadDataByte("back-reference high byte");
+				int backReferenceDistance = (((referenceHigh & 0xF8) << 5) | referenceLow) + 1;
+				int copyLength = referenceHigh & 0x07;
+
+				if (copyLength == 0)
+				{
+					byte terminatorOrLength = ReadDataByte("back-reference length byte");
+					if (terminatorOrLength == 0)
+						break;
+
+					copyLength = terminatorOrLength;
+				}
+				else
+				{
+					copyLength += 2;
+				}
+
+				if (backReferenceDistance > outputIndex)
+					throw new InvalidDataException($"Invalid back-reference. Distance {backReferenceDistance} at output index {outputIndex} points before the start of the buffer.");
+				if (outputIndex + copyLength > expectedOutputSize)
+					throw new InvalidDataException($"Decompression error. Copying {copyLength} bytes at output index {outputIndex} would exceed the expected output size of {expectedOutputSize}.");
+
+				int sourceIndex = outputIndex - backReferenceDistance;
+				for (int i = 0; i < copyLength; i++)
+				{
+					outputBuffer[outputIndex++] = outputBuffer[sourceIndex++];
+				}
+			}
+
+			if (outputIndex != expectedOutputSize)
+			{
+				throw new InvalidDataException($"Decompression finished, but produced {outputIndex} output bytes instead of the expected {expectedOutputSize}.");
+			}
+
+			return outputBuffer;
+		}
+
+		protected byte[] DecodeBmpData(byte compressionType, byte[] compressedData, int expectedOutputSize)
+		{
+			if (compressedData == null)
+				throw new ArgumentNullException(nameof(compressedData));
+
+			return compressionType switch
+			{
+				0 => compressedData,
+				3 => Decompress(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
+				4 => DecompressType45(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
+				5 => DecompressType45(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
+				_ => throw new InvalidDataException($"Unsupported BMP compression type {compressionType}.")
+			};
+		}
+
 		public void ExportBmpImages(string outputDir)
 		{
 			if (!Directory.Exists(outputDir))

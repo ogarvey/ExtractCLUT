@@ -70,30 +70,22 @@ namespace ExtractCLUT.Models.AniMagic
                 rscReader.BaseStream.Position = bmpEntry.Offset;
 
                 var unknownValue = rscReader.ReadUInt16();
+                var compressionType = (byte)(unknownValue & 0xFF);
                 Console.WriteLine($"Unknown Value: {unknownValue}");
+                Console.WriteLine($"Compression Type: {compressionType}");
                 var height = rscReader.ReadUInt16();
                 var width = rscReader.ReadUInt16();
                 var dataSize = rscReader.ReadUInt32();
                 var compressedData = rscReader.ReadBytes((int)dataSize);
-                if (dataSize != width * height)
+                try
                 {
-                    //continue; // Skip this entry if the data size doesn't match the expected width * height
-                    // Decompress the data if the size doesn't match the expected width * height
-                    try
-                    {
-                        var decompressedData = Decompress(new MemoryStream(compressedData), (int)dataSize, width * height);
-                        var image = ImageFormatHelper.GenerateIMClutImage(_palette, decompressedData, width, height);
-                        _bmpImages.Add(image);
-                    }
-                    catch
-                    {
-                        Console.WriteLine($"Failed to decompress BMP entry at offset {bmpEntry.Offset} with size {bmpEntry.Size}");
-                    }
+                    var imageData = DecodeBmpData(compressionType, compressedData, width * height);
+                    var image = ImageFormatHelper.GenerateIMClutImage(_palette, imageData, width, height);
+                    _bmpImages.Add(image);
                 }
-                else
+                catch (Exception ex)
                 {
-                    var bgImage = ImageFormatHelper.GenerateIMClutImage(_palette, compressedData, width, height);
-                    _bmpImages.Add(bgImage);
+                    Console.WriteLine($"Failed to decode BMP entry at offset {bmpEntry.Offset} with size {dataSize}: {ex.Message}");
                 }
                 processedCount++;
             }
