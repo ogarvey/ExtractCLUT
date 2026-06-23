@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Threading.Tasks;
 using ExtractCLUT.Helpers;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -50,7 +45,7 @@ namespace ExtractCLUT.Games.PC.EoL
             }
         }
 
-        public void ParseImages(string palFilePath)
+        public void ParseImages(string palFilePath, bool isCompressed = true)
         {
             using var palBr = new BinaryReader(File.OpenRead(palFilePath));
             var palData = palBr.ReadBytes((int)palBr.BaseStream.Length);
@@ -64,18 +59,29 @@ namespace ExtractCLUT.Games.PC.EoL
                 var height = br.ReadUInt16();
                 var compressedDataSize = br.ReadUInt32();
                 var compressedData = br.ReadBytes((int)compressedDataSize);
-                
-                var remainingBytesCount = Offsets.Count > index + 1 ? Offsets[index + 1] - (offset + 8 + compressedDataSize) : (uint)(br.BaseStream.Length - (offset + 8 + compressedDataSize));
-                var remainingBytes = br.ReadBytes((int)remainingBytesCount);
-                var decompressedData = DecompressImage(compressedData, remainingBytes, width, height);
 
-                var image = ImageFormatHelper.GenerateIMClutImage(palette, decompressedData, width, height, true, 0);
-                Images.Add(image);
+                if (isCompressed)
+                {
+                    var remainingBytesCount = Offsets.Count > index + 1 ? Offsets[index + 1] - (offset + 8 + compressedDataSize) : (uint)(br.BaseStream.Length - (offset + 8 + compressedDataSize));
+                    var remainingBytes = br.ReadBytes((int)remainingBytesCount);
+                    var decompressedData = DecompressImage(compressedData, remainingBytes, width, height);
+                    var image = ImageFormatHelper.GenerateIMClutImage(palette, decompressedData, width, height, true, 0);
+                    Images.Add(image);
+                }
+                else
+                {
+                    var image = ImageFormatHelper.GenerateIMClutImage(palette, compressedData, width, height, true, 0);
+                    Images.Add(image);
+                }
             }
         }
 
         public void SaveImages(string outputDirectory)
         {
+            if (!Directory.Exists(outputDirectory))
+            {
+                Directory.CreateDirectory(outputDirectory);
+            }
             for (int i = 0; i < Images.Count; i++)
             {
                 var outputPath = Path.Combine(outputDirectory, $"image_{i:D4}.png");
@@ -83,7 +89,7 @@ namespace ExtractCLUT.Games.PC.EoL
             }
         }
 
-        public byte[] DecompressImage(byte[] compressedData, byte[] lineOffsets, int width, int height)
+        public static byte[] DecompressImage(byte[] compressedData, byte[] lineOffsets, int width, int height)
         {
             var decompressedData = new List<byte>();
 
@@ -110,7 +116,7 @@ namespace ExtractCLUT.Games.PC.EoL
                 decompressedData.AddRange(lineData);
             }
 
-            return decompressedData.ToArray();
+            return [.. decompressedData];
         }
     }
 }

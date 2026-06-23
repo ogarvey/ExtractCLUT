@@ -395,6 +395,113 @@ namespace ExtractCLUT.Games
       return result;
     }
 
+    public static void ExtractNPCBlobs(string planetFile, string outputFolder)
+    {
+      var planetCdiFile = new CdiFile(planetFile);
+      var npcSectors = new List<List<CdiSector>>();
+      var subGroup = new List<CdiSector>();
+      var recordIndex = 1;
+      foreach (var sector in planetCdiFile.Sectors)
+      {
+        if (sector.SectorIndex > 194)
+        {
+          if (sector.Channel == 3) subGroup.Add(sector);
+          if (sector.SubMode.IsEOR)
+          {
+            var npcData = subGroup.SelectMany(s => s.GetSectorData()).ToArray();
+            File.WriteAllBytes(Path.Combine(outputFolder, $"{recordIndex++}.bin"), npcData);
+            subGroup.Clear();
+          }
+        }
+      }
+    }
+
+    public static List<OriginalNpcRecord> ParseNPCData(string planetFile)
+    {
+      var npcDataList = new List<OriginalNpcRecord>();
+      var planetCdiFile = new CdiFile(planetFile);
+      
+      var spriteSectors = new List<List<CdiSector>>();
+      var subGroup = new List<CdiSector>();
+
+      foreach (var sector in planetCdiFile.Sectors)
+      {
+        if (sector.SectorIndex > 143 && sector.Channel == 2) subGroup.Add(sector);
+        if (sector.SubMode.IsEOR)
+        {
+          spriteSectors.Add(subGroup);
+          subGroup = new List<CdiSector>();
+        }
+      }
+
+      foreach (var sprGroup in spriteSectors)
+      {
+        if (sprGroup.Count == 0) continue;
+        var data = sprGroup.SelectMany(s => s.GetSectorData()).ToArray();
+        var header = data.Take(0x20).ToArray();
+        // parse header into OriginalNpcRecord, each field is actually a byte, but we will convert to int for ease of use
+        var record = new OriginalNpcRecord(
+          ScreenId: header[0],
+          SpriteId: header[1],
+          SpawnPositionY: header[4],
+          SpawnPositionX: header[3],
+          FloorY: header[2],
+          PassiveLeftBound: header[5],
+          PassiveRightBound: header[6],
+          PassiveCadence: header[7],
+          InitialHitPoints: header[8],
+          VerticalHitProfile: header.Skip(10).Take(6).Select(b => (int)b).ToList(),
+          ContactDamage: header[16],
+          AttackProfile: header[17],
+          AttackPhaseATiming: header[18],
+          AttackPhaseBTiming: header[19],
+          AggressiveCadence: header[20],
+          AggressiveLeftBound: header[21],
+          AggressiveRightBound: header[22],
+          CloseContactHitFlag: header[23],
+          InitialFacing: header[24],
+          Unknown19: header[25],
+          ActivationMode: header[26],
+          SurrenderDisableFlag: header[27],
+          DamageReactionThreshold: header[28],
+          PostDefeatSequenceFlag: header[29],
+          Unknown1E: header[30],
+          AiDisableFlag: header[31]
+        );
+        npcDataList.Add(record);
+      }
+
+      return npcDataList;
+    }
+
+    public sealed record OriginalNpcRecord(
+    int ScreenId,
+    int SpriteId,
+    int SpawnPositionY,
+    int SpawnPositionX,
+    int FloorY,
+    int PassiveLeftBound,
+    int PassiveRightBound,
+    int PassiveCadence,
+    int InitialHitPoints,
+    IReadOnlyList<int> VerticalHitProfile,
+    int ContactDamage,
+    int AttackProfile,
+    int AttackPhaseATiming,
+    int AttackPhaseBTiming,
+    int AggressiveCadence,
+    int AggressiveLeftBound,
+    int AggressiveRightBound,
+    int CloseContactHitFlag,
+    int InitialFacing,
+    int Unknown19,
+    int ActivationMode,
+    int SurrenderDisableFlag,
+    int DamageReactionThreshold,
+    int PostDefeatSequenceFlag,
+    int Unknown1E,
+    int AiDisableFlag);
+
     public static void ExtractPlanet(string planetFile, string mainOutput)
     {
       var spriteOutput = Path.Combine(mainOutput, "Sprites");
