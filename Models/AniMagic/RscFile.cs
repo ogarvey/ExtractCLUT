@@ -256,14 +256,18 @@ namespace ExtractCLUT.Models.AniMagic
 				}
 			}
 
-			while (outputIndex < expectedOutputSize)
+			while (true)
 			{
-				if (!ReadBit())
+				// bit == 1 => literal, bit == 0 => back-reference (matches FUN_00415170)
+				if (ReadBit())
 				{
+					if (outputIndex >= expectedOutputSize)
+						throw new InvalidDataException($"Output buffer overrun on literal write. Exceeded expected size {expectedOutputSize}.");
 					outputBuffer[outputIndex++] = ReadDataByte("literal byte");
 					continue;
 				}
 
+				// back-reference: next bit selects short (0) or long (1)
 				if (!ReadBit())
 				{
 					int shortCopyLength = ((ReadBit() ? 1 : 0) << 1) | (ReadBit() ? 1 : 0);
@@ -314,12 +318,22 @@ namespace ExtractCLUT.Models.AniMagic
 				}
 			}
 
-			if (outputIndex != expectedOutputSize)
-			{
-				throw new InvalidDataException($"Decompression finished, but produced {outputIndex} output bytes instead of the expected {expectedOutputSize}.");
-			}
+			if (outputIndex == expectedOutputSize)
+				return outputBuffer;
 
-			return outputBuffer;
+			byte[] trimmed = new byte[outputIndex];
+			Array.Copy(outputBuffer, trimmed, outputIndex);
+			return trimmed;
+		}
+
+		private byte[] DecompressType4(byte[] compressedData)
+		{
+			if (compressedData.Length < 8)
+				throw new InvalidDataException("Type 4 bitmap data is too short to contain the size prefix and bitstream.");
+
+			// Type 4 prefixes the bitstream with a u32 decompressed size; the stream starts 4 bytes in.
+			int decompressedSize = BitConverter.ToInt32(compressedData, 0);
+			return DecompressType45(new MemoryStream(compressedData, 4, compressedData.Length - 4, writable: false), compressedData.Length - 4, decompressedSize);
 		}
 
 		protected byte[] DecodeBmpData(byte compressionType, byte[] compressedData, int expectedOutputSize)
@@ -331,11 +345,112 @@ namespace ExtractCLUT.Models.AniMagic
 			{
 				0 => compressedData,
 				3 => Decompress(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
-				4 => DecompressType45(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
+				4 => DecompressType4(compressedData),
 				5 => DecompressType45(new MemoryStream(compressedData, writable: false), compressedData.Length, expectedOutputSize),
 				_ => throw new InvalidDataException($"Unsupported BMP compression type {compressionType}.")
 			};
 		}
+
+		/// <summary>
+		/// Decodes a compiled type-4 sprite buffer (the decompressed output of <see cref="DecompressType4"/>)
+		/// into a flat <c>width * height</c> array of CLUT indices. Pixels that are never written remain 0,
+		/// which is the engine's transparent value (color-table entry 0 == transparent).
+		///
+		/// Buffer layout (reversed from JSKGM.EXE FUN_0040f560):
+		///   [0]                       u8  N            = color-table length
+		///   [1 .. N]                  u8  colorTable[N] (control index k -> CLUT index colorTable[k]; 0 = transparent)
+		///   [N+1 .. N+2]              u16 rowTableBytes (= numRows * 2)
+		///   [N+3 ..]                  u16 rowLengths[numRows] (byte length of each row's encoded data)
+		///   [N+3+rowTableBytes ..]    encoded row data, concatenated per row
+		/// </summary>
+		protected static byte[] DecodeCompiledSprite(byte[] buffer, int width, int height)
+		{
+			if (buffer == null)
+				throw new ArgumentNullException(nameof(buffer));
+			if (width <= 0 || height <= 0)
+				throw new InvalidDataException($"Invalid compiled sprite dimensions {width}x{height}.");
+
+			int colorTableLength = buffer[0];
+			const int colorTableStart = 1;
+			int rowTableSizePos = colorTableStart + colorTableLength;
+			if (rowTableSizePos + 2 > buffer.Length)
+				throw new InvalidDataException("Compiled sprite buffer is too small to contain its header.");
+
+			int rowTableBytes = buffer[rowTableSizePos] | (buffer[rowTableSizePos + 1] << 8);
+			int rowTableStart = rowTableSizePos + 2;
+			int numRows = rowTableBytes / 2;
+			int dataStart = rowTableStart + rowTableBytes;
+			if (dataStart > buffer.Length)
+				throw new InvalidDataException("Compiled sprite buffer is too small to contain its row table.");
+
+			byte ColorOf(int controlIndex)
+			{
+				int idx = colorTableStart + controlIndex;
+				return idx < buffer.Length ? buffer[idx] : (byte)0;
+			}
+
+			var output = new byte[width * height];
+			int rowsToDecode = Math.Min(numRows, height);
+			int rowDataPos = dataStart;
+
+			for (int row = 0; row < rowsToDecode; row++)
+			{
+				int rowLength = buffer[rowTableStart + row * 2] | (buffer[rowTableStart + row * 2 + 1] << 8);
+				int rowEnd = Math.Min(rowDataPos + rowLength, buffer.Length);
+				int destRow = row * width;
+				int x = 0;
+				int p = rowDataPos;
+
+				while (x < width && p < rowEnd)
+				{
+					byte control = buffer[p++];
+					if ((control & 0x80) == 0)
+					{
+						// Single pixel; color 0 leaves the pixel transparent.
+						byte color = ColorOf(control & 0x7F);
+						if (color != 0)
+							output[destRow + x] = color;
+						x++;
+						continue;
+					}
+
+					if (p >= rowEnd)
+						break;
+
+					int runLength = buffer[p++];
+					if (runLength == 0)
+						runLength = width - x;
+
+					if (control == 0xFF)
+					{
+						// Literal run: runLength raw CLUT indices follow inline (opaque).
+						for (int i = 0; i < runLength && x < width; i++)
+						{
+							byte color = p < rowEnd ? buffer[p++] : (byte)0;
+							output[destRow + x++] = color;
+						}
+					}
+					else
+					{
+						byte color = ColorOf(control & 0x7F);
+						if (color == 0)
+						{
+							x += runLength; // transparent skip
+						}
+						else
+						{
+							for (int i = 0; i < runLength && x < width; i++)
+								output[destRow + x++] = color;
+						}
+					}
+				}
+
+				rowDataPos = Math.Min(rowDataPos + rowLength, buffer.Length);
+			}
+
+			return output;
+		}
+
 
 		public void ExportBmpImages(string outputDir)
 		{

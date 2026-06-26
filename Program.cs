@@ -1,19 +1,32 @@
 ﻿using System.Drawing;
 using System.Drawing.Imaging;
 using System.Text;
+using ExtractCLUT.Games.PSX.Alundra;
 using ExtractCLUT.Games.PC.EoL;
 using ExtractCLUT.Helpers;
 using ExtractCLUT.Models.AniMagic;
 using SixLabors.ImageSharp;
 
-var rscFile = @"C:\Dev\Gaming\PC\Win\Games\JSKGM\JSKGM\NERO001\NERO001.RSC";
-var outputDir = @"C:\Dev\Gaming\PC\Win\Games\JSKGM\JSKGM\NERO001\Extracted";
-Directory.CreateDirectory(outputDir);
+var alundraDataFile = @"C:\Dev\Gaming\Sony\PSX\Games\Alundra\DATA\DATAS.BIN";
+var alundraOutDir = @"C:\Dev\Gaming\Sony\PSX\Games\Alundra\Extracted";
+AlundraHelper.ExtractDatasBin(alundraDataFile, alundraOutDir, renderMapSamples: 12);
+Console.WriteLine("Alundra DATAS.BIN extracted");
 
 
-var rscFileV2 = new RscFileV2(rscFile);
-rscFileV2.ProcessBmpTable();
-rscFileV2.ExportBmpImages(outputDir);
+
+
+// Nothing below this line is currently being used, but it may be useful for future reference.
+
+
+
+// var rscFile = @"C:\Dev\Gaming\PC\Win\Games\JSKGM\JSKGM\NERO003\NERO003.RSC";
+// var outputDir = @"C:\Dev\Gaming\PC\Win\Games\JSKGM\JSKGM\NERO003\Extracted";
+// Directory.CreateDirectory(outputDir);
+
+
+// var rscFileV2 = new RscFileV2(rscFile);
+// rscFileV2.ProcessBmpTable();
+// rscFileV2.ExportBmpImages(outputDir);
 
 // var pcxHeader = new byte[] { 0x0A, 0x05, 0x01, 0x08 };
 // var wavHeader = new byte[] { 0x52, 0x49, 0x46, 0x46 };

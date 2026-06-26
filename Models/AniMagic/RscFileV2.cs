@@ -79,9 +79,27 @@ namespace ExtractCLUT.Models.AniMagic
                 var compressedData = rscReader.ReadBytes((int)dataSize);
                 try
                 {
-                    var imageData = DecodeBmpData(compressionType, compressedData, width * height);
-                    var image = ImageFormatHelper.GenerateIMClutImage(_palette, imageData, width, height);
-                    _bmpImages.Add(image);
+                    var decompressed = DecodeBmpData(compressionType, compressedData, width * height);
+
+                    // Type 4 decompresses to a compiled sprite stream; decode it to a flat w*h
+                    // index buffer (color-table entry 0 == transparent). Other types are already flat.
+                    var imageData = compressionType == 4
+                        ? DecodeCompiledSprite(decompressed, width, height)
+                        : decompressed;
+
+                    if (imageData.Length == width * height)
+                    {
+                        var image = ImageFormatHelper.GenerateIMClutImage(
+                            _palette, imageData, width, height,
+                            useTransparency: compressionType == 4,
+                            transparencyIndex: 0,
+                            fixedIndex: true);
+                        _bmpImages.Add(image);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Decoded BMP entry at offset {bmpEntry.Offset} produced {imageData.Length} bytes, expected {width * height} ({width}x{height}); render skipped.");
+                    }
                 }
                 catch (Exception ex)
                 {
