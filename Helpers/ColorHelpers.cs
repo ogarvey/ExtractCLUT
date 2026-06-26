@@ -126,9 +126,9 @@ namespace ExtractCLUT.Helpers
       {
         ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).ToArray(), 0);
         bool alpha = ((color >> 15) & 0x1) > 0;  // 1 bit for Alpha
-        byte red = (byte)((color >> 10) & 0x1F);
-        byte green = (byte)((color >> 5) & 0x1F);
-        byte blue = (byte)(color & 0x1F);
+        byte red = (byte)(color & 0x1F);              // bits 0-4 = Red in BGR555
+        byte green = (byte)((color >> 5) & 0x1F);      // bits 5-9 = Green
+        byte blue = (byte)((color >> 10) & 0x1F);      // bits 10-14 = Blue
 
         red = (byte)((red << 3) | (red >> 2));
         green = (byte)((green << 3) | (green >> 2));
@@ -142,7 +142,7 @@ namespace ExtractCLUT.Helpers
           }
           else
           {
-            rgbColor = Color.FromArgb(translucent ? 128 : 255, blue, green, red);
+            rgbColor = Color.FromArgb(translucent ? 128 : 255, red, green, blue);
           }
         }
         else
@@ -153,7 +153,7 @@ namespace ExtractCLUT.Helpers
           }
           else
           {
-            rgbColor = Color.FromArgb(255, blue, green, red);
+            rgbColor = Color.FromArgb(255, red, green, blue);
           }
         }
 
@@ -377,16 +377,16 @@ namespace ExtractCLUT.Helpers
       {
         ushort color = BitConverter.ToUInt16(bytes.Skip(i).Take(2).ToArray(), 0);
         byte alpha = (byte)((color >> 15) & 0x1);  // 1 bit for Alpha
-        byte red = (byte)((color >> 10) & 0x1F);
-        byte green = (byte)((color >> 5) & 0x1F);
-        byte blue = (byte)(color & 0x1F);
+        byte red = (byte)(color & 0x1F);              // bits 0-4 = Red in BGR555
+        byte green = (byte)((color >> 5) & 0x1F);      // bits 5-9 = Green
+        byte blue = (byte)((color >> 10) & 0x1F);      // bits 10-14 = Blue
 
         alpha = (byte)(alpha == 0 ? 0 : 255);
         red = (byte)((red << 3) | (red >> 2));
         green = (byte)((green << 3) | (green >> 2));
         blue = (byte)((blue << 3) | (blue >> 2));
 
-        SixLabors.ImageSharp.Color rgbColor = new Rgba32(blue, green, red, 255);
+        SixLabors.ImageSharp.Color rgbColor = new Rgba32(red, green, blue, 255);
         colors.Add(rgbColor);
       }
 

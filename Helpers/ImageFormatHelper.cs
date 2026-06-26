@@ -535,9 +535,9 @@ namespace ExtractCLUT.Helpers
 
                         // Extract ARGB components from A1B5G5R5
                         byte a = (byte)((color >> 15) & 0x1);  // 1 bit for Alpha
-                        byte b = (byte)((color >> 10) & 0x1F); // 5 bits for Blue
+                        byte r = (byte)((color >> 10) & 0x1F); // 5 bits for Red
                         byte g = (byte)((color >> 5) & 0x1F);  // 5 bits for Green
-                        byte r = (byte)(color & 0x1F);         // 5 bits for Red
+                        byte b = (byte)(color & 0x1F);         // 5 bits for Blue
 
                         // Scale 5-bit and 6-bit components to 8-bit
                         r = (byte)((r << 3) | (r >> 2)); // Scale 5 bits to 8 bits

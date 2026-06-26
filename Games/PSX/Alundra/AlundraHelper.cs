@@ -453,402 +453,450 @@ namespace ExtractCLUT.Games.PSX.Alundra
             RenderTilesetSub(subs[4], envPalettes, outDir, $"map{mapId:D3}_tiles1");
 
             // Assemble the full room using the tilemap (sub1) + tileset (sub2) + CLUT (sub0).
-            RenderRoom(subs, envPalettes, outDir, $"map{mapId:D3}_room");
+            RenderRoom(subs, palettes, outDir, $"map{mapId:D3}_room");
 
-            // Extract individual sprites from sub4 (tiles1) if present
-            if (subs[4] != null && subs[4].Length > 0)
+            // Extract individual sprites using the unified 14-byte descriptors database in sub3
+            if (subs[3] != null && subs[3].Length > 0)
             {
                 try
                 {
-                    byte[] tiles1Pixels = IsEz(subs[4]) ? DecompressEZ(subs[4]) : subs[4];
-                    if (tiles1Pixels.Length > 0)
-                    {
-                        // Use tileset palettes (palettes 16 to 31 are object palettes)
-                        var objPalettes = palettes.Skip(16).Take(16).ToList();
-                        ExtractIndividualSprites(tiles1Pixels, objPalettes, outDir, $"map{mapId:D3}_tiles1_sprites");
-                    }
+                    ExtractIndividualSpritesUnified(palettes, subs[3], subs[2], subs[4], subs[5], outDir, $"map{mapId:D3}");
                 }
                 catch (Exception)
                 {
-                    // Ignore decompression/extraction errors
-                }
-            }
-
-            // Extract sprites from sub5 (sprite bank) if present
-            if (subs[5] != null && subs[5].Length >= 0x20)
-            {
-                try
-                {
-                    var bank = ParseSpriteBank(subs[5]);
-                    if (bank.Pixels4bpp != null && bank.Pixels4bpp.Length > 0 && bank.Clut != null && bank.Clut.Count > 0)
-                    {
-                        var bankPalettes = new List<List<Color>>();
-                        for (int p = 0; p < 8; p++)
-                        {
-                            var palette = bank.Clut.Skip(p * 16).Take(16).ToList();
-                            if (palette.Count == 16) bankPalettes.Add(palette);
-                        }
-
-                        // Render and save the full sheets first
-                        string spritesDir = Path.Combine(outDir, "sprites");
-                        Directory.CreateDirectory(spritesDir);
-                        for (int p = 0; p < bankPalettes.Count; p++)
-                        {
-                            var renderPalette = bankPalettes[p].Select((c, idx) => idx == 0 ? Color.Transparent : c).ToList();
-                            using var sheet = Render4bppLinear(bank.Pixels4bpp, renderPalette, 256);
-                            sheet.Save(Path.Combine(spritesDir, $"map{mapId:D3}_spritesheet_pal{p}.png"), ImageFormat.Png);
-                        }
-
-                        // Extract individual cropped cels using Connected Component Bounding Boxes
-                        ExtractIndividualSprites(bank.Pixels4bpp, bankPalettes, outDir, $"map{mapId:D3}_bank_sprites");
-                    }
-                }
-                catch (Exception)
-                {
-                    // Ignore malformed sprite banks
+                    // Ignore extraction/decompression errors
                 }
             }
         }
 
-        /// <summary>
-        /// Scans a 4bpp linear pixel block and uses Connected Component Analysis (CCA) with recursive
-        /// projection-based splitting to find the bounding boxes of all sprites (non-transparent pixel clusters).
-        /// Extracts each sprite individually, cropped, under all distinct palettes with index-0 transparency.
-        /// </summary>
-        public static void ExtractIndividualSprites(byte[] pixels, List<List<Color>> palettes, string outDir, string baseName)
+        public class SpriteCelDescriptor
         {
-            if (pixels == null || pixels.Length == 0 || palettes == null || palettes.Count == 0) return;
+            public byte Flags { get; set; }
+            public byte PalIdx { get; set; }
+            public byte U { get; set; }
+            public byte V { get; set; }
+            public byte Width { get; set; }
+            public byte Height { get; set; }
+            public sbyte[] VertexOffsets { get; set; }
+            public int PageIdx => Flags & 0x07;
+        }
 
-            int width = 256;
-            int height = (pixels.Length * 2) / width;
-            if (height <= 0) return;
+        /// <summary>
+        /// Extract sprites from sub2, sub4, and sub5 using the 14-byte cel descriptors found in sub3.
+        /// </summary>
+        public static void ExtractIndividualSpritesUnified(
+            List<List<Color>> mapPalettes, byte[] sub3, byte[] sub2, byte[] sub4, byte[] sub5,
+            string outDir, string baseName)
+        {
+            if (sub3 == null || sub3.Length < 24) return;
 
-            // Find all sprite bounding boxes in the 4bpp VRAM sheet
-            var bounds = FindSpriteBounds4bpp(pixels, width, height);
-            if (bounds.Count == 0) return;
+            // 1) Decompress sub2 (primary tileset) if present and EZ-compressed
+            byte[] sub2Pixels = Array.Empty<byte>();
+            if (sub2 != null && sub2.Length > 0)
+            {
+                sub2Pixels = IsEz(sub2) ? DecompressEZ(sub2) : sub2;
+            }
 
-            string targetDir = Path.Combine(outDir, "sprites", baseName);
+            // 2) Decompress sub4 (secondary tileset) if present and EZ-compressed
+            byte[] sub4Pixels = Array.Empty<byte>();
+            if (sub4 != null && sub4.Length > 0)
+            {
+                sub4Pixels = IsEz(sub4) ? DecompressEZ(sub4) : sub4;
+            }
+
+            // 3) Parse sub5 (sprite bank) if present and render the full sheets
+            byte[] sub5Pixels = Array.Empty<byte>();
+            var sub5Palettes = new List<List<Color>>();
+            if (sub5 != null && sub5.Length >= 0x20)
+            {
+                try
+                {
+                    var bank = ParseSpriteBank(sub5);
+                    sub5Pixels = bank.Pixels4bpp;
+                    for (int p = 0; p < 8; p++)
+                    {
+                        var palette = bank.Clut.Skip(p * 16).Take(16).ToList();
+                        if (palette.Count == 16) sub5Palettes.Add(palette);
+                    }
+
+                    string spritesDir = Path.Combine(outDir, "sprites");
+                    Directory.CreateDirectory(spritesDir);
+                    for (int p = 0; p < sub5Palettes.Count; p++)
+                    {
+                        var renderPalette = sub5Palettes[p].Select((c, idx) => idx == 0 ? Color.Transparent : c).ToList();
+                        using var sheet = Render4bppLinear(sub5Pixels, renderPalette, 256);
+                        sheet.Save(Path.Combine(spritesDir, $"{baseName}_sub5_spritesheet_pal{p}.png"), ImageFormat.Png);
+                    }
+                }
+                catch { }
+            }
+
+            // 4) Parse the 40 sprite palettes from sub3.bin (specified by word[5] of the header)
+            var sub3Palettes = new List<List<Color>>();
+            uint spritePalOffset = BitConverter.ToUInt32(sub3, 20);
+            if (spritePalOffset > 0 && spritePalOffset + 1280 <= sub3.Length)
+            {
+                for (int p = 0; p < 40; p++)
+                {
+                    int offset = (int)spritePalOffset + p * 32;
+                    byte[] palBytes = new byte[32];
+                    Array.Copy(sub3, offset, palBytes, 0, 32);
+                    var palette = ColorHelper.ReadABgr15Palette(palBytes, true);
+                    sub3Palettes.Add(palette);
+                }
+            }
+
+            // 5) Walk Table 1 in sub3.bin to locate all active Entity Definitions
+            var entityOffsets = new List<uint>();
+            uint table1Offset = BitConverter.ToUInt32(sub3, 12);
+            if (table1Offset > 0 && table1Offset + 4 <= sub3.Length)
+            {
+                for (int k = 0; k < 256; k++)
+                {
+                    int entryOffset = (int)table1Offset + k * 4;
+                    if (entryOffset + 4 > sub3.Length) break;
+                    uint val = BitConverter.ToUInt32(sub3, entryOffset);
+                    if (val == 0) break;
+                    if (val == 0xFFFFFFFF) continue;
+                    if (val < sub3.Length)
+                    {
+                        entityOffsets.Add(val);
+                    }
+                }
+            }
+
+            // 6) Clean and prepare target directory
+            string targetDir = Path.Combine(outDir, "sprites", $"{baseName}_exact_cels");
+            if (Directory.Exists(targetDir))
+            {
+                try
+                {
+                    foreach (var file in Directory.GetFiles(targetDir))
+                    {
+                        File.Delete(file);
+                    }
+                }
+                catch { }
+            }
             Directory.CreateDirectory(targetDir);
 
-            for (int i = 0; i < bounds.Count; i++)
+            // 7) Crop and extract cels per entity, animation, and frame
+            for (int entIdx = 0; entIdx < entityOffsets.Count; entIdx++)
             {
-                var rect = bounds[i];
-                int w = rect.Width;
-                int h = rect.Height;
+                uint entOff = entityOffsets[entIdx];
+                if (entOff + 36 > sub3.Length) continue;
 
-                // Find all unique non-zero color indices (nibbles) used in this sprite cel
-                var usedIndices = new HashSet<int>();
-                for (int cy = 0; cy < h; cy++)
+                uint word7 = BitConverter.ToUInt32(sub3, (int)entOff + 28);
+                uint word8 = BitConverter.ToUInt32(sub3, (int)entOff + 32);
+
+                int pageBase = (int)((word7 >> 16) & 0xFF);
+                int clutBase = (int)((word8 >> 16) & 0xFF);
+
+                // Read the 4 animation pointers
+                var animOffsets = new List<uint>();
+                for (int i = 0; i < 16; i += 4)
                 {
-                    int py = rect.Y + cy;
-                    int baseIdx = py * width + rect.X;
-                    for (int cx = 0; cx < w; cx++)
+                    uint val = BitConverter.ToUInt32(sub3, (int)entOff + i);
+                    if (val >= table1Offset && val < sub3.Length)
                     {
-                        int idx = baseIdx + cx;
-                        int byteOff = idx / 2;
-                        if (byteOff < pixels.Length)
-                        {
-                            int b = pixels[byteOff];
-                            int nib = (idx & 1) == 0 ? b & 0x0F : (b >> 4) & 0x0F;
-                            if (nib != 0) usedIndices.Add(nib);
-                        }
+                        animOffsets.Add(val);
+                    }
+                    else
+                    {
+                        animOffsets.Add(0); // keep index alignment
                     }
                 }
 
-                // If the sprite contains only transparent pixels, skip it
-                if (usedIndices.Count == 0) continue;
-
-                // For each palette, check if the colors for the used indices are unique.
-                // This prevents exporting identical/duplicate images for different palettes.
-                var renderedSignatures = new List<string>();
-
-                for (int p = 0; p < palettes.Count; p++)
+                // Process the two possible animation pairs
+                for (int animIdx = 0; animIdx < 2; animIdx++)
                 {
-                    var palette = palettes[p];
-                    if (palette.Count < 16) continue;
+                    uint ptr0 = animOffsets[2 * animIdx];
+                    uint ptr1 = animOffsets[2 * animIdx + 1];
 
-                    // Build a unique signature of the colors actually used by this sprite in this palette.
-                    var sigParts = new List<string>();
-                    foreach (int idx in usedIndices.OrderBy(x => x))
+                    if (ptr0 == 0 || ptr1 == 0 || ptr0 >= sub3.Length || ptr1 >= sub3.Length)
                     {
-                        var c = palette[idx];
-                        sigParts.Add($"{idx}:{c.R},{c.G},{c.B}");
+                        continue; // Invalid or missing animation pair
                     }
-                    string signature = string.Join(";", sigParts);
 
-                    // Skip if we've already rendered an identical image for this sprite
-                    if (renderedSignatures.Contains(signature)) continue;
-                    renderedSignatures.Add(signature);
+                    int distance = (int)ptr1 - (int)ptr0;
+                    if (distance < 0) continue; // Invalid pair ordering
 
-                    using var celBmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
-                    var bd = celBmp.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-                    try
+                    if (distance < 80)
                     {
-                        int[] pal = palette.Select((c, idx) => idx == 0 ? 0 : c.ToArgb()).ToArray();
-                        var row = new int[w];
-                        IntPtr scan = bd.Scan0;
-                        for (int cy = 0; cy < h; cy++)
+                        // -------------------------------------------------------------
+                        // Format B: List-based (6-byte frames + 16-byte cels)
+                        // -------------------------------------------------------------
+                        int frameCount = Math.Min(7, distance / 6);
+                        for (int frameIdx = 0; frameIdx < frameCount; frameIdx++)
                         {
-                            int py = rect.Y + cy;
-                            int baseIdx = py * width + rect.X;
-                            for (int cx = 0; cx < w; cx++)
+                            int frameOff = (int)ptr0 + frameIdx * 6;
+                            sbyte xOff = (sbyte)sub3[frameOff];
+                            sbyte yOff = (sbyte)sub3[frameOff + 1];
+                            byte celCountMinusOne = sub3[frameOff + 2];
+                            byte celStartIdx = sub3[frameOff + 3];
+                            byte delay = sub3[frameOff + 4];
+                            byte flags = sub3[frameOff + 5];
+
+                            // Skip empty/unused frame slots
+                            if (celCountMinusOne == 0xFF || (celCountMinusOne == 0 && celStartIdx == 0 && delay == 0 && flags == 0))
                             {
-                                int idx = baseIdx + cx;
-                                int byteOff = idx / 2;
-                                if (byteOff < pixels.Length)
-                                {
-                                    int b = pixels[byteOff];
-                                    int nib = (idx & 1) == 0 ? b & 0x0F : (b >> 4) & 0x0F;
-                                    row[cx] = pal[nib];
-                                }
-                                else
-                                {
-                                    row[cx] = 0; // transparent
-                                }
+                                continue;
                             }
-                            System.Runtime.InteropServices.Marshal.Copy(row, 0, scan + cy * bd.Stride, w);
+
+                            int celCount = celCountMinusOne + 1;
+                            if (celCount <= 0 || celCount > 40) continue;
+
+                            for (int c = 0; c < celCount; c++)
+                            {
+                                int celOff = (int)ptr1 + (celStartIdx + c) * 16;
+                                if (celOff + 16 > sub3.Length) continue;
+
+                                byte celFlags = sub3[celOff];
+                                byte celPalIdx = sub3[celOff + 1];
+                                byte celU = sub3[celOff + 2];
+                                byte celV = sub3[celOff + 3];
+                                byte celW = sub3[celOff + 4];
+                                byte celH = sub3[celOff + 5];
+
+                                if (celW == 0 || celH == 0 || celW > 256 || celH > 256)
+                                {
+                                    continue; // Skip invalid sizes
+                                }
+
+                                int actualPage = pageBase + (celFlags & 0x07);
+                                int actualPalIdx = clutBase + celPalIdx;
+
+                                ProcessAndSaveCel(
+                                    actualPage, actualPalIdx, celU, celV, celW, celH, 
+                                    sub2Pixels, sub4Pixels, sub5Pixels, mapPalettes, sub3Palettes, sub5Palettes,
+                                    targetDir, entIdx, animIdx, frameIdx, c, sourceName: "formatB"
+                                );
+                            }
                         }
                     }
-                    finally
+                    else
                     {
-                        celBmp.UnlockBits(bd);
-                    }
+                        // -------------------------------------------------------------
+                        // Format A: Offset-based (16-bit offset table + 5-byte pieces)
+                        // -------------------------------------------------------------
+                        var offsets = new List<uint>();
+                        for (int f = 0; f < 7; f++)
+                        {
+                            int offPtr = (int)ptr0 + f * 2;
+                            if (offPtr + 2 > ptr1) break;
+                            ushort val = BitConverter.ToUInt16(sub3, offPtr);
+                            offsets.Add(val);
+                        }
 
-                    string celPath = Path.Combine(targetDir, $"sprite_{i:D3}_pal{p}.png");
-                    celBmp.Save(celPath, ImageFormat.Png);
+                        // Determine the end of the frame data block (to bound the last frame)
+                        int nextBlockOff = sub3.Length;
+                        foreach (var otherOff in entityOffsets)
+                        {
+                            if (otherOff > ptr1 && otherOff < nextBlockOff) nextBlockOff = (int)otherOff;
+                        }
+                        for (int k = 0; k < animOffsets.Count; k++)
+                        {
+                            uint otherAnim = animOffsets[k];
+                            if (otherAnim > ptr1 && otherAnim < nextBlockOff) nextBlockOff = (int)otherAnim;
+                        }
+
+                        for (int frameIdx = 0; frameIdx < offsets.Count; frameIdx++)
+                        {
+                            uint offset = offsets[frameIdx];
+                            if (frameIdx > 0 && offset == 0) break; // End of animation
+                            
+                            int currOff = (int)ptr1 + (int)offset;
+                            if (currOff >= nextBlockOff) break;
+
+                            // Determine frame size by looking at the next offset
+                            int frameSize = 0;
+                            if (frameIdx + 1 < offsets.Count && offsets[frameIdx + 1] > offset && offsets[frameIdx + 1] < (nextBlockOff - ptr1))
+                            {
+                                frameSize = (int)(offsets[frameIdx + 1] - offset);
+                            }
+                            else
+                            {
+                                frameSize = nextBlockOff - currOff;
+                            }
+
+                            if (frameSize <= 1) continue;
+
+                            // The last byte is the delay, the rest are 5-byte pieces
+                            int pieceCount = (frameSize - 1) / 5;
+                            if (pieceCount <= 0 || pieceCount > 40) continue;
+
+                            for (int c = 0; c < pieceCount; c++)
+                            {
+                                int pieceOff = currOff + c * 5;
+                                if (pieceOff + 5 > nextBlockOff) break;
+
+                                byte celFlags = sub3[pieceOff];
+                                byte celPalIdx = sub3[pieceOff + 1];
+                                byte celU = sub3[pieceOff + 2];
+                                byte celV = sub3[pieceOff + 3];
+                                byte celW_H = sub3[pieceOff + 4]; // usually 0, default to 16x16
+
+                                byte celW = 16;
+                                byte celH = 16;
+
+                                int actualPage = pageBase + (celFlags & 0x07);
+                                int actualPalIdx = clutBase + celPalIdx;
+
+                                ProcessAndSaveCel(
+                                    actualPage, actualPalIdx, celU, celV, celW, celH, 
+                                    sub2Pixels, sub4Pixels, sub5Pixels, mapPalettes, sub3Palettes, sub5Palettes,
+                                    targetDir, entIdx, animIdx, frameIdx, c, sourceName: "formatA"
+                                );
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        /// <summary>
-        /// Perform a 4-connectivity Breadth-First Search (BFS) directly on raw 4bpp pixels to find the bounding boxes
-        /// of all connected non-transparent pixel regions. Uses a recursive projection-based splitting algorithm
-        /// to segment merged sprite sheets and tilesets cleanly.
-        /// </summary>
-        public static List<Rectangle> FindSpriteBounds4bpp(byte[] pixels, int width, int height)
+        private static void ProcessAndSaveCel(
+            int actualPage, int actualPalIdx, byte celU, byte celV, byte celW, byte celH,
+            byte[] sub2Pixels, byte[] sub4Pixels, byte[] sub5Pixels,
+            List<List<Color>> mapPalettes, List<List<Color>> sub3Palettes, List<List<Color>> sub5Palettes,
+            string targetDir, int entIdx, int animIdx, int frameIdx, int c, string sourceName)
         {
-            bool[] visited = new bool[width * height];
-            var initialRects = new List<Rectangle>();
+            byte[] srcPixels = null;
+            int srcV = 0;
+            string pageSourceName = "";
 
-            // Convert to 2D grid of nibbles for fast access
-            byte[] grid = new byte[width * height];
-            for (int i = 0; i < width * height; i++)
+            if (actualPage < 10)
             {
-                int byteOff = i / 2;
-                if (byteOff < pixels.Length)
+                srcPixels = sub2Pixels;
+                srcV = actualPage * 256 + celV;
+                pageSourceName = "sub2";
+            }
+            else if (actualPage >= 10 && actualPage <= 13)
+            {
+                int sub4Page = actualPage - 10;
+                srcPixels = sub4Pixels;
+                srcV = sub4Page * 256 + celV;
+                pageSourceName = "sub4";
+            }
+            else if (actualPage >= 14)
+            {
+                int sub5Page = actualPage - 14;
+                srcPixels = sub5Pixels;
+                srcV = sub5Page * 256 + celV;
+                pageSourceName = "sub5";
+            }
+
+            if (srcPixels == null || srcPixels.Length == 0)
+            {
+                return; // Pixels not available for this page
+            }
+
+            int maxRows = (srcPixels.Length * 2) / 256;
+            if (srcV + celH > maxRows)
+            {
+                return; // Coordinates out of VRAM bounds
+            }
+
+            // Map palette based on actualPalIdx:
+            List<Color> palette = null;
+            string palSource = "";
+
+            if (actualPalIdx < 32)
+            {
+                if (actualPalIdx < mapPalettes.Count)
                 {
-                    int b = pixels[byteOff];
-                    grid[i] = (byte)((i & 1) == 0 ? b & 0x0F : (b >> 4) & 0x0F);
+                    palette = mapPalettes[actualPalIdx];
+                    palSource = $"sub0_pal{actualPalIdx}";
+                }
+            }
+            else if (actualPalIdx >= 32 && actualPalIdx < 128)
+            {
+                int s3Pal = 0;
+                if (actualPalIdx >= 96) s3Pal = actualPalIdx - 96;
+                else if (actualPalIdx >= 64) s3Pal = actualPalIdx - 64;
+                else s3Pal = actualPalIdx - 32;
+
+                if (s3Pal >= 0 && s3Pal < sub3Palettes.Count)
+                {
+                    palette = sub3Palettes[s3Pal];
+                    palSource = $"sub3_pal{s3Pal}";
+                }
+            }
+            else if (actualPalIdx >= 128 && actualPalIdx < 136)
+            {
+                int s5Pal = actualPalIdx - 128;
+                if (s5Pal < sub5Palettes.Count)
+                {
+                    palette = sub5Palettes[s5Pal];
+                    palSource = $"sub5_pal{s5Pal}";
                 }
             }
 
-            for (int y = 0; y < height; y++)
+            // Fallback palette if the mapped index is out of bounds
+            if (palette == null)
             {
-                for (int x = 0; x < width; x++)
+                if (sub3Palettes.Count > 0)
                 {
-                    int idx = y * width + x;
-                    if (visited[idx] || grid[idx] == 0)
+                    palette = sub3Palettes[0];
+                    palSource = "fallback_sub3_0";
+                }
+                else if (mapPalettes.Count > 0)
+                {
+                    palette = mapPalettes[0];
+                    palSource = "fallback_sub0_0";
+                }
+            }
+
+            using (var celBmp = new Bitmap(celW, celH, PixelFormat.Format32bppArgb))
+            {
+                var bd = celBmp.LockBits(new Rectangle(0, 0, celW, celH), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+                try
+                {
+                    int[] palColors = new int[16];
+                    for (int k = 0; k < 16; k++)
                     {
-                        visited[idx] = true;
-                        continue;
-                    }
-
-                    // Start BFS for connected component (4-connectivity)
-                    int minX = x, maxX = x, minY = y, maxY = y;
-                    var queue = new Queue<int>();
-                    queue.Enqueue(idx);
-                    visited[idx] = true;
-
-                    while (queue.Count > 0)
-                    {
-                        int curr = queue.Dequeue();
-                        int cx = curr % width;
-                        int cy = curr / width;
-
-                        if (cx < minX) minX = cx;
-                        if (cx > maxX) maxX = cx;
-                        if (cy < minY) minY = cy;
-                        if (cy > maxY) maxY = cy;
-
-                        // Check 4-connected neighbors
-                        int[] dx = { -1, 1, 0, 0 };
-                        int[] dy = { 0, 0, -1, 1 };
-                        for (int i = 0; i < 4; i++)
+                        if (k == 0)
                         {
-                            int nx = cx + dx[i];
-                            int ny = cy + dy[i];
-                            if (nx >= 0 && nx < width && ny >= 0 && ny < height)
-                            {
-                                int nIdx = ny * width + nx;
-                                if (!visited[nIdx])
-                                {
-                                    visited[nIdx] = true;
-                                    if (grid[nIdx] != 0)
-                                    {
-                                        queue.Enqueue(nIdx);
-                                    }
-                                }
-                            }
+                            palColors[k] = 0; // Transparent
+                        }
+                        else
+                        {
+                            palColors[k] = (palette != null && k < palette.Count ? palette[k] : Color.Magenta).ToArgb();
                         }
                     }
 
-                    int w = maxX - minX + 1;
-                    int h = maxY - minY + 1;
-                    // Keep boxes of reasonable size (at least 3x3 to filter out single-pixel stray lines/noise)
-                    if (w >= 3 && h >= 3)
+                    var row = new int[celW];
+                    IntPtr scan = bd.Scan0;
+                    for (int cy = 0; cy < celH; cy++)
                     {
-                        initialRects.Add(new Rectangle(minX, minY, w, h));
+                        int py = srcV + cy;
+                        int baseIdx = py * 256;
+                        for (int cx = 0; cx < celW; cx++)
+                        {
+                            int px = celU + cx;
+                            int pixelIdx = baseIdx + px;
+                            int byteOff = pixelIdx / 2;
+                            if (byteOff < srcPixels.Length)
+                            {
+                                int b = srcPixels[byteOff];
+                                int nib = (pixelIdx & 1) == 0 ? b & 0x0F : (b >> 4) & 0x0F;
+                                row[cx] = palColors[nib];
+                            }
+                            else
+                            {
+                                row[cx] = 0;
+                            }
+                        }
+                        System.Runtime.InteropServices.Marshal.Copy(row, 0, scan + cy * bd.Stride, celW);
                     }
                 }
+                finally
+                {
+                    celBmp.UnlockBits(bd);
+                }
+
+                string celPath = Path.Combine(targetDir, $"cel_ent{entIdx:D2}_anim{animIdx:D2}_frame{frameIdx:D2}_cel{c:D2}_{pageSourceName}_page{actualPage}_U{celU}_V{celV}_W{celW}_H{celH}_{palSource}_{sourceName}.png");
+                celBmp.Save(celPath, ImageFormat.Png);
             }
-
-            var finalRects = new List<Rectangle>();
-
-            // Local helper function for recursive splitting
-            void SplitComponent(Rectangle rect)
-            {
-                // 1. Trim transparent edges
-                var trimmed = GetBBox(grid, width, height, rect);
-                if (trimmed == null) return;
-                rect = trimmed.Value;
-
-                int x1 = rect.X;
-                int y1 = rect.Y;
-                int w = rect.Width;
-                int h = rect.Height;
-
-                // If size is reasonable, keep it
-                if (w <= 48 && h <= 48)
-                {
-                    finalRects.Add(rect);
-                    return;
-                }
-
-                // 2. Attempt to split horizontally
-                int[] rowCounts = new int[h];
-                for (int cy = 0; cy < h; cy++)
-                {
-                    int rowY = y1 + cy;
-                    int count = 0;
-                    for (int cx = 0; cx < w; cx++)
-                    {
-                        if (grid[rowY * width + (x1 + cx)] != 0) count++;
-                    }
-                    rowCounts[cy] = count;
-                }
-
-                int splitY = -1;
-                // Avoid splitting too close to the edges (minimum 8 pixels)
-                for (int i = 8; i < h - 8; i++)
-                {
-                    if (rowCounts[i] <= 1)
-                    {
-                        splitY = y1 + i;
-                        break;
-                    }
-                }
-
-                if (splitY != -1)
-                {
-                    SplitComponent(new Rectangle(x1, y1, w, splitY - y1));
-                    SplitComponent(new Rectangle(x1, splitY + 1, w, y1 + h - (splitY + 1)));
-                    return;
-                }
-
-                // 3. Attempt to split vertically
-                int[] colCounts = new int[w];
-                for (int cx = 0; cx < w; cx++)
-                {
-                    int colX = x1 + cx;
-                    int count = 0;
-                    for (int cy = 0; cy < h; cy++)
-                    {
-                        if (grid[(y1 + cy) * width + colX] != 0) count++;
-                    }
-                    colCounts[cx] = count;
-                }
-
-                int splitX = -1;
-                for (int i = 8; i < w - 8; i++)
-                {
-                    if (colCounts[i] <= 1)
-                    {
-                        splitX = x1 + i;
-                        break;
-                    }
-                }
-
-                if (splitX != -1)
-                {
-                    SplitComponent(new Rectangle(x1, y1, splitX - x1, h));
-                    SplitComponent(new Rectangle(splitX + 1, y1, x1 + w - (splitX + 1), h));
-                    return;
-                }
-
-                // 4. Fallback: if it is still too large, split by a fixed boundary
-                if (w > 48)
-                {
-                    int sx = x1 + ((w / 2) & ~15);
-                    if (sx <= x1 + 8 || sx >= x1 + w - 8)
-                    {
-                        sx = x1 + w / 2;
-                    }
-                    SplitComponent(new Rectangle(x1, y1, sx - x1, h));
-                    SplitComponent(new Rectangle(sx, y1, x1 + w - sx, h));
-                    return;
-                }
-
-                if (h > 48)
-                {
-                    int sy = y1 + ((h / 2) & ~15);
-                    if (sy <= y1 + 8 || sy >= y1 + h - 8)
-                    {
-                        sy = y1 + h / 2;
-                    }
-                    SplitComponent(new Rectangle(x1, y1, w, sy - y1));
-                    SplitComponent(new Rectangle(x1, sy, w, y1 + h - sy));
-                    return;
-                }
-
-                finalRects.Add(rect);
-            }
-
-            foreach (var comp in initialRects)
-            {
-                SplitComponent(comp);
-            }
-
-            return finalRects;
-        }
-
-        private static Rectangle? GetBBox(byte[] grid, int width, int height, Rectangle rect)
-        {
-            int tx1 = rect.X + rect.Width;
-            int tx2 = rect.X;
-            int ty1 = rect.Y + rect.Height;
-            int ty2 = rect.Y;
-            bool hasPixels = false;
-
-            for (int y = rect.Y; y < rect.Y + rect.Height; y++)
-            {
-                for (int x = rect.X; x < rect.X + rect.Width; x++)
-                {
-                    if (grid[y * width + x] != 0)
-                    {
-                        hasPixels = true;
-                        if (x < tx1) tx1 = x;
-                        if (x > tx2) tx2 = x;
-                        if (y < ty1) ty1 = y;
-                        if (y > ty2) ty2 = y;
-                    }
-                }
-            }
-
-            if (hasPixels)
-            {
-                return new Rectangle(tx1, ty1, tx2 - tx1 + 1, ty2 - ty1 + 1);
-            }
-            return null;
         }
 
         // Tilemap layout (sub1 / DAT_800dcbb4), from retail FUN_8002d64c / FUN_8002cde4:
@@ -885,8 +933,13 @@ namespace ExtractCLUT.Games.PSX.Alundra
         {
             if (subs == null || subs.Count < 3) return;
             byte[] tilemap = subs[1];
-            byte[] tiles = IsEz(subs[2]) ? DecompressEZ(subs[2]) : subs[2];
-            if (tilemap == null || tiles.Length < 0x8000) return;
+            byte[] tiles0 = IsEz(subs[2]) ? DecompressEZ(subs[2]) : subs[2];
+            byte[] tiles1 = null;
+            if (subs.Count > 4 && subs[4] != null && subs[4].Length > 0)
+            {
+                tiles1 = IsEz(subs[4]) ? DecompressEZ(subs[4]) : subs[4];
+            }
+            if (tilemap == null || tiles0.Length < 0x8000) return;
             int needed = TilemapGridOff + RoomRows * TilemapRowStride;
             if (tilemap.Length < needed) return;
 
@@ -899,7 +952,8 @@ namespace ExtractCLUT.Games.PSX.Alundra
                 for (int rx = 0; rx < RoomCols; rx++)
                 {
                     int cell = TilemapGridOff + ry * TilemapRowStride + rx * 8;
-                    BlitTile(img, W, rx, ry, BitConverter.ToUInt16(tilemap, cell + 4), tiles, palettes);
+                    int heightOffset = tilemap[cell + 3];
+                    BlitTile(img, W, rx, ry - heightOffset, BitConverter.ToUInt16(tilemap, cell + 4), tiles0, palettes);
                 }
             }
 
@@ -915,11 +969,12 @@ namespace ExtractCLUT.Games.PSX.Alundra
                     if (h + 1 >= tilemap.Length) continue;
                     int bse = (sbyte)tilemap[h];
                     int n = tilemap[h + 1];
+                    int heightOffset = tilemap[cell + 3];
                     for (int e = 1; e <= n; e++)
                     {
                         int to = h + e * 2;
                         if (to + 1 >= tilemap.Length) break;
-                        BlitTile(img, W, rx, ry + e - bse, BitConverter.ToUInt16(tilemap, to), tiles, palettes);
+                        BlitTile(img, W, rx, ry - heightOffset + e - bse, BitConverter.ToUInt16(tilemap, to), tiles0, palettes);
                     }
                 }
             }
