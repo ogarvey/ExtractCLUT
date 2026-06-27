@@ -293,38 +293,46 @@ Here is the step-by-step process to render a complete room image:
 4. **Read sub1**: this is the tilemap grid + overlay strip table (used as-is, no
    decompression needed).
 
-### Step 2: Draw the background layer
+### Step 2: Collect all tiles and compute their depth
+
+To achieve correct depth sorting (so that tiles closer to the camera correctly overwrite tiles further away, and fences, walls, and cliffs align without clipping), we must interleave the background and overlay tiles and sort them by depth before drawing.
 
 For each cell in the 52×60 grid:
 
 1. Read the **vertical tile offset** (`heightOffset`) at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 3` (an unsigned byte).
-2. Read the **tile field** at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 4` (a u16).
-3. If the tile field is 0xFFFF, skip this cell (it is empty).
-4. Extract the **tile index** (`tile & 0x3FF`) and **palette number** (`(tile >> 12) & 0xF`).
-5. Use the procedural formula (§7) to compute `srcU` and `srcV` — the pixel coordinates of this tile within the decompressed tileset.
-6. Copy the 24×16 pixel rectangle from the tileset to the output image at position `(col × 24, (row - heightOffset) * 16)`.
-7. Skip any pixel whose index is **0** (leave it transparent).
+2. **Handle the background tile**:
+   - Read the **tile field** at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 4` (a u16).
+   - If not 0xFFFF, extract the **tile index** (`tile & 0x3FF`) and calculate the VRAM page: `page = index / 160`.
+   - The tile's destination coordinates are `col` and `row − heightOffset`.
+   - The tile's **depth sorting key** is:
+     $$\text{depth} = \text{row} \times 16 + \text{page}$$
+3. **Handle the overlay strip**:
+   - Read the **overlay field** at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 6` (a u16).
+   - If not 0xFFFF, look up the overlay strip entry at `sub1 + 0x6784 + overlay × 2`.
+   - Read `base` (signed byte) and `N` (unsigned byte).
+   - For each element *e* from 1 to N:
+     - Read the tile word at `entry_address + e × 2`.
+     - If not 0xFFFF, extract `index = tile & 0x3FF` and VRAM `page = index / 160`.
+     - The tile's destination coordinates are `col` and `row − heightOffset + e − base`.
+     - The tile's **depth sorting key** is:
+       $$\text{depth} = \text{row} \times 16 + \text{page} + 7$$
 
-### Step 3: Draw the foreground/overlay layer
+### Step 3: Sort and Draw
 
-For each cell in the 52×60 grid:
-
-1. Read the **vertical tile offset** (`heightOffset`) at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 3` (an unsigned byte).
-2. Read the **overlay field** at `sub1 + 0x604 + row × 0x1A0 + col × 8 + 6` (a u16).
-3. If the overlay field is 0xFFFF, skip this cell.
-4. Look up the overlay strip entry at `sub1 + 0x6784 + overlay × 2`.
-5. Read `base` (signed byte) and `N` (unsigned byte).
-6. For each element *e* from 1 to N:
-   - Read the tile word at `entry_address + e × 2`.
-   - Compute the destination row: `row - heightOffset + e − base`.
-   - Draw this tile (same process as Step 2) at the computed row, same column.
-   - Because index-0 pixels are transparent, only the non-transparent parts of the foreground tile overwrite the background.
+1. Sort the combined list of all collected tiles in **ascending order** of their `depth` key.
+2. For each tile in the sorted list:
+   - Compute the source texture coordinates `srcU` and `srcV` in the tileset using the procedural formula (§7).
+   - Draw the 24×16 pixel tile at `(col × 24, destRow × 16)`.
+   - Skip any pixel with CLUT index **0** (leave it transparent).
 
 ### Result
 
-The output is a **1248 × 960 pixel** RGBA image with the background and foreground layers
-composited together. Transparent areas (tile index 0 or empty cells) can be left as
-transparent or filled with a background colour.
+The output includes:
+* `_bg.png` — The background layer alone.
+* `_fg.png` — The overlay layer alone (with transparency).
+* `.png` — The final combined room image, depth-sorted correctly.
+
+Transparent areas can be left transparent or filled with a background colour.
 
 ---
 
