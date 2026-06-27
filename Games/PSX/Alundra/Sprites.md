@@ -81,8 +81,8 @@ Each track is a stream of commands executed by `FUN_80038af8`. **The frame-playb
 | Command Byte (`cmd`) | Length | Description |
 | :--- | :--- | :--- |
 | **`0x80` to `0xFF`** | **5 bytes** | **Frame Playback**:<br>• `delay = cmd & 0x7F`<br>• bytes 1–2 = `auxIdx` (LE u16) → `def[2] + auxIdx` (a 6-byte aux/hit-box record; `0xFFFF` = none)<br>• bytes 3–4 = `frameOffset` (LE u16) → `def[3] + frameOffset*2` (the frame; `0xFFFF` = none) |
-| **`0x00`** | 1 byte | **Stop**: Halts animation playback on the current frame. |
-| **`0x01`** | 1 byte | **Loop**: Resets the playback cursor back to the start of the track. |
+| **`0x00`** | **2 bytes** | **Stop / Transition**:<br>• Read next byte `nextByte = byte at offset + 1`<br>• If `(nextByte & 0x80) != 0`: **Stop** (halts playback).<br>• If `(nextByte & 0x80) == 0`: **AnimState Transition** (switches to `animState = nextByte` and starts its track for the current direction). |
+| **`0x01`** | **1 byte** | **Loop**: Resets the playback cursor back to the start of the current track. |
 
 > The “aux” record (`def[2]`) is not pixel data — it is a small per-frame attachment/hit-box structure (loaded into the animation instance at `+0x82..0x87` as three shifted origins and three sizes). It can be ignored for sprite extraction, but it explains why the command is 5 bytes rather than 3.
 

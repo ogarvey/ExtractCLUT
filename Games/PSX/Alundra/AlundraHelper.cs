@@ -1002,15 +1002,30 @@ namespace ExtractCLUT.Games.PSX.Alundra
                         byte cmd = U8(cur);
                         if (cmd == 0x00)
                         {
-                            sb.AppendLine("      [stop]");
-                            break;
+                            byte nextByte = U8(cur + 1);
+                            if ((nextByte & 0x80) != 0)
+                            {
+                                sb.AppendLine("      [stop]");
+                                break;
+                            }
+                            else
+                            {
+                                sb.AppendLine($"      [transition] -> animState[{nextByte}]");
+                                int direction = 0; // VerifySub3Layout samples dir 0
+                                long targetRecord = d0 + nextByte * 14;
+                                if (!InRange(targetRecord + direction * 2 + 2)) break;
+                                ushort targetTrackOff = U16(targetRecord + direction * 2);
+                                if (targetTrackOff == 0 || targetTrackOff == 0xFFFF) break;
+                                long targetTrackStart = d1 + targetTrackOff;
+                                if (!InRange(targetTrackStart)) break;
+                                cur = targetTrackStart;
+                                continue;
+                            }
                         }
                         else if (cmd == 0x01)
                         {
-                            ushort targetOff = U16(cur + 1);
-                            sb.AppendLine($"      [jump] -> 0x{d1 + targetOff:X}");
-                            cur = d1 + targetOff;
-                            continue;
+                            sb.AppendLine("      [loop]");
+                            break;
                         }
                         else if ((cmd & 0x80) != 0)
                         {
@@ -1173,7 +1188,6 @@ namespace ExtractCLUT.Games.PSX.Alundra
                 if (!InRange(d0) || !InRange(d1) || !InRange(d3)) continue;
                 if (d1 <= d0 || d1 - d0 > 0x4000) continue;   // def[0] must precede def[1] sanely
 
-                var seenFrames = new HashSet<long>();
                 var seenTracks = new HashSet<long>();
                 for (long off = d0; off + 2 <= d1; off += 2)
                 {
@@ -1183,6 +1197,7 @@ namespace ExtractCLUT.Games.PSX.Alundra
                     if (!InRange(trackStart)) continue;
                     if (!seenTracks.Add(trackStart)) continue;
 
+                    var seenFrames = new HashSet<long>();
                     long cur = trackStart;
                     int guard = 0;
                     var visitedInst = new HashSet<long>();
@@ -1191,13 +1206,27 @@ namespace ExtractCLUT.Games.PSX.Alundra
                         byte cmd = U8(cur);
                         if (cmd == 0x00)
                         {
-                            break;
+                            byte nextByte = U8(cur + 1);
+                            if ((nextByte & 0x80) != 0)
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                int direction = (int)(((off - d0) % 14) / 2);
+                                long targetRecord = d0 + nextByte * 14;
+                                if (!InRange(targetRecord + direction * 2 + 2)) break;
+                                ushort targetTrackOff = U16(targetRecord + direction * 2);
+                                if (targetTrackOff == 0 || targetTrackOff == 0xFFFF) break;
+                                long targetTrackStart = d1 + targetTrackOff;
+                                if (!InRange(targetTrackStart)) break;
+                                cur = targetTrackStart;
+                                continue;
+                            }
                         }
                         else if (cmd == 0x01)
                         {
-                            ushort targetOff = U16(cur + 1);
-                            cur = d1 + targetOff;
-                            continue;
+                            break;
                         }
                         else if ((cmd & 0x80) != 0)
                         {
@@ -1263,30 +1292,37 @@ namespace ExtractCLUT.Games.PSX.Alundra
             return result;
         }
 
+        private static byte[] GetVramPage(int Page, List<byte[]> sub2Pages, List<byte[]> sub4Pages, List<byte[]> sub5Pages)
+        {
+            if (Page < sub4Pages.Count)
+                return sub4Pages[Page];
+            int idx = Page - sub4Pages.Count;
+            if (idx < sub5Pages.Count)
+                return sub5Pages[idx];
+            return null;
+        }
+
         /// <summary>Composite one frame's cels onto <paramref name="bmp"/> using a shared origin
         /// (originX, originY = the canvas pixel that corresponds to entity-relative coord 0,0).</summary>
         private static bool BlitFrame(AlundraFrame fr, Bitmap bmp, int originX, int originY,
-                                      List<byte[]> pages, List<List<Color>> palettes)
+                                       List<byte[]> sub2Pages, List<byte[]> sub4Pages, List<byte[]> sub5Pages,
+                                       List<List<Color>> palettes)
         {
             bool any = false;
             foreach (var cel in fr.Cels)
             {
-                if (cel.Page >= pages.Count) continue;
-                byte[] page = pages[cel.Page];
+                byte[] page = GetVramPage(cel.Page, sub2Pages, sub4Pages, sub5Pages);
+                if (page == null) continue;
                 var pal = cel.PalIdx < palettes.Count ? palettes[cel.PalIdx]
                                                       : (palettes.Count > 0 ? palettes[0] : GreyPalette());
 
-                // Vertex 0 = top-left target, vertex 3 = opposite corner; sign of the spread = mirror.
-                int sLeft = Math.Min(Math.Min(cel.Vx[0], cel.Vx[1]), Math.Min(cel.Vx[2], cel.Vx[3]));
-                int sTop = Math.Min(Math.Min(cel.Vy[0], cel.Vy[1]), Math.Min(cel.Vy[2], cel.Vy[3]));
-                bool hFlip = cel.Vx[3] < cel.Vx[0];
-                bool vFlip = cel.Vy[3] < cel.Vy[0];
-
+                using var celBmp = new Bitmap(cel.W, cel.H, PixelFormat.Format32bppArgb);
+                int stride = SpritePageW / 2;
                 for (int sv = 0; sv < cel.H; sv++)
                 {
                     int srcY = cel.V + sv;
                     if (srcY < 0 || srcY >= SpritePageH) continue;
-                    int rowBase = srcY * (SpritePageW / 2);
+                    int rowBase = srcY * stride;
                     for (int su = 0; su < cel.W; su++)
                     {
                         int srcX = cel.U + su;
@@ -1296,15 +1332,49 @@ namespace ExtractCLUT.Games.PSX.Alundra
                         int nib = (srcX & 1) == 0 ? (page[bi] & 0x0F) : (page[bi] >> 4) & 0x0F;
                         if (nib == 0) continue;  // transparent
 
-                        int dx = hFlip ? (cel.W - 1 - su) : su;
-                        int dy = vFlip ? (cel.H - 1 - sv) : sv;
-                        int px = originX + sLeft + dx;
-                        int py = originY + sTop + dy;
-                        if (px < 0 || px >= bmp.Width || py < 0 || py >= bmp.Height) continue;
-                        bmp.SetPixel(px, py, nib < pal.Count ? pal[nib] : Color.Magenta);
-                        any = true;
+                        Color c = nib < pal.Count ? pal[nib] : Color.Magenta;
+                        celBmp.SetPixel(su, sv, c);
                     }
                 }
+
+                bool hFlip = cel.Vx[3] < cel.Vx[0];
+                bool vFlip = cel.Vy[3] < cel.Vy[0];
+                if (hFlip && vFlip)
+                    celBmp.RotateFlip(RotateFlipType.RotateNoneFlipXY);
+                else if (hFlip)
+                    celBmp.RotateFlip(RotateFlipType.RotateNoneFlipX);
+                else if (vFlip)
+                    celBmp.RotateFlip(RotateFlipType.RotateNoneFlipY);
+
+                int x0 = cel.Vx[0];
+                int x1 = cel.Vx[1];
+                int x2 = cel.Vx[2];
+                int x3 = cel.Vx[3];
+                int y0 = cel.Vy[0];
+                int y1 = cel.Vy[1];
+                int y2 = cel.Vy[2];
+                int y3 = cel.Vy[3];
+
+                int minCelX = Math.Min(Math.Min(x0, x1), Math.Min(x2, x3));
+                int maxCelX = Math.Max(Math.Max(x0, x1), Math.Max(x2, x3));
+                int minCelY = Math.Min(Math.Min(y0, y1), Math.Min(y2, y3));
+                int maxCelY = Math.Max(Math.Max(y0, y1), Math.Max(y2, y3));
+
+                int destW = maxCelX - minCelX;
+                int destH = maxCelY - minCelY;
+                if (destW <= 0) destW = 1;
+                if (destH <= 0) destH = 1;
+
+                int destX = originX + minCelX;
+                int destY = originY + minCelY;
+
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+                    g.DrawImage(celBmp, new Rectangle(destX, destY, destW, destH));
+                }
+                any = true;
             }
             return any;
         }
@@ -1314,32 +1384,45 @@ namespace ExtractCLUT.Games.PSX.Alundra
         /// sprite sheet. Frames are grouped per entity and rendered on a SHARED canvas (the union
         /// of every cel vertex across all of that entity's frames) so the animation stays aligned
         /// and every PNG for an entity is the same size. Index 0 of each palette is transparent.
-        ///
-        /// When <paramref name="dumpPages"/> is set, each 256x256 sheet page is also rendered with
-        /// every palette (<c>_page{p}_pal{n}.png</c>). The sheet is shared room-wide, so it holds
-        /// art -- dialogue portraits, props -- that no entity references through the cel system;
-        /// the per-palette dumps make that unreferenced art visible/extractable.
         /// </summary>
-        public static void ExtractSprites(byte[] sub3, byte[] spriteSheet, string outDir,
-                                          bool dumpPages = false)
+        public static void ExtractSprites(List<byte[]> subs, string outDir, bool dumpPages = false)
         {
             Directory.CreateDirectory(outDir);
-            if (IsEz(sub3)) sub3 = DecompressEZ(sub3);
-            byte[] sheet = IsEz(spriteSheet) ? DecompressEZ(spriteSheet) : spriteSheet;
+            byte[] sub2 = subs.Count > 2 ? subs[2] : new byte[0];
+            byte[] sub3 = subs.Count > 3 ? subs[3] : new byte[0];
+            byte[] sub4 = subs.Count > 4 ? subs[4] : new byte[0];
+            byte[] sub5 = subs.Count > 5 ? subs[5] : new byte[0];
 
-            var pages = SplitSpritePages(sheet);
+            if (sub2.Length > 0 && IsEz(sub2)) sub2 = DecompressEZ(sub2);
+            if (sub3.Length > 0 && IsEz(sub3)) sub3 = DecompressEZ(sub3);
+            if (sub4.Length > 0 && IsEz(sub4)) sub4 = DecompressEZ(sub4);
+            if (sub5.Length > 0 && IsEz(sub5)) sub5 = DecompressEZ(sub5);
+
+            var sub2Pages = SplitSpritePages(sub2);
+            var sub4Pages = SplitSpritePages(sub4);
+            var sub5Pages = SplitSpritePages(sub5);
             var palettes = ReadSub3Palettes(sub3);
             var frames = CollectFrames(sub3);
 
             if (dumpPages)
             {
-                for (int p = 0; p < pages.Count; p++)
+                for (int p = 0; p < sub4Pages.Count; p++)
                 {
                     for (int pi = 0; pi < Math.Max(1, palettes.Count); pi++)
                     {
                         var pal = pi < palettes.Count ? palettes[pi] : GreyPalette();
-                        using var img = Render4bppLinear(pages[p], pal, SpritePageW);
+                        using var img = Render4bppLinear(sub4Pages[p], pal, SpritePageW);
                         img.Save(Path.Combine(outDir, $"_page{p}_pal{pi}.png"), ImageFormat.Png);
+                    }
+                }
+                for (int p = 0; p < sub5Pages.Count; p++)
+                {
+                    int pageIdx = sub4Pages.Count + p;
+                    for (int pi = 0; pi < Math.Max(1, palettes.Count); pi++)
+                    {
+                        var pal = pi < palettes.Count ? palettes[pi] : GreyPalette();
+                        using var img = Render4bppLinear(sub5Pages[p], pal, SpritePageW);
+                        img.Save(Path.Combine(outDir, $"_page{pageIdx}_pal{pi}.png"), ImageFormat.Png);
                     }
                 }
             }
@@ -1369,13 +1452,13 @@ namespace ExtractCLUT.Games.PSX.Alundra
                 {
                     using var bmp = new Bitmap(w, h, PixelFormat.Format32bppArgb);
                     // originX/Y maps entity-relative (0,0) to the same canvas pixel for every frame.
-                    if (!BlitFrame(fr, bmp, -minX, -minY, pages, palettes)) continue;
+                    if (!BlitFrame(fr, bmp, -minX, -minY, sub2Pages, sub4Pages, sub5Pages, palettes)) continue;
                     string name = $"ent{fr.Entity:D2}_t{fr.Track:D2}_frm{fr.Addr:X4}.png";
                     bmp.Save(Path.Combine(outDir, name), ImageFormat.Png);
                     written++;
                 }
             }
-            Console.WriteLine($"ExtractSprites: {pages.Count} sheet pages, {palettes.Count} palettes, " +
+            Console.WriteLine($"ExtractSprites: {sub2Pages.Count + sub4Pages.Count + sub5Pages.Count} total VRAM pages, {palettes.Count} palettes, " +
                               $"{entityCount} entities, {frames.Count} frames -> {written} PNGs in {outDir}");
         }
 
