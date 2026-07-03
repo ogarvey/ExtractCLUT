@@ -372,7 +372,7 @@ namespace ExtractCLUT.Games.Amiga
                 return false;
             }
 
-            if (layoutMode != 0)
+            if (layoutMode != 1)
             {
                 rowCountdown = rowCountdownStart;
                 columnCountdown = columnCountdownStart;

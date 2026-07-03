@@ -642,12 +642,12 @@ namespace ExtractCLUT.Games.PSX.Alundra
         /// shared retail map code and is not yet reversed).
         /// </summary>
         public static void ExtractDatasBin(
-            string binPath, 
-            string outDir, 
-            int renderMapSamples = 0, 
-            bool renderAllMaps = false, 
-            bool outputLayers = false, 
-            bool outputExtraGfx = false, 
+            string binPath,
+            string outDir,
+            int renderMapSamples = 0,
+            bool renderAllMaps = false,
+            bool outputLayers = false,
+            bool outputExtraGfx = false,
             bool outputRawAssets = false)
         {
             if (!File.Exists(binPath)) throw new FileNotFoundException(binPath);
@@ -1309,8 +1309,9 @@ namespace ExtractCLUT.Games.PSX.Alundra
                                        List<List<Color>> palettes)
         {
             bool any = false;
-            foreach (var cel in fr.Cels)
+            for (int i = fr.Cels.Count - 1; i >= 0; i--)
             {
+                var cel = fr.Cels[i];
                 byte[] page = GetVramPage(cel.Page, sub2Pages, sub4Pages, sub5Pages);
                 if (page == null) continue;
                 var pal = cel.PalIdx < palettes.Count ? palettes[cel.PalIdx]
@@ -1438,12 +1439,17 @@ namespace ExtractCLUT.Games.PSX.Alundra
                 // Union bounding box of every cel vertex across ALL frames of this entity.
                 int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
                 foreach (var fr in grp)
+                {
                     foreach (var cel in fr.Cels)
+                    {
                         for (int q = 0; q < 4; q++)
                         {
                             minX = Math.Min(minX, cel.Vx[q]); maxX = Math.Max(maxX, cel.Vx[q]);
                             minY = Math.Min(minY, cel.Vy[q]); maxY = Math.Max(maxY, cel.Vy[q]);
                         }
+                    }
+                }
+
                 int w = Math.Max(1, maxX - minX), h = Math.Max(1, maxY - minY);
                 if (w > 1024 || h > 1024) continue;  // sanity guard
                 entityCount++;

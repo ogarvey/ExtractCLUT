@@ -6,5 +6,11 @@
   "files.associations": {
     "*.yy": "json",
     "SHOWANIM.C": "cpp"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "New-Object": true,
+    "New-Item": true,
+    "Out-Null": true,
+    "Set-Content": true
   }
 }

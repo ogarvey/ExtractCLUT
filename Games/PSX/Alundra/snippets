@@ -1,0 +1,81 @@
+
+// var alundraDataFile = @"C:\Dev\Gaming\Sony\PSX\Games\Alundra\DATA\DATAS.BIN";
+// var datas = File.ReadAllBytes(alundraDataFile);
+// var segments = AlundraHelper.SplitDatasBin(datas);
+
+// AlundraHelper.DatasSegment seg = null;
+// var containerMaps = new List<(int segmentIdx, uint mapId)>();
+// for (int i = 0; i < segments.Count; i++)
+// {
+//     var s = segments[i];
+//     if (AlundraHelper.Classify(s.Data) == AlundraHelper.SegmentKind.Container)
+//     {
+//         uint mapId = s.Data.Length >= 0x20 ? BitConverter.ToUInt32(s.Data, 0x1c) : 0;
+//         containerMaps.Add((i, mapId));
+//         if (mapId == 11)
+//         {
+//             seg = s;
+//         }
+//     }
+// }
+// Console.WriteLine("Map Container segments:");
+// foreach (var cm in containerMaps.OrderBy(x => x.mapId))
+// {
+//     Console.WriteLine($"  Segment[{cm.segmentIdx}]: mapId={cm.mapId}");
+// }
+
+// var baseDir = @"C:\Dev\Gaming\Sony\PSX\Games\Alundra\Extracted\";
+
+// var resDbData = segments[0].Data;
+// if (AlundraHelper.IsEz(resDbData)) resDbData = AlundraHelper.DecompressEZ(resDbData);
+// var resDbPath = Path.Combine(baseDir, "alundra_resident_db.bin");
+// File.WriteAllBytes(resDbPath, resDbData);
+// Console.WriteLine($"Resident DB extracted to {resDbPath} ({resDbData.Length} bytes)");
+
+// var resSpriteData = segments[2].Data;
+// if (AlundraHelper.IsEz(resSpriteData)) resSpriteData = AlundraHelper.DecompressEZ(resSpriteData);
+// var resSpritePath = Path.Combine(baseDir, "alundra_resident_sprites.bin");
+// File.WriteAllBytes(resSpritePath, resSpriteData);
+// Console.WriteLine($"Resident sprites extracted to {resSpritePath} ({resSpriteData.Length} bytes)");
+
+// var resReport = AlundraHelper.VerifySub3Layout(resDbData, 256, 128, 128);
+// var resReportPath = Path.Combine(baseDir, "alundra_resident_report.txt");
+// File.WriteAllText(resReportPath, resReport);
+// Console.WriteLine($"Resident DB report written to {resReportPath}");
+
+// var targetMaps = new List<uint> { 10, 11, 12, 13, 14 };
+// Console.WriteLine("\nAnalyzing Maps 10-14:");
+// foreach (var m in targetMaps)
+// {
+//     var targetSeg = containerMaps.FirstOrDefault(x => x.mapId == m);
+//     if (targetSeg.mapId == m)
+//     {
+//         var sSubs = AlundraHelper.SplitContainer(segments[targetSeg.segmentIdx].Data);
+//         Console.WriteLine($"Map {m} (Segment {targetSeg.segmentIdx}):");
+//         for (int i = 0; i < sSubs.Count; i++)
+//         {
+//             byte[] d = AlundraHelper.IsEz(sSubs[i]) ? AlundraHelper.DecompressEZ(sSubs[i]) : sSubs[i];
+//             Console.WriteLine($"  Sub[{i}]: rawSize={sSubs[i].Length}, decompSize={d.Length}, pages={d.Length / 32768.0:F2}");
+//         }
+//     }
+// }
+
+// var subs = AlundraHelper.SplitContainer(seg.Data);
+// var sub3 = subs[3];
+// if (AlundraHelper.IsEz(sub3)) sub3 = AlundraHelper.DecompressEZ(sub3);
+
+// foreach (var m in targetMaps)
+// {
+//     var targetSeg = containerMaps.FirstOrDefault(x => x.mapId == m);
+//     if (targetSeg.mapId == m)
+//     {
+//         var sSubs = AlundraHelper.SplitContainer(segments[targetSeg.segmentIdx].Data);
+//         string outPath = Path.Combine(baseDir, $"alundra_sprites_map{m}");
+//         AlundraHelper.ExtractSprites(sSubs, outPath, dumpPages: true);
+
+//         var rSub3 = sSubs[3];
+//         var rReport = AlundraHelper.VerifySub3Layout(rSub3, 256, 128, 128);
+//         File.WriteAllText(Path.Combine(baseDir, $"alundra_sub3_report_map{m}.txt"), rReport);
+//         Console.WriteLine($"Extracted sprites and report for Map {m}");
+//     }
+// }

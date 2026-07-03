@@ -153,3 +153,16 @@ The rendering function `FUN_8002db8c` iterates over the cels of the active frame
   - The vertex coordinates `(x0, y0)` to `(x3, y3)` are added to the entity's screen-space position coordinates `(entityX, entityY)` to position the quad on the screen, taking camera scrolling into account.
 - **CLUT and TPage registers**:
   - The calculated hardware CLUT register value (derived from `clutBase + celPalIdx`) and the TPage register value (derived from VRAM page and transparency flags) are written to the primitive packet to configure the PlayStation GPU's texture mapping hardware.
+
+### Rendering/Layering Order (OT Insertion)
+In the primitive generation loop, `FUN_8002db8c` registers each primitive to the GPU Ordering Table (OT) bucket using a standard singly-linked list insert-at-head operation:
+```c
+*puVar12 = *puVar12 & 0xff000000 | *puVar8 & 0xffffff;
+*puVar8 = *puVar8 & 0xff000000 | uVar6;
+```
+Because the bucket pointer (`*puVar8`) always points to the head, inserting cels in forward order (`0, 1, 2, ...`) stacks them such that the GPU renders them in **reverse order** (`..., 2, 1, 0`):
+- `cel[celCount - 1]` (the last cel) is rendered **first** (the bottom layer / background).
+- `cel[0]` (the first cel) is rendered **last** (the top layer / foreground).
+
+Therefore, any C# or offline renderer must draw cels from index `celCount - 1` down to `0` to produce the correct layering order (e.g. drawing the head/face on top of the chest/neck).
+
