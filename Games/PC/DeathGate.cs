@@ -16,7 +16,7 @@ namespace ExtractCLUT.Games.PC
         {
             var picFiles = Directory.GetFiles(picDir, "*.PIC");
 
-            var outputDir = Path.Combine(picDir, "output");
+            var outputDir = Path.Combine(picDir, "pic_output");
             Directory.CreateDirectory(outputDir);
 
             var allPaletteOutputDir = Path.Combine(outputDir, "palettes");
