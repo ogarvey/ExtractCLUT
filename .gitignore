@@ -362,3 +362,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 SampleFiles/
+
+Games/PC/AntManKOR/output*
+Games/PC/DarkLegions/Samples
+Games/PC/Shadowcaster/output*
+Games/PC/Shadowcaster/Samples*
+Games/PC/Quarantine/Samples*

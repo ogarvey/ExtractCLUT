@@ -87,7 +87,7 @@ namespace ExtractCLUT.Games.PC.MADS
                         continue;
                     }
                     //File.WriteAllBytes(Path.Combine(dir, $"sprite_{sIndex}.bin"), decodedSpriteData);
-                    var image = ImageFormatHelper.GenerateIMClutImage(palette, decodedSpriteData, sh.Width, sh.Height, true, 0xff, false);
+                    var image = ImageFormatHelper.GenerateIMClutImage(palette, decodedSpriteData, sh.Width, sh.Height, true , [0xFF]);
 
                     var imageOutputPath = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(spriteFile) + $"_{sIndex}.png");
                     var imgOutputStream = new FileStream(imageOutputPath, FileMode.Create);

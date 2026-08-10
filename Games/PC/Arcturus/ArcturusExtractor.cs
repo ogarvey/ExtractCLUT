@@ -191,7 +191,7 @@ namespace ExtractCLUT.Games.PC.Arcturus
                                     var width = imageDataReader.ReadUInt16();
                                     var height = imageDataReader.ReadUInt16();
                                     var imageData = imageDataReader.ReadBytes(width * height);
-                                    var image = ImageFormatHelper.GenerateIMClutImage(palette, imageData, width, height, true, 0);
+                                    var image = ImageFormatHelper.GenerateIMClutImage(palette, imageData, width, height, true, [0]);
                                     string imageOutPath = Path.Combine(spriteOutputFolder, $"{Path.GetFileNameWithoutExtension(outputPath)}_{i:D2}.png");
                                     image.SaveAsPng(imageOutPath);
                                 }
@@ -490,7 +490,7 @@ namespace ExtractCLUT.Games.PC.Arcturus
                     if (pixels.Length != w * h)
                         throw new EndOfStreamException("Indexed frame data truncated");
 
-                    using var image = ImageFormatHelper.GenerateIMClutImage(palette, pixels, w, h, true, 0);
+                    using var image = ImageFormatHelper.GenerateIMClutImage(palette, pixels, w, h, true, [0]);
                     indexedImages.Add(image.CloneAs<Rgba32>());
                 }
 

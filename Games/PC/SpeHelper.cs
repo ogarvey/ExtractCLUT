@@ -11,7 +11,7 @@ namespace ExtractCLUT.Games.PC
     {
         public static void ProcessSpeFile(string filePath, bool useAlpha=false)
         {
-            var outputFolder = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath) + "_Extracted");
+            var outputFolder = Path.Combine(Path.GetDirectoryName(filePath)!, Path.GetFileNameWithoutExtension(filePath) + "_Extracted2");
             var transparencyFolder = Path.Combine(outputFolder, "Transparency");
             Directory.CreateDirectory(outputFolder);
             Directory.CreateDirectory(transparencyFolder);

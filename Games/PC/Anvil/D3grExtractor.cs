@@ -9,7 +9,7 @@ namespace ExtractCLUT.Games.PC.Anvil
 {
     public static class D3grExtractor
     {
-        public static void ExtractD3grFiles(string inputFilePath, string outputDirectory, List<Color> defaultPalette, bool useTransparency)
+        public static void ExtractD3grFile(string inputFilePath, string outputDirectory, List<Color> defaultPalette, bool useTransparency)
         {
             using var dRreader = new BinaryReader(File.OpenRead(inputFilePath));
             var d3grFile = new D3grFile(dRreader);

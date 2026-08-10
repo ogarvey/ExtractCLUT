@@ -2,7 +2,7 @@ using ExtractCLUT.Helpers;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace ExtractCLUT.Games.PC.EoL
+namespace ExtractCLUT.Games.PC
 {
     public class Fx5
     {
@@ -57,21 +57,34 @@ namespace ExtractCLUT.Games.PC.EoL
                 br.BaseStream.Seek(offset, SeekOrigin.Begin);
                 var width = br.ReadUInt16();
                 var height = br.ReadUInt16();
-                var compressedDataSize = br.ReadUInt32();
+                var compressedDataSize = br.ReadInt32();
+                if (compressedDataSize <= 0)
+                {
+                    Console.WriteLine($"Image at offset {offset} has no data.");
+                    continue;
+                }
                 var compressedData = br.ReadBytes((int)compressedDataSize);
 
-                if (isCompressed)
+                try
                 {
-                    var remainingBytesCount = Offsets.Count > index + 1 ? Offsets[index + 1] - (offset + 8 + compressedDataSize) : (uint)(br.BaseStream.Length - (offset + 8 + compressedDataSize));
-                    var remainingBytes = br.ReadBytes((int)remainingBytesCount);
-                    var decompressedData = DecompressImage(compressedData, remainingBytes, width, height);
-                    var image = ImageFormatHelper.GenerateIMClutImage(palette, decompressedData, width, height, true, 0);
-                    Images.Add(image);
+
+                    if (isCompressed)
+                    {
+                        var remainingBytesCount = Offsets.Count > index + 1 ? Offsets[index + 1] - (offset + 8 + compressedDataSize) : (uint)(br.BaseStream.Length - (offset + 8 + compressedDataSize));
+                        var remainingBytes = br.ReadBytes((int)remainingBytesCount);
+                        var decompressedData = DecompressImage(compressedData, remainingBytes, width, height);
+                        var image = ImageFormatHelper.GenerateIMClutImage(palette, decompressedData, width, height, true, [0]);
+                        Images.Add(image);
+                    }
+                    else
+                    {
+                        var image = ImageFormatHelper.GenerateIMClutImage(palette, compressedData, width, height, true, [0]);
+                        Images.Add(image);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    var image = ImageFormatHelper.GenerateIMClutImage(palette, compressedData, width, height, true, 0);
-                    Images.Add(image);
+                    Console.WriteLine($"Failed to parse image at offset {offset}: {ex.Message}");
                 }
             }
         }

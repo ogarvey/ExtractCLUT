@@ -91,9 +91,7 @@ namespace ExtractCLUT.Models.AniMagic
                     {
                         var image = ImageFormatHelper.GenerateIMClutImage(
                             _palette, imageData, width, height,
-                            useTransparency: compressionType == 4,
-                            transparencyIndex: 0,
-                            fixedIndex: true);
+                            useTransparency: compressionType == 4, [0]);
                         _bmpImages.Add(image);
                     }
                     else

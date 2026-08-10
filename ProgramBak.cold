@@ -1661,8 +1661,8 @@ static byte[] DecodeMode11Rle16(byte[] src, uint expectedOutputBytes, uint packe
 // CelUnpacker.UnpackAnimFile(lineCelsFile, lineCelsOut, verbose: true, noLoopRecords: true);
 
 
-// var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\Stage";
-// var subFiles = Directory.GetFiles(subFileDir, "*.pak", SearchOption.TopDirectoryOnly);
+// var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\ANIM";
+// var subFiles = Directory.GetFiles(subFileDir, "super*.pak", SearchOption.TopDirectoryOnly);
 
 // foreach (var subfFile in subFiles)
 // {

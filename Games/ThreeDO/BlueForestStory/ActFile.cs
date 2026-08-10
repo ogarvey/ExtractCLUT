@@ -11,7 +11,7 @@ namespace ExtractCLUT.Games.ThreeDO.BlueForestStory
 		public List<byte[]> DataBlocks { get; set; } = [];
 		public List<byte[]> DataBlocks2 { get; set; } = [];
 		public byte[] PlutData { get; set; } = [];
-		public List<(byte[] CCBData, byte[] PdatData)> CelEntries { get; set; } = [];
+		public List<(byte[] CCBData, byte[] PdatData, byte[] PlutData)> CelEntries { get; set; } = [];
 
 		public ActFile(string filePath)
 		{
@@ -56,12 +56,12 @@ namespace ExtractCLUT.Games.ThreeDO.BlueForestStory
 				var offset = actReader.ReadBigEndianUInt32() + db2Offset;
 				offsets.Add((uint)offset);
 			}
-			var lastOffset = offsets.Last() + 0x20;
-			offsets.Add(lastOffset);
-			for (int i = 0; i < offsets.Count - 1; i++)
+			
+			for (int i = 0; i < offsets.Count; i++)
 			{
 				actReader.BaseStream.Seek(offsets[i], SeekOrigin.Begin);
-				var length = (int)(offsets[i + 1] - offsets[i]);
+				var sizeByte = actReader.ReadBigEndianInt32();
+				var length = sizeByte * 0x1C;
 				var blockBytes = actReader.ReadBytes(length);
 				DataBlocks2.Add(blockBytes);
 			}
@@ -108,7 +108,19 @@ namespace ExtractCLUT.Games.ThreeDO.BlueForestStory
 				actReader.BaseStream.Seek(-8, SeekOrigin.Current);
 				var pdatData = actReader.ReadBytes((int)pdatLength);
 
-				CelEntries.Add((ccbData, pdatData));
+				plutMagic = Encoding.ASCII.GetString(actReader.ReadBytes(4));
+				if (plutMagic != "PLUT")
+				{
+					actReader.BaseStream.Seek(-4, SeekOrigin.Current);
+				} 
+				else
+				{
+					plutLength = actReader.ReadBigEndianUInt32();
+					actReader.BaseStream.Seek(-8, SeekOrigin.Current);
+					PlutData = actReader.ReadBytes((int)plutLength);
+				}
+
+				CelEntries.Add((ccbData, pdatData, PlutData));
 			}
 			Console.WriteLine($"Read {CelEntries.Count} CEL entries.");
 			Console.WriteLine($"Current File Position: {actReader.BaseStream.Position:X8}");
@@ -120,9 +132,9 @@ namespace ExtractCLUT.Games.ThreeDO.BlueForestStory
 			var combinedData = new List<byte>();
 			for (int i = 0; i < CelEntries.Count; i++)
 			{
-				var (ccbData, pdatData) = CelEntries[i];
+				var (ccbData, pdatData, plut) = CelEntries[i];
 				combinedData.AddRange(ccbData);
-				combinedData.AddRange(PlutData);
+				combinedData.AddRange(plut);
 				combinedData.AddRange(pdatData);
 			}
 			File.WriteAllBytes(Path.Combine(outputDir, "combined.cel"), combinedData.ToArray());

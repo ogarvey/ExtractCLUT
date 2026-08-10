@@ -48,9 +48,18 @@ public struct BoundsAccumulator
 
 public static class ImageCrop
 {
-    // Crops an image to an explicit rectangle (used for uniform per-animation crop).
+    // Crops an image to an explicit rectangle.
     public static void CropTo(Image<Rgba32> img, CropInfo rect)
     {
         img.Mutate(ctx => ctx.Crop(new Rectangle(rect.OffsetX, rect.OffsetY, rect.Width, rect.Height)));
+    }
+
+    // Computes the tight bounds of a single image's non-transparent content.
+    // Returns null when the image is fully transparent.
+    public static CropInfo? ComputeContentBounds(Image<Rgba32> img, int padding = 0)
+    {
+        var acc = BoundsAccumulator.Empty;
+        acc.Add(img);
+        return acc.ToRect(img.Width, img.Height, padding);
     }
 }

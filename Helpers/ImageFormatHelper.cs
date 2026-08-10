@@ -1352,9 +1352,8 @@ namespace ExtractCLUT.Helpers
         int width,
         int height,
         bool useTransparency = false,
-        int transparencyIndex = 0,
-        bool lowerIndexes = true,
-        bool fixedIndex = false)
+        int[]? transparencyIndices = null,
+        Rgba32? transparencyColor = null)
         {
             // Create a new ImageSharp image
             var clutImage = new Image<Rgba32>(width, height);
@@ -1370,14 +1369,11 @@ namespace ExtractCLUT.Helpers
                         var paletteIndex = clut7Bytes[i];
 
                         // Determine the color from the palette
-                        Rgba32 color = paletteIndex < palette.Count ?
-                        ((useTransparency && !fixedIndex) && ((lowerIndexes && paletteIndex <= transparencyIndex) || (!lowerIndexes && paletteIndex >= transparencyIndex))) ?
-                        Rgba32.ParseHex("#00000000") : palette[paletteIndex] : palette[paletteIndex % palette.Count];
-                        if (useTransparency && fixedIndex && paletteIndex == transparencyIndex)
+                        Rgba32 color = paletteIndex < palette.Count ? palette[paletteIndex] : palette[paletteIndex % palette.Count];
+                        if (useTransparency && ((transparencyIndices != null && transparencyIndices.Contains(paletteIndex)) || (transparencyColor.HasValue && color.Equals(transparencyColor.Value))))
                         {
                             color = Rgba32.ParseHex("#00000000");
                         }
-
 
                         // Set the pixel color
                         clutImage[x, y] = color;

@@ -229,7 +229,7 @@ namespace ExtractCLUT.Helpers
         byte blue = translate ? VgaTranslate(bytes[i + 2]) : (bytes[i + 2]);
         // byte alpha = translate ? VgaTranslate(bytes[i + 3]) : (bytes[i + 3]);
 
-        Rgba32 color = new Rgba32(red, green, blue);
+        Rgba32 color = new Rgba32(blue, green, red);
         colors.Add(color);
       }
       return colors;
