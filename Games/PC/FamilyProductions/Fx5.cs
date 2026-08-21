@@ -27,11 +27,11 @@ namespace ExtractCLUT.Games.PC
             var offsetListOffset = br.ReadUInt32();
             if (offsetListOffset != _OffsetListOffset)
             {
-                throw new Exception($"Unexpected offset list offset: {offsetListOffset}");
+                Console.WriteLine($"Warning: Expected offset list at {_OffsetListOffset:X8}, but found {offsetListOffset:X8}. Proceeding with caution.");
             }
             var firstImageOffset = br.ReadUInt32();
             var imageCount = br.ReadUInt32();
-            br.BaseStream.Seek(_OffsetListOffset, SeekOrigin.Begin);
+            br.BaseStream.Seek(offsetListOffset, SeekOrigin.Begin);
             while (br.BaseStream.Position < firstImageOffset)
             {
                 var offset = br.ReadUInt32();
@@ -64,7 +64,7 @@ namespace ExtractCLUT.Games.PC
                     continue;
                 }
                 var compressedData = br.ReadBytes((int)compressedDataSize);
-
+                isCompressed = compressedDataSize < width * height; // If the compressed data size is less than the total pixel count, it's likely compressed
                 try
                 {
 

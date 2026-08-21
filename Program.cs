@@ -9,207 +9,366 @@ using ExtractCLUT.Games.PC;
 using ExtractCLUT.Games.PC.ExpectNoMercy;
 using ExtractCLUT.Games.PC.FamilyProductions;
 using ExtractCLUT.Games.PC.Interspective;
+using ExtractCLUT.Games.PC.SoftEnt;
+using ExtractCLUT.Games.ThreeDO;
 using ExtractCLUT.Games.ThreeDO.GuardianWar;
 using ExtractCLUT.Helpers;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
-var actFileTest = @"C:\Dev\Gaming\3do\Games\Blue-Forest-Story-Kaze-no-Fuin\bfd\battle_chr\BTB01\BTB01.ACT";
-var actOutPutDir = Path.Combine(Path.GetDirectoryName(actFileTest)!, "Extracted", Path.GetFileNameWithoutExtension(actFileTest));
-var actFile = new ExtractCLUT.Games.ThreeDO.BlueForestStory.ActFile(actFileTest);
-actFile.ExportImages(actOutPutDir);
+var mainDir = @"C:\Dev\Gaming\PC\Win\Games\Silver Merc";
+var palFiles = Directory.GetFiles(mainDir, "*.PAL", SearchOption.AllDirectories);
+var fx5Files = Directory.GetFiles(mainDir, "*.FX5", SearchOption.AllDirectories);
 
-var v2matoFileDir = @"C:\Dev\Gaming\3do\Games\Lucienne's Quest\SS_DATA\magic";
-var v2matoFiles = Directory.GetFiles(v2matoFileDir, "*.chrs", SearchOption.TopDirectoryOnly);
-foreach (var v2matoFile in v2matoFiles)
+foreach (var palFile in palFiles)
 {
-  try
-  {
-    MatoArchive.ExtractArchiveV2(v2matoFile);
-  }
-  catch (Exception ex)
-  {
-    Console.WriteLine($"Error extracting {v2matoFile}: {ex.Message}");
-  }
-}
-
-var chrMatoFileDir = @"C:\Dev\Gaming\3do\Games\Guardian-War\lsdata\chrdata\";
-var chrMatoFiles = Directory.GetFiles(chrMatoFileDir, "*.chr", SearchOption.TopDirectoryOnly);
-foreach (var chrMatoFile in chrMatoFiles)
-{
-  MatoArchive.ExtractArchiveV1(chrMatoFile);
-}
-
-
-var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\ANIM";
-var subFiles = Directory.GetFiles(subFileDir, "super*.pak", SearchOption.TopDirectoryOnly);
-
-foreach (var subfFile in subFiles)
-{
-  using var subfReader = new BinaryReader(File.OpenRead(subfFile));
-  var magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
-  while (magic == "SUBF" && subfReader.BaseStream.Position < subfReader.BaseStream.Length)
-  {
-    var headerStart = subfReader.BaseStream.Position - 4;
-    var headerLength = subfReader.ReadBigEndianInt32();
-    var dataLength = subfReader.ReadBigEndianInt32();
-    var bytesToNextSubf = subfReader.ReadBigEndianInt32();
-    var name = subfReader.ReadNullTerminatedString();
-    // replace any invalid characters with _ (those outside the ascii 0-9a-zA-Z range) from the name
-    name = Path.GetFileName(name);
-    name = string.Concat(name.Select(c => (c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || c > 'z') ? '_' : c));
-
-    subfReader.BaseStream.Seek(headerStart + headerLength, SeekOrigin.Begin);
-    var data = subfReader.ReadBytes(dataLength);
-    var outputFile = Path.Combine(Path.GetDirectoryName(subfFile)!, Path.GetFileNameWithoutExtension(subfFile).Replace(".", "_"), name);
-    Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
-    File.WriteAllBytes(outputFile, data);
-    subfReader.BaseStream.Seek(headerStart + headerLength + bytesToNextSubf, SeekOrigin.Begin);
-    if (subfReader.BaseStream.Position >= subfReader.BaseStream.Length)
-      break;
-    magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
-  }
-}
-
-var timFolder = @"C:\Dev\Gaming\Sony\PSX\Games\SEIREIX";
-var timFiles = Directory.GetFiles(timFolder, "*.TIM", SearchOption.AllDirectories);
-
-foreach (var tim in timFiles)
-{
-  var timData = File.ReadAllBytes(tim);
-  var timImage = ImageFormatHelper.ExtractTIMImage(timData);
-  var outputFilePath = Path.Combine(Path.GetDirectoryName(tim)!, Path.GetFileNameWithoutExtension(tim) + ".png");
-  timImage.Save(outputFilePath);
-}
-
-
-var gxlDir = @"C:\Dev\Gaming\PC\Dos\Games\Zorro_DOS_EN";
-var gxlFiles = Directory.GetFiles(gxlDir, "*.GXL", SearchOption.TopDirectoryOnly);
-var outputDir = Path.Combine(gxlDir, "gxl_output");
-Directory.CreateDirectory(outputDir);
-
-foreach (var gxlFile in gxlFiles)
-{
-  try
-  {
-    using var gxlReader = new BinaryReader(File.OpenRead(gxlFile));
-    gxlReader.BaseStream.Seek(0x5e, SeekOrigin.Begin);
-    var count = gxlReader.ReadUInt16();
-    gxlReader.BaseStream.Seek(0x80, SeekOrigin.Begin);
-    var namesOffsetsLengths = new List<(string name, uint offset, uint length)>();
-    for (int i = 0; i < count; i++)
-    {
-      gxlReader.ReadByte();
-      var name = gxlReader.ReadNullTerminatedString();
-      var offset = gxlReader.ReadUInt32();
-      var length = gxlReader.ReadUInt32();
-      namesOffsetsLengths.Add((name, offset, length));
-      gxlReader.ReadBytes(4);
-    }
-    foreach (var pair in namesOffsetsLengths)
-    {
-      var (name, offset, length) = pair;
-      // Process each name, offset, and length as needed
-      gxlReader.BaseStream.Seek(offset, SeekOrigin.Begin);
-      var data = gxlReader.ReadBytes((int)length);
-      if (name.EndsWith(".PCX"))
-      {
-        try
-        {
-          var image = ImageFormatHelper.ConvertPCX(data, false);
-          var outputFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(name) + ".png");
-          image.Save(outputFile);
-          image = ImageFormatHelper.ConvertPCX(data, true);
-          outputFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(name) + "_t.png");
-          image.Save(outputFile);
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine($"Failed to convert {name} to PNG: {ex.Message}");
-        }
-      }
-      else
-      {
-        var outputFile = Path.Combine(outputDir, name);
-        File.WriteAllBytes(outputFile, data);
-      }
-    }
-  }
-  catch (Exception ex)
-  {
-    Console.WriteLine($"An error occurred during conversion: {ex.Message}");
-  }
-}
-
-
-var shakiiMainDir = @"C:\Dev\Gaming\PC\Dos\DiscImages\SAF-Secret-Armored-Force_DOS_KO_Disc-Image\SAF";
-var fx4Files = Directory.GetFiles(shakiiMainDir, "*.FX4", SearchOption.TopDirectoryOnly);
-var fx5Files = Directory.GetFiles(shakiiMainDir, "*.FX5", SearchOption.TopDirectoryOnly);
-var kpfFiles = Directory.GetFiles(shakiiMainDir, "*.KPF", SearchOption.TopDirectoryOnly);
-var palFiles = Directory.GetFiles(shakiiMainDir, "*.PAL", SearchOption.TopDirectoryOnly);
-
-foreach (var palPath in palFiles)
-{
-  var palette = ColorHelper.ConvertBytesToRgbIS(File.ReadAllBytes(palPath), translate: true);
-  var palOutputDir = Path.Combine(shakiiMainDir, "Extracted", Path.GetFileNameWithoutExtension(palPath));
+  var palette = ColorHelper.ConvertBytesToRgbIS(File.ReadAllBytes(palFile), translate: true);
+  var palOutputDir = Path.Combine(mainDir, "Extracted", Path.GetFileNameWithoutExtension(palFile));
   Directory.CreateDirectory(palOutputDir);
 
   foreach (var fx5FilePath in fx5Files)
   {
-    var fx5 = new Fx5(fx5FilePath, true);
-    fx5.ParseImages(palPath);
-    var fxOutputPath = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx5FilePath));
-    Directory.CreateDirectory(fxOutputPath);
-    fx5.SaveImages(fxOutputPath);
-  }
-
-  // Standard sprite FX4 files
-  foreach (var fx4FilePath in fx4Files)
-  {
     try
     {
-      var fx4 = Fx4File.Load(fx4FilePath);
-      var fx4OutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx4FilePath));
-      Directory.CreateDirectory(fx4OutputDir);
-      fx4.SaveImages(fx4OutputDir, palette);
+
+      var fx5 = new Fx5(fx5FilePath, true);
+      fx5.ParseImages(palFile);
+      var fxOutputPath = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx5FilePath));
+      Directory.CreateDirectory(fxOutputPath);
+      fx5.SaveImages(fxOutputPath);
     }
-    catch (InvalidDataException ex) when (ex.Message.Contains("headerless FX4 / KPF"))
+    catch (Exception ex)
     {
-      // // These .FX4 files are actually the same RLE cutscene format as .KPF.
-      // try
-      // {
-      //   var kpf = KpfFile.Load(fx4FilePath);
-      //   var kpfOutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx4FilePath));
-      //   Directory.CreateDirectory(kpfOutputDir);
-      //   kpf.SaveImages(kpfOutputDir, palette);
-      // }
-      // catch (InvalidDataException kpfEx)
-      // {
-      //   Console.WriteLine($"Skipped {Path.GetFileName(fx4FilePath)}: {kpfEx.Message}");
-      // }
+      Console.WriteLine($"Error processing {fx5FilePath}: {ex.Message}");
     }
   }
-
-  // Cutscene / screen KPF files (and the matching headerless FX4 variants)
-  // foreach (var kpfFilePath in kpfFiles)
-  // {
-  //   try
-  //   {
-  //     var kpf = KpfFile.Load(kpfFilePath);
-  //     var kpfOutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(kpfFilePath));
-  //     Directory.CreateDirectory(kpfOutputDir);
-  //     kpf.SaveImages(kpfOutputDir, palette);
-  //   }
-  //   catch (InvalidDataException ex)
-  //   {
-  //     Console.WriteLine($"Skipped {Path.GetFileName(kpfFilePath)}: {ex.Message}");
-  //   }
-  // }
 }
 
-
 // -- DISREGARD -- THIS IS ONLY EXPERIMENTAL TESTING CODE FOR VARIOUS GAMES AND FILE FORMATS, UNRELATED TO OUR CURRENT FOCUS --
+
+// var paletteBitFilePath = @"C:\Dev\Gaming\PC\Dos\Games\Project-Paradise_DOS_EN\BIT\SYSPAL.BIT";
+// var paletteBitFile = BitFile.Load(paletteBitFilePath);
+// var palette = BitFile.CreateRgbPalette(paletteBitFile);
+// var graphicsRoot = @"C:\Dev\Gaming\PC\Dos\Games\Project-Paradise_DOS_EN\BIT";
+// var graphicsArchives = new[] { "GRAFIK.BIT", "GRAFIKB.BIT", "SGRAFIK.BIT", "SYSGRAPH.BIT" };
+// foreach (var graphicsArchive in graphicsArchives)
+// {
+// 	var graphicsFile = BitFile.Load(Path.Combine(graphicsRoot, graphicsArchive));
+// 	var pngOutputDirectory = Path.Combine(graphicsRoot, Path.GetFileNameWithoutExtension(graphicsArchive) + "_PNG");
+// 	var writtenPngCount = graphicsFile.ExtractGraphicsPngs(pngOutputDirectory, palette);
+// 	Console.WriteLine($"{graphicsArchive}: wrote {writtenPngCount} graphics PNGs to {pngOutputDirectory}.");
+// }
+
+// var palFileDir = @"C:\Dev\Gaming\PC\Dos\Games\Pee-Gity_DOS_KR\Extracted_HSV";
+// var palFiles = Directory.GetFiles(palFileDir, "*.PAL", SearchOption.TopDirectoryOnly);
+// var fbkFileDir = @"C:\Dev\Gaming\PC\Dos\Games\Pee-Gity_DOS_KR";
+// var fbkFiles = Directory.GetFiles(fbkFileDir, "*.FBK", SearchOption.AllDirectories);
+
+// var mainOutputDir = Path.Combine(fbkFileDir, "FBK");
+
+// foreach (var palFile in palFiles)
+// {
+//   var palette = ColorHelper.ConvertBytesToRgbIS(File.ReadAllBytes(palFile), translate: true);
+//   var palDir = Path.Combine(mainOutputDir, Path.GetFileNameWithoutExtension(palFile));
+//   Directory.CreateDirectory(palDir);
+//   foreach (var fbkFile in fbkFiles)
+//   {
+//     var fbk = FbkFile.Load(fbkFile);
+//     var fbkOutputDir = fbk.Entries.Count > 1 ? Path.Combine(palDir, Path.GetFileNameWithoutExtension(fbkFile)) : palDir;
+//     Directory.CreateDirectory(fbkOutputDir);
+//     fbk.SaveImages(fbkOutputDir, palette, fbkFile);
+//   }
+// }
+
+
+
+// var farFileDir = @"C:\Dev\Gaming\3do\Games\Royal-Pro-Wrestling-Jikkyo-Live\Royal\RP_art";
+// var farFiles = Directory.GetFiles(farFileDir, "*.FAR", SearchOption.AllDirectories);
+// foreach (var farFile in farFiles)
+// {
+//   var farOutDir = Path.Combine(Path.GetDirectoryName(farFile)!, Path.GetFileNameWithoutExtension(farFile));
+//   Directory.CreateDirectory(farOutDir);
+//   ExtractFARFile(farFile, farOutDir);
+
+//   var celFiles = Directory.GetFiles(farOutDir, "*.cel", SearchOption.AllDirectories);
+//   foreach (var celFile in celFiles)
+//   {
+//     var magic = Encoding.ASCII.GetString(File.ReadAllBytes(celFile).Take(4).ToArray());
+//     if (magic != "CCB ")
+//     {
+//       // compressed CEL file, decompress it first
+//       var decompName = Path.GetFileNameWithoutExtension(celFile) + "_decompressed.cel";
+//       var decompData = DecompressRPWCelFile(celFile);
+//       File.WriteAllBytes(decompName, decompData);
+//     }
+//     var outputFilePath = Path.Combine(Path.GetDirectoryName(celFile)!, Path.GetFileNameWithoutExtension(celFile) + ".png");
+//     var celImage = CelUnpacker.UnpackAndSaveCelFile(celFile, outputFilePath);
+//   }
+// }
+
+// void ExtractFARFile(string farFilePath, string outputDir)
+// {
+//   using var farReader = new BinaryReader(File.OpenRead(farFilePath));
+//   var magic = Encoding.ASCII.GetString(farReader.ReadBytes(4));
+//   if (magic != "FARY")
+//   {
+//     throw new Exception($"Invalid FAR file: {farFilePath}");
+//   }
+//   var dataStartOffset = farReader.ReadBigEndianUInt32();
+//   var count = farReader.ReadBigEndianUInt32();
+//   farReader.ReadBytes(8);
+//   var offsetsAndLengths = new List<(uint offset, uint length)>();
+
+//   for (int i = 0; i < count; i++)
+//   {
+//     var offset = farReader.ReadBigEndianUInt32();
+//     var length = farReader.ReadBigEndianUInt32();
+//     offsetsAndLengths.Add((offset, length));
+//   }
+
+//   for (int i = 0; i < offsetsAndLengths.Count; i++)
+//   {
+//     var (offset, length) = offsetsAndLengths[i];
+//     farReader.BaseStream.Seek(offset, SeekOrigin.Begin);
+//     var data = farReader.ReadBytes((int)length);
+//     var outputFilePath = Path.Combine(outputDir, $"file_{i:D4}.cel");
+//     Directory.CreateDirectory(Path.GetDirectoryName(outputFilePath)!);
+//     File.WriteAllBytes(outputFilePath, data);
+//   }
+// }
+
+// byte[] DecompressRPWCelFile(string filePath)
+// {
+//   using var reader = new BinaryReader(File.OpenRead(filePath));
+//   // skip the first 4 bytes (unknown header)
+//   reader.ReadBytes(3);
+//   // simple compression: 
+//   // if the byte value is < 0x80, it is a pixel count, and the next (value) bytes are the pixel values
+//   // if the byte value is >= 0x80, the next byte is the count, and the (value & 0x7F) is the pixel value to repeat (count) times
+//   var output = new List<byte>();
+
+//   while (reader.BaseStream.Position < reader.BaseStream.Length)
+//   {
+//     var value = reader.ReadByte();
+//     if (value < 0x80)
+//     {
+//       // read the next (value) bytes as pixel values
+//       var pixels = reader.ReadBytes(value);
+//       output.AddRange(pixels);
+//     }
+//     else
+//     {
+//       // read the next byte as the count, and repeat the pixel value (value & 0x7F) (count) times
+//       var count = reader.ReadByte();
+//       var pixelValue = (byte)(value & 0x7F);
+//       for (int i = 0; i < count; i++)
+//       {
+//         output.Add(pixelValue);
+//       }
+//     }
+//   }
+//   return output.ToArray();
+// }
+
+// var actFileDir = @"C:\Dev\Gaming\3do\Games\Blue-Forest-Story-Kaze-no-Fuin\bfd\battle_chr";
+// var actFiles = Directory.GetFiles(actFileDir, "*.ACT", SearchOption.AllDirectories);
+
+// foreach (var actFileTest in actFiles)
+// {
+//   var actOutPutDir = Path.Combine(Path.GetDirectoryName(actFileTest)!, Path.GetFileNameWithoutExtension(actFileTest));
+//   var actFile = new ExtractCLUT.Games.ThreeDO.BlueForestStory.ActFile(actFileTest);
+//   actFile.ExportImages(actOutPutDir);
+// }
+
+
+// var v2matoFileDir = @"C:\Dev\Gaming\3do\Games\Lucienne's Quest\SS_DATA\magic";
+// var v2matoFiles = Directory.GetFiles(v2matoFileDir, "*.chrs", SearchOption.TopDirectoryOnly);
+// foreach (var v2matoFile in v2matoFiles)
+// {
+//   try
+//   {
+//     MatoArchive.ExtractArchiveV2(v2matoFile);
+//   }
+//   catch (Exception ex)
+//   {
+//     Console.WriteLine($"Error extracting {v2matoFile}: {ex.Message}");
+//   }
+// }
+
+// var chrMatoFileDir = @"C:\Dev\Gaming\3do\Games\Guardian-War\lsdata\chrdata\";
+// var chrMatoFiles = Directory.GetFiles(chrMatoFileDir, "*.chr", SearchOption.TopDirectoryOnly);
+// foreach (var chrMatoFile in chrMatoFiles)
+// {
+//   MatoArchive.ExtractArchiveV1(chrMatoFile);
+// }
+
+
+// var subFileDir = @"C:\Dev\Gaming\3do\Games\Bishoujo Senshi Sailor Moon S\data\ANIM";
+// var subFiles = Directory.GetFiles(subFileDir, "super*.pak", SearchOption.TopDirectoryOnly);
+
+// foreach (var subfFile in subFiles)
+// {
+//   using var subfReader = new BinaryReader(File.OpenRead(subfFile));
+//   var magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
+//   while (magic == "SUBF" && subfReader.BaseStream.Position < subfReader.BaseStream.Length)
+//   {
+//     var headerStart = subfReader.BaseStream.Position - 4;
+//     var headerLength = subfReader.ReadBigEndianInt32();
+//     var dataLength = subfReader.ReadBigEndianInt32();
+//     var bytesToNextSubf = subfReader.ReadBigEndianInt32();
+//     var name = subfReader.ReadNullTerminatedString();
+//     // replace any invalid characters with _ (those outside the ascii 0-9a-zA-Z range) from the name
+//     name = Path.GetFileName(name);
+//     name = string.Concat(name.Select(c => (c < '0' || (c > '9' && c < 'A') || (c > 'Z' && c < 'a') || c > 'z') ? '_' : c));
+
+//     subfReader.BaseStream.Seek(headerStart + headerLength, SeekOrigin.Begin);
+//     var data = subfReader.ReadBytes(dataLength);
+//     var outputFile = Path.Combine(Path.GetDirectoryName(subfFile)!, Path.GetFileNameWithoutExtension(subfFile).Replace(".", "_"), name);
+//     Directory.CreateDirectory(Path.GetDirectoryName(outputFile)!);
+//     File.WriteAllBytes(outputFile, data);
+//     subfReader.BaseStream.Seek(headerStart + headerLength + bytesToNextSubf, SeekOrigin.Begin);
+//     if (subfReader.BaseStream.Position >= subfReader.BaseStream.Length)
+//       break;
+//     magic = Encoding.ASCII.GetString(subfReader.ReadBytes(4));
+//   }
+// }
+
+// var timFolder = @"C:\Dev\Gaming\Sony\PSX\Games\SEIREIX";
+// var timFiles = Directory.GetFiles(timFolder, "*.TIM", SearchOption.AllDirectories);
+
+// foreach (var tim in timFiles)
+// {
+//   var timData = File.ReadAllBytes(tim);
+//   var timImage = ImageFormatHelper.ExtractTIMImage(timData);
+//   var outputFilePath = Path.Combine(Path.GetDirectoryName(tim)!, Path.GetFileNameWithoutExtension(tim) + ".png");
+//   timImage.Save(outputFilePath);
+// }
+
+
+// var gxlDir = @"C:\Dev\Gaming\PC\Dos\Games\Zorro_DOS_EN";
+// var gxlFiles = Directory.GetFiles(gxlDir, "*.GXL", SearchOption.TopDirectoryOnly);
+// var outputDir = Path.Combine(gxlDir, "gxl_output");
+// Directory.CreateDirectory(outputDir);
+
+// foreach (var gxlFile in gxlFiles)
+// {
+//   try
+//   {
+//     using var gxlReader = new BinaryReader(File.OpenRead(gxlFile));
+//     gxlReader.BaseStream.Seek(0x5e, SeekOrigin.Begin);
+//     var count = gxlReader.ReadUInt16();
+//     gxlReader.BaseStream.Seek(0x80, SeekOrigin.Begin);
+//     var namesOffsetsLengths = new List<(string name, uint offset, uint length)>();
+//     for (int i = 0; i < count; i++)
+//     {
+//       gxlReader.ReadByte();
+//       var name = gxlReader.ReadNullTerminatedString();
+//       var offset = gxlReader.ReadUInt32();
+//       var length = gxlReader.ReadUInt32();
+//       namesOffsetsLengths.Add((name, offset, length));
+//       gxlReader.ReadBytes(4);
+//     }
+//     foreach (var pair in namesOffsetsLengths)
+//     {
+//       var (name, offset, length) = pair;
+//       // Process each name, offset, and length as needed
+//       gxlReader.BaseStream.Seek(offset, SeekOrigin.Begin);
+//       var data = gxlReader.ReadBytes((int)length);
+//       if (name.EndsWith(".PCX"))
+//       {
+//         try
+//         {
+//           var image = ImageFormatHelper.ConvertPCX(data, false);
+//           var outputFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(name) + ".png");
+//           image.Save(outputFile);
+//           image = ImageFormatHelper.ConvertPCX(data, true);
+//           outputFile = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(name) + "_t.png");
+//           image.Save(outputFile);
+//         }
+//         catch (Exception ex)
+//         {
+//           Console.WriteLine($"Failed to convert {name} to PNG: {ex.Message}");
+//         }
+//       }
+//       else
+//       {
+//         var outputFile = Path.Combine(outputDir, name);
+//         File.WriteAllBytes(outputFile, data);
+//       }
+//     }
+//   }
+//   catch (Exception ex)
+//   {
+//     Console.WriteLine($"An error occurred during conversion: {ex.Message}");
+//   }
+// }
+
+
+// var shakiiMainDir = @"C:\Dev\Gaming\PC\Dos\DiscImages\SAF-Secret-Armored-Force_DOS_KO_Disc-Image\SAF";
+// var fx4Files = Directory.GetFiles(shakiiMainDir, "*.FX4", SearchOption.TopDirectoryOnly);
+// var fx5Files = Directory.GetFiles(shakiiMainDir, "*.FX5", SearchOption.TopDirectoryOnly);
+// var kpfFiles = Directory.GetFiles(shakiiMainDir, "*.KPF", SearchOption.TopDirectoryOnly);
+// var palFiles = Directory.GetFiles(shakiiMainDir, "*.PAL", SearchOption.TopDirectoryOnly);
+
+// foreach (var palPath in palFiles)
+// {
+//   var palette = ColorHelper.ConvertBytesToRgbIS(File.ReadAllBytes(palPath), translate: true);
+//   var palOutputDir = Path.Combine(shakiiMainDir, "Extracted", Path.GetFileNameWithoutExtension(palPath));
+//   Directory.CreateDirectory(palOutputDir);
+
+//   foreach (var fx5FilePath in fx5Files)
+//   {
+//     var fx5 = new Fx5(fx5FilePath, true);
+//     fx5.ParseImages(palPath);
+//     var fxOutputPath = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx5FilePath));
+//     Directory.CreateDirectory(fxOutputPath);
+//     fx5.SaveImages(fxOutputPath);
+//   }
+
+//   // Standard sprite FX4 files
+//   foreach (var fx4FilePath in fx4Files)
+//   {
+//     try
+//     {
+//       var fx4 = Fx4File.Load(fx4FilePath);
+//       var fx4OutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx4FilePath));
+//       Directory.CreateDirectory(fx4OutputDir);
+//       fx4.SaveImages(fx4OutputDir, palette);
+//     }
+//     catch (InvalidDataException ex) when (ex.Message.Contains("headerless FX4 / KPF"))
+//     {
+//       // // These .FX4 files are actually the same RLE cutscene format as .KPF.
+//       // try
+//       // {
+//       //   var kpf = KpfFile.Load(fx4FilePath);
+//       //   var kpfOutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(fx4FilePath));
+//       //   Directory.CreateDirectory(kpfOutputDir);
+//       //   kpf.SaveImages(kpfOutputDir, palette);
+//       // }
+//       // catch (InvalidDataException kpfEx)
+//       // {
+//       //   Console.WriteLine($"Skipped {Path.GetFileName(fx4FilePath)}: {kpfEx.Message}");
+//       // }
+//     }
+//   }
+
+//   // Cutscene / screen KPF files (and the matching headerless FX4 variants)
+//   // foreach (var kpfFilePath in kpfFiles)
+//   // {
+//   //   try
+//   //   {
+//   //     var kpf = KpfFile.Load(kpfFilePath);
+//   //     var kpfOutputDir = Path.Combine(palOutputDir, Path.GetFileNameWithoutExtension(kpfFilePath));
+//   //     Directory.CreateDirectory(kpfOutputDir);
+//   //     kpf.SaveImages(kpfOutputDir, palette);
+//   //   }
+//   //   catch (InvalidDataException ex)
+//   //   {
+//   //     Console.WriteLine($"Skipped {Path.GetFileName(kpfFilePath)}: {ex.Message}");
+//   //   }
+//   // }
+// }
 
 // var baseGraphicsDir = @"C:\Dev\Gaming\PC\Win\Games\ALLODS\ALLODS\GRAPHICS";
 // var sprite16aPath = @"C:\Dev\Gaming\PC\Win\Games\ALLODS\ALLODS\GRAPHICS\sprites_0000000a.16a";

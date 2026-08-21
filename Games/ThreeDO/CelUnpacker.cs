@@ -10,6 +10,8 @@ using Color = SixLabors.ImageSharp.Color;
 
 namespace ExtractCLUT.Games.ThreeDO
 {
+
+
     public static class CelUnpacker
     {
         // Packet type constants from 3DO CEL specification
@@ -826,7 +828,7 @@ namespace ExtractCLUT.Games.ThreeDO
             return new CelImageData
             {
                 Width = width,
-                Height = height - 1,
+                Height = height,
                 BitsPerPixel = bitsPerPixel,
                 PixelData = unpackedData,
                 TransparencyMask = transparencyMask,
@@ -854,11 +856,18 @@ namespace ExtractCLUT.Games.ThreeDO
                 // Read offset to next row
                 // 8-bit offset for 1, 2, 4, 6 bpp
                 // 10-bit offset for 8, 16 bpp
-                int offsetBits = (bitsPerPixel == 8 || bitsPerPixel == 16) ? 10 : 8;
-                int nextRowOffset = bitReader.ReadBits(offsetBits);
+                int nextRowOffset;
+                if (bitsPerPixel == 8 || bitsPerPixel == 16)
+                {
+                    bitReader.ReadBits(6);
+                    nextRowOffset = bitReader.ReadBits(10);
+                }
+                else
+                {
+                    nextRowOffset = bitReader.ReadBits(8);
+                }
 
-                // For 10-bit offset, skip padding bits (bits 31-26 are 0)
-                // For 8-bit offset (bits 31-24), data starts immediately after
+                int nextRowWord = bitReader.CurrentWordPosition + nextRowOffset + 2;
 
                 // Process packets for this row
                 int pixelsInRow = 0;
@@ -919,6 +928,8 @@ namespace ExtractCLUT.Games.ThreeDO
                             break;
                     }
                 }
+
+                bitReader.SeekToWord(nextRowWord);
             }
 
             return unpackedData;
@@ -1023,7 +1034,7 @@ namespace ExtractCLUT.Games.ThreeDO
         /// <param name="verbose">If true, displays CCB header information</param>
         /// <param name="bitsPerPixel">Optional: Override auto-detected bits per pixel (1, 2, 4, 6, 8, or 16). If 0, auto-detect.</param>
         /// <returns>List of unpacked CEL image data (one per PDAT chunk)</returns>
-        public static List<CelImageData>  UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
+        public static List<CelImageData> UnpackCelFile_FromBytes_Multiple(byte[] data, bool verbose = false, int bitsPerPixel = 0, bool skipUncompSize = false)
         {
             var results = new List<CelImageData>();
 
@@ -1125,7 +1136,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     // Read palette data and store
                     byte[] plutData = reader.ReadBytes((int)plutDataSize);
                     List<Color> palette = ExtractPaletteFromPLUT(plutData, verbose);
-                    
+
                     int plutIndex = plutList.Count;
                     plutList.Add(palette);
                     chunks.Add(("PLUT", plutIndex, null!));
@@ -1142,7 +1153,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     // Process PDAT chunk - just store the pixel data for now
                     uint pdatDataSize = chunkSize - 8; // Subtract magic (4) + size (4)
                     byte[] pixelData = reader.ReadBytes((int)pdatDataSize);
-                    
+
                     int pdatIndex = pdatList.Count;
                     pdatList.Add(pixelData);
                     chunks.Add(("PDAT", pdatIndex, null!));
@@ -1153,6 +1164,11 @@ namespace ExtractCLUT.Games.ThreeDO
                     }
 
                     // Skip to next chunk (should already be at correct position)
+                }
+                else if (magicStr == "3DO ")
+                {
+                    // A wrapper contains the same sequence of chunks. Leave the stream
+                    // at the wrapper body instead of skipping the nested chunks.
                 }
                 else
                 {
@@ -1170,75 +1186,72 @@ namespace ExtractCLUT.Games.ThreeDO
                         Console.WriteLine($"Skipping unknown chunk '{magicStr}' ({skipSize} bytes)");
                     }
                 }
+
+                // chunk_size excludes the zero padding used to quad-byte align chunks.
+                // Without this, a padded PDAT can make the next chunk header look invalid.
+                stream.Position = (stream.Position + 3) & ~3L;
             }
 
-            // Now match up chunks: For each PDAT, find its preceding CCB and following/preceding PLUT
+            // Chunks use current-value semantics: a PLUT remains active until another PLUT
+            // replaces it, and each PDAT uses the most recent CCB and PLUT.
             var pdatGroups = new List<(byte[] pixelData, int width, int height, uint flags, uint pre0, uint pre1, uint pixc, List<Color> palette)>();
-            
+
+            int currentCcbIndex = -1;
+            int currentPlutIndex = -1;
             for (int i = 0; i < chunks.Count; i++)
             {
-                if (chunks[i].type == "PDAT")
+                switch (chunks[i].type)
                 {
-                    int pdatIdx = chunks[i].index;
-                    byte[] pixelData = pdatList[pdatIdx];
-                    
-                    // Find the most recent CCB before this PDAT
-                    int ccbIdx = -1;
-                    for (int j = i - 1; j >= 0; j--)
-                    {
-                        if (chunks[j].type == "CCB")
+                    case "CCB":
+                        currentCcbIndex = chunks[i].index;
+                        break;
+
+                    case "PLUT":
+                        currentPlutIndex = chunks[i].index;
+                        break;
+
+                    case "PDAT":
+                        int pdatIdx = chunks[i].index;
+                        if (currentCcbIndex == -1)
                         {
-                            ccbIdx = chunks[j].index;
+                            Console.WriteLine($"Warning: PDAT #{pdatIdx + 1} has no preceding CCB chunk, skipping");
                             break;
                         }
-                    }
-                    
-                    if (ccbIdx == -1)
-                    {
-                        Console.WriteLine($"Warning: PDAT #{pdatIdx + 1} has no preceding CCB chunk, skipping");
-                        continue;
-                    }
-                    
-                    // Find the nearest PLUT (check after first, then before)
-                    int plutIdx = -1;
-                    // Check forward first (for CCB → PDAT → PLUT pattern)
-                    for (int j = i + 1; j < chunks.Count; j++)
-                    {
-                        if (chunks[j].type == "PLUT")
+
+                        var ccb = ccbList[currentCcbIndex];
+                        int paletteIndex = currentPlutIndex;
+
+                        // Some tools emit CCB -> PDAT -> PLUT even though the formal
+                        // current-value layout places PLUT before PDAT. Preserve support
+                        // for that layout without allowing a later palette to replace an
+                        // already active palette or cross another data/control chunk.
+                        if (paletteIndex < 0)
                         {
-                            plutIdx = chunks[j].index;
-                            break;
-                        }
-                        // Stop if we hit another CCB or PDAT
-                        if (chunks[j].type == "CCB" || chunks[j].type == "PDAT")
-                            break;
-                    }
-                    
-                    // If not found forward, check backward (for CCB → PLUT → PDAT pattern)
-                    if (plutIdx == -1)
-                    {
-                        for (int j = i - 1; j >= 0; j--)
-                        {
-                            if (chunks[j].type == "PLUT")
+                            for (int j = i + 1; j < chunks.Count; j++)
                             {
-                            plutIdx = chunks[j].index;
-                                break;
+                                if (chunks[j].type == "PLUT")
+                                {
+                                    paletteIndex = chunks[j].index;
+                                    break;
+                                }
+
+                                if (chunks[j].type == "CCB" || chunks[j].type == "PDAT")
+                                {
+                                    break;
+                                }
                             }
-                            // Stop if we hit a CCB that's not our own
-                            if (chunks[j].type == "CCB" && chunks[j].index != ccbIdx)
-                                break;
                         }
-                    }
-                    
-                    var ccb = ccbList[ccbIdx];
-                    List<Color> palette = plutIdx >= 0 ? plutList[plutIdx] : new List<Color>();
-                    
-                    pdatGroups.Add((pixelData, ccb.width, ccb.height, ccb.flags, ccb.pre0, ccb.pre1, ccb.pixc, palette));
-                    
-                    if (verbose)
-                    {
-                        Console.WriteLine($"Matched: CCB #{ccbIdx + 1} + PDAT #{pdatIdx + 1} + PLUT #{(plutIdx >= 0 ? (plutIdx + 1).ToString() : "none")} = {ccb.width}x{ccb.height}, {palette.Count} colors");
-                    }
+
+                        List<Color> palette = paletteIndex >= 0
+                            ? plutList[paletteIndex]
+                            : new List<Color>();
+                        pdatGroups.Add((pdatList[pdatIdx], ccb.width, ccb.height, ccb.flags, ccb.pre0, ccb.pre1, ccb.pixc, palette));
+
+                        if (verbose)
+                        {
+                            Console.WriteLine($"Matched: CCB #{currentCcbIndex + 1} + PDAT #{pdatIdx + 1} + PLUT #{(paletteIndex >= 0 ? (paletteIndex + 1).ToString() : "none")} = {ccb.width}x{ccb.height}, {palette.Count} colors");
+                        }
+                        break;
                 }
             }
 
@@ -1263,7 +1276,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     });
                     return results;
                 }
-                
+
                 Console.WriteLine("No valid CCB chunk or PDAT data found in file");
                 return results;
             }
@@ -1313,7 +1326,7 @@ namespace ExtractCLUT.Games.ThreeDO
 
                 // Process this PDAT chunk using its associated CCB header data
                 var result = ProcessSinglePDAT(pixelData, width, height, flags, pre0, pre1, pixc, bitsPerPixel, skipUncompSize, verbose);
-                
+
                 if (result != null)
                 {
                     // Add palette data to the result if we have it
@@ -1367,7 +1380,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
                     Console.WriteLine($"  Packed (bit 7): {packed}");
                 }
-                
+
                 // Check CCB FLAGS PACKED bit - it can override PRE0 bit 7
                 if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
                 {
@@ -1455,44 +1468,44 @@ namespace ExtractCLUT.Games.ThreeDO
 
             if (bpp == 0)
             {
-                bpp = 6; // Safe default
+                bpp = 5; // Safe default
             }
 
-            // Heuristic: Validate packed/unpacked flag against actual file size
-            // if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
-            // {
-            //     int bitsPerRow = ccbWidth * bpp;
-            //     int bytesPerRow = ((bitsPerRow + 31) / 32) * 4;
-            //     int expectedUnpackedSize = ccbHeight * bytesPerRow;
-            //     int actualDataSize = pixelData.Length;
-            //     int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
+            //Heuristic: Validate packed/ unpacked flag against actual file size
+            if (ccbWidth > 0 && ccbHeight > 0 && bpp > 0 && pixelData != null)
+            {
+                int bitsPerRow = ccbWidth * bpp;
+                int bytesPerRow = ((bitsPerRow + 31) / 32) * 4;
+                int expectedUnpackedSize = ccbHeight * bytesPerRow;
+                int actualDataSize = pixelData.Length;
+                int simpleUnpackedSize = ccbWidth * ccbHeight * ((bpp + 7) / 8);
 
-            //     if (verbose)
-            //     {
-            //         Console.WriteLine($"\n  File size analysis:");
-            //         Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
-            //         Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
-            //         Console.WriteLine($"    Actual size: {actualDataSize} bytes");
-            //     }
+                if (verbose)
+                {
+                    Console.WriteLine($"\n  File size analysis:");
+                    Console.WriteLine($"    Expected unpacked (word-aligned): {expectedUnpackedSize} bytes");
+                    Console.WriteLine($"    Expected unpacked (simple): {simpleUnpackedSize} bytes");
+                    Console.WriteLine($"    Actual size: {actualDataSize} bytes");
+                }
 
-            //     if (!isPacked && actualDataSize < expectedUnpackedSize * 0.95)
-            //     {
-            //         if (verbose)
-            //         {
-            //             Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
-            //         }
-            //         isPacked = true;
-            //     }
-            //     else if (isPacked && (actualDataSize == expectedUnpackedSize || 
-            //                           actualDataSize == simpleUnpackedSize ))
-            //     {
-            //         if (verbose)
-            //         {
-            //             Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
-            //         }
-            //         isPacked = false;
-            //     }
-            // }
+                if (!isPacked && actualDataSize < expectedUnpackedSize * 0.95)
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  ⚠ Size too small for unpacked format -> Overriding to PACKED");
+                    }
+                    isPacked = true;
+                }
+                else if (isPacked && (actualDataSize == expectedUnpackedSize ||
+                                      actualDataSize == simpleUnpackedSize))
+                {
+                    if (verbose)
+                    {
+                        Console.WriteLine($"  ⚠ Size matches unpacked format exactly -> Overriding to UNPACKED");
+                    }
+                    isPacked = false;
+                }
+            }
 
             if (verbose)
             {
@@ -1787,7 +1800,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     Console.WriteLine($"  Linear (bit 4): {linear} (Coded: {isCoded})");
                     Console.WriteLine($"  Packed (bit 7): {packed}");
                 }
-                
+
                 // Check CCB FLAGS PACKED bit - it can override PRE0 bit 7
                 if ((ccbFlags & 0x00000200) != 0) // PACKED flag - bit 9
                 {
@@ -1907,7 +1920,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     isPacked = true;
                 }
                 // Case 2: Marked as PACKED, but size matches unpacked exactly -> Actually UNPACKED
-                else if (isPacked && (actualDataSize == expectedUnpackedSize || 
+                else if (isPacked && (actualDataSize == expectedUnpackedSize ||
                                       actualDataSize == simpleUnpackedSize ||
                                       Math.Abs(actualDataSize - expectedUnpackedSize) < 100))
                 {
@@ -2207,6 +2220,20 @@ namespace ExtractCLUT.Games.ThreeDO
             return intPart + fracPart;
         }
 
+        private static int GetCodedPaletteIndex(int pixelValue, int bitsPerPixel, uint ccbFlags)
+        {
+            int pixelMask = (1 << bitsPerPixel) - 1;
+            int plutIndex = pixelValue & pixelMask;
+
+            if (bitsPerPixel < 5)
+            {
+                int pluta = (int)((ccbFlags >> 1) & 0x07);
+                plutIndex |= pluta << bitsPerPixel;
+            }
+
+            return plutIndex & 0x1F;
+        }
+
         /// <summary>
         /// Writes a pixel value to the output buffer
         /// </summary>
@@ -2394,7 +2421,7 @@ namespace ExtractCLUT.Games.ThreeDO
             // Decode PIXC control word for pixel processor operations
             // P-mode 0 (lower 16 bits) and P-mode 1 (upper 16 bits)
             bool pixcProvided = pixc != 0;
-            
+
             // P-mode 0 bits (bits 0-15)
             uint pixcP0 = pixc & 0xFFFF;
             bool p0_1S = (pixcP0 & 0x8000) != 0;        // Bit 15: Primary source (0=cel, 1=frame buffer)
@@ -2404,7 +2431,7 @@ namespace ExtractCLUT.Games.ThreeDO
             uint p0_2S = (pixcP0 >> 6) & 0x03;          // Bits 7-6: Secondary source
             uint p0_AV = (pixcP0 >> 1) & 0x1F;          // Bits 5-1: Secondary source value/AV bits
             bool p0_2D = (pixcP0 & 0x01) != 0;          // Bit 0: Secondary divider (0=1, 1=2)
-            
+
             // P-mode 1 bits (bits 16-31) - same structure
             uint pixcP1 = (pixc >> 16) & 0xFFFF;
             bool p1_1S = (pixcP1 & 0x8000) != 0;
@@ -2414,11 +2441,11 @@ namespace ExtractCLUT.Games.ThreeDO
             uint p1_2S = (pixcP1 >> 6) & 0x03;
             uint p1_AV = (pixcP1 >> 1) & 0x1F;
             bool p1_2D = (pixcP1 & 0x01) != 0;
-            
+
             // Decode POVER bits from CCB FLAGS (bits 8-7) to determine P-mode selection
             uint pover = (ccbFlags >> 7) & 0x03;
             // POVER: 00=use P-mode from pixel, 01=reserved, 10=force P-mode 0, 11=force P-mode 1
-            
+
             if (verbose && pixcProvided)
             {
                 Console.WriteLine($"\n[PIXC Pixel Processor Configuration]");
@@ -2434,7 +2461,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 Console.WriteLine($"    2D (Secondary Divider): {(p0_2D ? 2 : 1)}");
                 Console.WriteLine($"\n  P-mode 1 (bits 16-31): 0x{pixcP1:X4}");
                 Console.WriteLine($"    1S: {(p1_1S ? "Frame Buffer" : "Cel Pixel")}, MS: {p1_MS}, MF: {p1_MF + 1}, DF: {(p1_DF == 0 ? 16 : p1_DF == 1 ? 2 : p1_DF == 2 ? 4 : 8)}, 2S: {p1_2S}, AV: {p1_AV}, 2D: {(p1_2D ? 2 : 1)}");
-                
+
                 if (useFrameBufferBlending)
                 {
                     Console.WriteLine($"\n  Frame Buffer Blending: ENABLED (transparent background used for secondary source)");
@@ -2462,6 +2489,14 @@ namespace ExtractCLUT.Games.ThreeDO
                         byte g = celOutput.PixelData[byteOffset + 1];
                         byte b = celOutput.PixelData[byteOffset + 2];
                         byte a = celOutput.PixelData[byteOffset + 3];
+
+                        bool bgndFlag = (ccbFlags & 0x00000020) != 0;
+                        bool zeroPixelIsTransparent = ccbFlags != 0 && !bgndFlag && r == 0 && g == 0 && b == 0;
+                        if ((celOutput.TransparencyMask != null && celOutput.TransparencyMask[pixelIndex]) || zeroPixelIsTransparent)
+                        {
+                            a = 0;
+                        }
+
                         image[x, y] = new Rgba32(r, g, b, a);
                     }
                 }
@@ -2500,22 +2535,22 @@ namespace ExtractCLUT.Games.ThreeDO
                                 // 16bpp uncoded: RGB555 format (5R, 5G, 5B, 1 control bit)
                                 int byteOffset = pixelIndex * 2;
                                 int pixelValue = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
-                                
+
                                 int r = ((pixelValue >> 10) & 0x1F) << 3; // Scale 5 bits to 8 bits
                                 int g = ((pixelValue >> 5) & 0x1F) << 3;
                                 int b = (pixelValue & 0x1F) << 3;
-                                
+
                                 baseColor = new Rgba32((byte)r, (byte)g, (byte)b, 255);
                             }
                             else // 8bpp uncoded
                             {
                                 // 8bpp uncoded: RGB332 format (3R, 3G, 2B)
                                 byte pixelValue = celOutput.PixelData[pixelIndex];
-                                
+
                                 int r = ((pixelValue >> 5) & 0x07) * 255 / 7; // Scale 3 bits to 8 bits
                                 int g = ((pixelValue >> 2) & 0x07) * 255 / 7;
                                 int b = (pixelValue & 0x03) * 255 / 3; // Scale 2 bits to 8 bits
-                                
+
                                 baseColor = new Rgba32((byte)r, (byte)g, (byte)b, 255);
                             }
                         }
@@ -2537,12 +2572,13 @@ namespace ExtractCLUT.Games.ThreeDO
                             }
                             else
                             {
-                                // For 8bpp and lower, read single byte (mask to 5 bits for PLUT index)
-                                plutIndex = celOutput.PixelData[pixelIndex] & 0x1F;
+                                // For coded pixels below 5 bpp, PLUTA supplies the missing
+                                // high-order PLUT index bits.
+                                plutIndex = GetCodedPaletteIndex(celOutput.PixelData[pixelIndex], celOutput.BitsPerPixel, ccbFlags);
                             }
 
                             baseColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
-                            
+
                             // Check if PLUT entry is 000 (black RGB) - this indicates transparency
                             // unless BGND flag is set (bit 5 of CCB FLAGS)
                             bool bgndFlag = (ccbFlags & 0x00000020) != 0;
@@ -2558,15 +2594,15 @@ namespace ExtractCLUT.Games.ThreeDO
                         if (celOutput.AlternateMultiplyValues != null)
                         {
                             byte amv = celOutput.AlternateMultiplyValues[pixelIndex];
-                            
+
                             if (pixcProvided && useFrameBufferBlending)
                             {
                                 // Use P-mode 0 settings (most common for coded 8bpp with AMV)
                                 // Apply full 3DO pixel processor pipeline
-                                
+
                                 // Primary Source - the cel pixel color
                                 Rgba32 primarySource = baseColor;
-                                
+
                                 // Primary Multiplier Value (PMV)
                                 float pmv = 1.0f;
                                 if (p0_MS == 0)
@@ -2586,10 +2622,10 @@ namespace ExtractCLUT.Games.ThreeDO
                                     float colorPmv = ((baseColor.R >> 5) + (baseColor.G >> 5) + (baseColor.B >> 5)) / 3.0f;
                                     pmv = colorPmv + 1; // 0-7 → 1-8
                                 }
-                                
+
                                 // Primary Divider Value (PDV)
                                 float pdv = p0_DF == 0 ? 16.0f : p0_DF == 1 ? 2.0f : p0_DF == 2 ? 4.0f : 8.0f;
-                                
+
                                 // Scale primary source
                                 float primaryScale = pmv / pdv;
                                 Rgba32 scaledPrimary = new Rgba32(
@@ -2598,7 +2634,7 @@ namespace ExtractCLUT.Games.ThreeDO
                                     (byte)Math.Min(255, baseColor.B * primaryScale),
                                     baseColor.A
                                 );
-                                
+
                                 // Secondary Source
                                 Rgba32 secondarySource = new Rgba32(0, 0, 0, 0);
                                 if (p0_2S == 1)
@@ -2617,7 +2653,7 @@ namespace ExtractCLUT.Games.ThreeDO
                                     // Cel pixel itself
                                     secondarySource = baseColor;
                                 }
-                                
+
                                 // Secondary divider
                                 float sdv = p0_2D ? 2.0f : 1.0f;
                                 Rgba32 scaledSecondary = new Rgba32(
@@ -2626,7 +2662,7 @@ namespace ExtractCLUT.Games.ThreeDO
                                     (byte)Math.Min(255, secondarySource.B / sdv),
                                     secondarySource.A
                                 );
-                                
+
                                 // Final math stage - add primary and secondary (most common for fire effects)
                                 baseColor = new Rgba32(
                                     (byte)Math.Min(255, scaledPrimary.R + scaledSecondary.R),
@@ -2667,14 +2703,14 @@ namespace ExtractCLUT.Games.ThreeDO
                 // Manual rendering to handle PLUT 000 transparency
                 image = new Image<Rgba32>(celOutput.Width, celOutput.Height);
                 bool bgndFlag = (ccbFlags & 0x00000020) != 0; // BGND flag - bit 5
-                
+
                 for (int y = 0; y < celOutput.Height; y++)
                 {
                     for (int x = 0; x < celOutput.Width; x++)
                     {
                         int pixelIndex = y * celOutput.Width + x;
                         int plutIndex;
-                        
+
                         if (celOutput.BitsPerPixel == 8)
                         {
                             // For 8bpp coded: Extract lower 5 bits (PLUT index)
@@ -2682,19 +2718,18 @@ namespace ExtractCLUT.Games.ThreeDO
                         }
                         else if (celOutput.BitsPerPixel < 8)
                         {
-                            // For sub-byte formats, data is already clean palette indices
-                            plutIndex = celOutput.PixelData[pixelIndex];
+                            plutIndex = GetCodedPaletteIndex(celOutput.PixelData[pixelIndex], celOutput.BitsPerPixel, ccbFlags);
                         }
                         else // 16bpp
                         {
                             int byteOffset = pixelIndex * 2;
                             plutIndex = celOutput.PixelData[byteOffset] | (celOutput.PixelData[byteOffset + 1] << 8);
                         }
-                        
+
                         // Get color from palette
                         Color paletteColor = plutIndex < palette.Count ? palette[plutIndex] : palette[plutIndex % palette.Count];
                         Rgba32 rgba = paletteColor.ToPixel<Rgba32>();
-                        
+
                         // Check if PLUT entry is 000 (black RGB) - this indicates transparency
                         // unless BGND flag is set
                         if (!bgndFlag && rgba.R == 0 && rgba.G == 0 && rgba.B == 0)
@@ -2781,11 +2816,12 @@ namespace ExtractCLUT.Games.ThreeDO
             if (!noLoopRecords)
             {
                 stream.Seek(32 + (loopRecordsToSkip * 16), SeekOrigin.Begin);
-            } else
+            }
+            else
             {
                 stream.Seek(32, SeekOrigin.Begin);
             }
-            
+
             if (verbose && numLoops == 0)
             {
                 Console.WriteLine($"  Note: Reading 1 loop record even though numLoops=0 (per 3DO spec)");
@@ -2832,14 +2868,14 @@ namespace ExtractCLUT.Games.ThreeDO
                         // Extract CCB header fields for detailed logging
                         // Note: CCB chunk size is 80 bytes total (including 8-byte header)
                         // Actual CCB data is 72 bytes, offsets are relative to start of chunk (after magic+size)
-                        uint ccbFlags = (uint)ReadBigEndianInt32(currentCCB, 8);
+                        uint ccbFlags = (uint)ReadBigEndianInt32(currentCCB, 12);
                         int width = ReadBigEndianInt32(currentCCB, 72);
                         int height = ReadBigEndianInt32(currentCCB, 76);
 
                         Console.WriteLine($"  CCB for frame {frameIndex}:");
                         Console.WriteLine($"    Dimensions: {width}x{height}");
                         Console.WriteLine($"    FLAGS: 0x{ccbFlags:X8}");
-                        
+
                         // Decode important flags
                         bool skipFlag = (ccbFlags & 0x80000000) != 0;
                         bool lastFlag = (ccbFlags & 0x40000000) != 0;
@@ -2848,7 +2884,7 @@ namespace ExtractCLUT.Games.ThreeDO
                         bool bgndFlag = (ccbFlags & 0x00000020) != 0;
                         bool noblkFlag = (ccbFlags & 0x00000010) != 0;
                         int plutaValue = (int)((ccbFlags >> 1) & 0x7);
-                        
+
                         Console.WriteLine($"    SKIP={skipFlag}, LAST={lastFlag}, CCBPRE={ccbpreFlag}, PACKED={packedFlag}");
                         Console.WriteLine($"    BGND={bgndFlag}, NOBLK={noblkFlag}, PLUTA={plutaValue}");
                     }
@@ -2885,7 +2921,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     {
                         ccbToUse = currentCCB;
                     }
-                    
+
                     // This PDAT belongs to the previous CCB
                     if (ccbToUse == null)
                     {
@@ -2911,7 +2947,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     {
                         // Create a temporary stream with CCB + PDAT data
                         var celImageData = UnpackCelFile_FromBytes(celData, verbose: false, bitsPerPixel: bitsPerPixel);
-                        
+
                         if (celImageData != null)
                         {
                             // Determine output filename
@@ -2922,14 +2958,14 @@ namespace ExtractCLUT.Games.ThreeDO
                             var paletteToUse = celImageData.Palette ?? currentPalette;
 
                             // Extract CCB flags for transparency handling
-                            uint ccbFlags = (uint)ReadBigEndianInt32(ccbToUse, 8);
+                            uint ccbFlags = (uint)ReadBigEndianInt32(ccbToUse, 12);
 
                             // Extract PIXC word (CCB word #13) if LDPIXC flag is set (bit 24)
                             uint pixc = 0;
                             bool ldpixc = (ccbFlags & 0x01000000) != 0;
                             if (ldpixc && ccbToUse.Length >= 60) // Need at least 60 bytes for PIXC at offset 52
                             {
-                                pixc = (uint)ReadBigEndianInt32(ccbToUse, 52); // PIXC is CCB word #13 (offset 52 from CCB start)
+                                pixc = (uint)ReadBigEndianInt32(ccbToUse, 60); // PIXC is CCB word #13 (offset 60 from chunk start)
                             }
 
                             // Log transparency status
@@ -2942,19 +2978,19 @@ namespace ExtractCLUT.Games.ThreeDO
                                     transparentPixels = celImageData.TransparencyMask.Count(t => t);
                                 }
                                 int totalPixels = celImageData.Width * celImageData.Height;
-                                
+
                                 Console.WriteLine($"  Frame {frameIndex} transparency: Mask={hasTransparencyMask}, " +
                                     $"Transparent pixels={transparentPixels}/{totalPixels} ({100.0 * transparentPixels / totalPixels:F1}%)");
                             }
 
                             // Save the frame with CCB flags and PIXC for proper transparency handling and pixel processor simulation
                             SaveCelImage(celImageData, frameOutputPath, paletteToUse, ccbFlags, pixc, useFrameBufferBlending: false, verbose);
-                            
+
                             if (verbose)
                             {
                                 Console.WriteLine($"  ✓ Saved frame {frameIndex}: {frameFileName}");
                             }
-                            
+
                             framesExtracted++;
                         }
                         else
@@ -2968,7 +3004,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     }
 
                     frameIndex++;
-                    
+
                     // Only reset CCB for multi-CCB animations (animType==0)
                     if (animType == 0)
                     {
@@ -3000,7 +3036,7 @@ namespace ExtractCLUT.Games.ThreeDO
             {
                 Console.WriteLine($"\n✓ Extracted {framesExtracted} of {frameIndex} frames from ANIM file");
             }
-            
+
             return framesExtracted;
         }
 
@@ -3045,7 +3081,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     // Define where each of the 4 sequential pixels in the file should go
                     // Using (row, column) notation from the docs, which is (y, x)
                     int[] destYOffsets, destXOffsets;
-                    
+
                     if (pixelOrder == 1)
                     {
                         // Sherrie LRform: file has pixels in order for positions (row,col): (0,0), (0,1), (1,0), (1,1)
@@ -3079,7 +3115,7 @@ namespace ExtractCLUT.Games.ThreeDO
                         // Copy pixel data from sequential source position to calculated destination
                         for (int b = 0; b < bytesPerPixel; b++)
                         {
-                            reorderedPixelData[destPixelIndex * bytesPerPixel + b] = 
+                            reorderedPixelData[destPixelIndex * bytesPerPixel + b] =
                                 source.PixelData[srcPixelIndex * bytesPerPixel + b];
                         }
 
@@ -3277,7 +3313,7 @@ namespace ExtractCLUT.Games.ThreeDO
                     // For 0554h (horizontal), the image data is stored at half width and should be doubled
                     int actualWidth = width;
                     int actualHeight = height;
-                    
+
                     if (hvFormat == 1) // 0554h - horizontal double
                     {
                         actualWidth = width * 2;
@@ -3381,7 +3417,7 @@ namespace ExtractCLUT.Games.ThreeDO
                 // For hvformat scaling, we need to unpack at the stored dimensions first
                 int storedWidth = width;
                 int storedHeight = height;
-                
+
                 // Adjust back to stored dimensions for unpacking
                 if (hvFormat == 1) // 0554h - horizontal double
                 {
@@ -3405,6 +3441,11 @@ namespace ExtractCLUT.Games.ThreeDO
                         Console.WriteLine($"Unpacking at stored dimensions: {storedWidth}x{storedHeight}");
                         Console.WriteLine($"Will scale to final dimensions: {width}x{height}");
                     }
+                }
+
+                if ((bitsPerPixel == 16 && width * height * 2 == pixelData.Length) || ((bitsPerPixel == 8 || bitsPerPixel == 6) && width * height == pixelData.Length))
+                {
+                    isPacked = false;
                 }
 
                 // Route to the appropriate unpacking method based on format
@@ -3545,7 +3586,7 @@ namespace ExtractCLUT.Games.ThreeDO
                         if (verbose) Console.WriteLine($"Successfully saved CEL image #{i + 1} to: {numberedPath}");
                     }
                 }
-                
+
                 return true;
             }
             catch (Exception ex)
@@ -3602,4 +3643,5 @@ namespace ExtractCLUT.Games.ThreeDO
         /// </summary>
         public uint Pixc { get; set; } = 0;
     }
+
 }
